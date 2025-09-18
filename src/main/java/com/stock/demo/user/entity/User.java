@@ -6,6 +6,8 @@ import com.stock.demo.domain.transaction.entity.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table(name = "users")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -24,13 +26,13 @@ public class User extends TimeStamped {
     private String nickname;
 
     @Column(nullable = false)
-    private Long balance;
+    private double balance;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private Transaction transaction;
+    @OneToMany(mappedBy = "user")
+    private List<Transaction> transactions;
 
     @Builder
-    public User(Long id, String password, String nickname, Long balance) {
+    public User(Long id, String password, String nickname, double balance) {
         this.id = id;
         this.password = password;
         this.nickname = nickname;
