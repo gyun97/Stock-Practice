@@ -17,3 +17,13 @@ spring:
 #    username: root
     password: ${MYSQL_PASSWORD}
 #    password: 1234
+
+
+#  jpa:
+#    hibernate:
+#      ddl-auto: create
+#    properties:
+#      hibernate:
+#        show_sql: true
+#        format_sql: true
+#        open-in-view: false
