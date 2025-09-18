@@ -20,10 +20,10 @@ public class Portfolio extends TimeStamped {
     private Long id;
 
     @Column(nullable = false)
-    private Long totalAsset;
+    private long totalAsset;
 
     @Column(nullable = false)
-    private Double avgReturnRate;
+    private double avgReturnRate;
 
     // 단방향
     @OneToOne(fetch = FetchType.LAZY)
@@ -31,7 +31,7 @@ public class Portfolio extends TimeStamped {
     private User user;
 
     @Builder
-    public Portfolio(Long id, Long totalAsset, Double avgReturnRate, User user) {
+    public Portfolio(Long id, long totalAsset, double avgReturnRate, User user) {
         this.id = id;
         this.totalAsset = totalAsset;
         this.avgReturnRate = avgReturnRate;
