@@ -24,24 +24,17 @@ public class User extends TimeStamped {
     private String nickname;
 
     @Column(nullable = false)
-    private Long totalAsset;
-
-    @Column(nullable = false)
-    private Long availableAsset;
-
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private Portfolio portfolio;
+    private Long balance;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private Transaction transaction;
 
     @Builder
-    public User(Long id, String password, String nickname, Long totalAsset, Long availableAsset) {
+    public User(Long id, String password, String nickname, Long balance) {
         this.id = id;
         this.password = password;
         this.nickname = nickname;
-        this.totalAsset = totalAsset;
-        this.availableAsset = availableAsset;
+        this.balance = balance;
     }
 
 
