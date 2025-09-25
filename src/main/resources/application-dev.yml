@@ -1,8 +1,22 @@
+kis:
+  app:
+    key: ${KIS_APP_KEY}
+    secret: ${KIS_APP_SECRET}
+  domain:
+#    real: https://openapi.koreainvestment.com:9443
+    virtual: https://openapivts.koreainvestment.com:29443
+
 # ?? ??
 server:
   port: 8080
 #  ssl:
 #    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: mappings
 
 #MySQL ??
 spring:
