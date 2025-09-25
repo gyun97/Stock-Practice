@@ -4,7 +4,7 @@ kis:
     secret: ${KIS_APP_SECRET}
   domain:
 #    real: https://openapi.koreainvestment.com:9443
-    virtual: https://openapivts.koreainvestment.com:29443
+    virtual: ${BASE_URL}
 
 # ?? ??
 server:

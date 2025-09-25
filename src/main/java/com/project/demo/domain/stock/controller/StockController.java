@@ -16,9 +16,16 @@ public class StockController {
 
     private final StockServiceImpl stockService;
 
-    @PostMapping("/{trId}/{trKey}")
+    /**
+     * 구독 종목 주식 정보 조회
+     * @param trId
+     * @param trKey
+     * @return
+     * @throws Exception
+     */
+    @GetMapping("/{trId}/{trKey}")
     public ResponseEntity<ApiResponse<String>> getStockPrice(@PathVariable String trId, @PathVariable String trKey) throws Exception {
-        stockService.getTradedPrice(trId, trKey); // 종목 구독 체결
-        return ResponseEntity.ok(ApiResponse.createSuccess(trKey + ": 구독 성공"));
+        stockService.getStockInfo(trId, trKey); // 종목 구독 체결
+        return ResponseEntity.ok(ApiResponse.createSuccess(trKey + ": 정보 조회 성공"));
     }
 }
