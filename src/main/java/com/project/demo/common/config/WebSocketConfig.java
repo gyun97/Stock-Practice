@@ -1,5 +1,6 @@
-package com.project.demo.common.websocket;
+package com.project.demo.common.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -12,7 +13,11 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  */
 @Configuration
 @EnableWebSocketMessageBroker // STOMP(메시지 브로커를 사용한 Pub/Sub 방식) 기반의 메시징을 활성화
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+//    private final StompHandler stompHandler;
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         config.enableSimpleBroker("/topic"); // 클라이언트가 구독할 수 있는 목적지 prefix를 /topic으로 지정
@@ -27,4 +32,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // withSockJS() → 브라우저가 WebSocket을 지원하지 않아도 SockJS를 통해 fallback 가능.
         registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
     }
+
+//    @Override
+//    public void configureClientInboundChannel(ChannelRegistration registration) {
+//        registration.interceptors(stompHandler);
+//    }
 }

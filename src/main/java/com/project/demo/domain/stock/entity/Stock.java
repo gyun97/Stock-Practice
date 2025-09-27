@@ -1,6 +1,6 @@
 package com.project.demo.domain.stock.entity;
 
-import com.project.demo.common.entity.TimeStamped;
+import com.project.demo.common.time.TimeStamped;
 import com.project.demo.domain.stock.enums.Market;
 import com.project.demo.domain.transaction.entity.Transaction;
 import jakarta.persistence.*;

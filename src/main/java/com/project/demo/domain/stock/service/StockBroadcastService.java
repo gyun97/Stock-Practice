@@ -1,6 +1,7 @@
 package com.project.demo.domain.stock.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StockBroadcastService {
 
     /*
@@ -20,6 +22,7 @@ public class StockBroadcastService {
 
     public void broadcast(String message) {
         // 메서드가 호출되면 /topic/stocks를 구독하고 있는 모든 클라이언트가 메시지를 받음
+        log.info("브로드캐스트 데이터: {}", message);
         messagingTemplate.convertAndSend("/topic/stocks", message); // /topic/stocks → 클라이언트가 구독(subscribe)하는 채널(Endpoint)
     }
 }

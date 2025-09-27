@@ -11,7 +11,7 @@ public interface StockService {
     // 종목 구독 해제
 //    public ResponseEntity<ApiResponse<String>> unsubscribe(String code) throws  Exception;
 
-    public boolean isMarketOpen();
+//    public boolean isMarketOpen();
 
 
 

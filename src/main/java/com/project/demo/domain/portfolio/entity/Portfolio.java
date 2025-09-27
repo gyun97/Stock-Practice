@@ -1,6 +1,6 @@
 package com.project.demo.domain.portfolio.entity;
 
-import com.project.demo.common.entity.TimeStamped;
+import com.project.demo.common.time.TimeStamped;
 import com.project.demo.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -23,6 +23,9 @@ public class Portfolio extends TimeStamped {
     private long totalAsset;
 
     @Column(nullable = false)
+    private long totalQuantity;
+
+    @Column(nullable = false)
     private double avgReturnRate;
 
     // 단방향
@@ -31,9 +34,10 @@ public class Portfolio extends TimeStamped {
     private User user;
 
     @Builder
-    public Portfolio(Long id, long totalAsset, double avgReturnRate, User user) {
+    public Portfolio(Long id, long totalAsset, int totalQuantity, double avgReturnRate, User user) {
         this.id = id;
         this.totalAsset = totalAsset;
+        this.totalQuantity = totalQuantity;
         this.avgReturnRate = avgReturnRate;
         this.user = user;
     }

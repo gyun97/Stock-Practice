@@ -1,4 +1,4 @@
-package com.project.demo.common.entity;
+package com.project.demo.common.time;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.Column;

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.oauth.service.ApprovalKeyService;
 import com.project.demo.common.oauth.service.KisApiAccessTokenService;
+
 import com.project.demo.common.websocket.ConnectWebSocketClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ public class StockServiceImpl implements StockService {
     private final StockBroadcastService stockBroadcastService;
     private final KisApiAccessTokenService kisApiAccessTokenService;
 
+
     private String approvalKey;
 
     @Value("${KIS_APP_KEY}")
@@ -42,9 +44,8 @@ public class StockServiceImpl implements StockService {
     @Value("${KIS_APP_SECRET}")
     private String appSecret;
 
-    @Value("${BASE_URL}")
+    @Value("${REAL_BASE_URL}")
     private String baseUrl;
-
 
     private String iv;
     private String key;
@@ -152,7 +153,7 @@ public class StockServiceImpl implements StockService {
             if (body != null) {
                 Object output = body.get("output");
                 if (output instanceof Map<?,?> om) {
-                    Object p = om.get("stck_prpr"); // KIS 현재가 필드 추정
+                    Object p = om.get("stck_prpr"); // KIS 현재가 필드
                     if (p != null) {
                         try { price = Double.valueOf(p.toString()); } catch (Exception ignore) {}
                     }
