@@ -38,6 +38,12 @@ dependencies {
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+	// redis
+//	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+//	implementation 'org.springframework.boot:spring-boot-starter-cache'
+//	implementation 'io.lettuce.core:lettuce-core'
+
+
 	// 웹소켓
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.java-websocket:Java-WebSocket:1.5.6'
@@ -47,6 +53,12 @@ dependencies {
 
 	// Actuator
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// SpringFlux의 WebClient
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// Flyway
+	implementation 'org.flywaydb:flyway-mysql'
 
 }
 

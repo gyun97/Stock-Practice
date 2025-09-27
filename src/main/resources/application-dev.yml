@@ -3,8 +3,8 @@ kis:
     key: ${KIS_APP_KEY}
     secret: ${KIS_APP_SECRET}
   domain:
-#    real: https://openapi.koreainvestment.com:9443
-    virtual: ${BASE_URL}
+    real: ${REAL_BASE_URL}
+    virtual: ${VIRTUAL_BASE_URL}
 
 # ?? ??
 server:
@@ -41,3 +41,33 @@ spring:
 #        show_sql: true
 #        format_sql: true
 #        open-in-view: false
+
+#  jpa:
+#    show-sql: true
+#    hibernate:
+#      ddl-auto: update
+#    properties:
+#      hibernate:
+#        dialect: org.hibernate.dialect.MySQLDialect
+#        format_sql: true
+
+  # Redis ??
+  data:
+    redis:
+      sentinel:
+        master:
+          host: ${REDIS_HOST:localhost}
+          port: 6379
+        nodes:
+          - ${REDIS_PORT1:localhost}:26379
+          - ${REDIS_PORT2:localhost}:26380
+          - ${REDIS_PORT3:localhost}:26381
+      timeout: 10000
+
+  flyway:
+    enabled: true  # flway ??(??? true)
+    url: jdbc:mysql://localhost:3306/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul  # DB ??
+    username: ${MYSQL_NAME}  # DB user ???
+    password: ${MYSQL_PASSWORD}  # DB user ???
+    baseline-on-migrate: true  # Baseline ??(???? ???? ?????? ?? ??? ??)
+    locations: classpath:db/migration/{vendor}  #?????? ?? ?? ??(?? ??: db/migration )

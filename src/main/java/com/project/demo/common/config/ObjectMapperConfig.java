@@ -14,4 +14,6 @@ public class ObjectMapperConfig {
         mapper.setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE); // JSON 변수 스네이크 케이스화
         return mapper;
     }
+
+
 }

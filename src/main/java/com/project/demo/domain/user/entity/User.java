@@ -1,6 +1,6 @@
 package com.project.demo.domain.user.entity;
 
-import com.project.demo.common.entity.TimeStamped;
+import com.project.demo.common.time.TimeStamped;
 import com.project.demo.domain.transaction.entity.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
@@ -22,7 +22,7 @@ public class User extends TimeStamped {
     private String password;
 
     @Column(nullable = false, unique = true)
-    private String nickname;
+    private String name;
 
     @Column(nullable = false)
     private double balance;
@@ -31,10 +31,10 @@ public class User extends TimeStamped {
     private List<Transaction> transactions;
 
     @Builder
-    public User(Long id, String password, String nickname, double balance) {
+    public User(Long id, String password, String name, double balance) {
         this.id = id;
         this.password = password;
-        this.nickname = nickname;
+        this.name = name;
         this.balance = balance;
     }
 
