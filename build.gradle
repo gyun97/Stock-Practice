@@ -41,13 +41,9 @@ dependencies {
 	// redis
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-cache'
-//	implementation 'io.lettuce.core:lettuce-core'
 
 	//Redisson
-//	implementation 'org.redisson:redisson-spring-boot-starter:3.21.1'
-//	implementation 'org.redisson:redisson-spring-boot-starter:3.27.2'
 	implementation 'org.redisson:redisson-spring-boot-starter:3.24.3'
-
 
 	// 웹소켓
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
