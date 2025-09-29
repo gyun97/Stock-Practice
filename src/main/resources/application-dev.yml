@@ -26,21 +26,17 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${MYSQL_HOST}:3306/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul
-#    url: jdbc:mysql://localhost:3306/stock?serverTimezone=Asia/Seoul
     username: ${MYSQL_NAME}
-#    username: root
     password: ${MYSQL_PASSWORD}
-#    password: 1234
 
-
-#  jpa:
-#    hibernate:
-#      ddl-auto: create
-#    properties:
-#      hibernate:
-#        show_sql: true
-#        format_sql: true
-#        open-in-view: false
+  jpa:
+    hibernate:
+#      ddl-auto: update
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+        open-in-view: false
 
 #  jpa:
 #    show-sql: true
@@ -52,20 +48,17 @@ spring:
 #        format_sql: true
 
   # Redis ??
-  data:
-    redis:
-      sentinel:
-        master:
-          host: ${REDIS_HOST:localhost}
-          port: 6379
-        nodes:
-          - ${REDIS_PORT1:localhost}:26379
-          - ${REDIS_PORT2:localhost}:26380
-          - ${REDIS_PORT3:localhost}:26381
-      timeout: 10000
+  redis:
+    sentinel:
+      master: mymaster
+      nodes:
+        - ${REDIS_SENTINEL_PORT1}:26379
+        - ${REDIS_SENTINEL_PORT2}:26380
+        - ${REDIS_SENTINEL_PORT3}:26381
+
 
   flyway:
-    enabled: true  # flway ??(??? true)
+    enabled: true  # flyway ??(??? true)
     url: jdbc:mysql://localhost:3306/${MYSQL_DATABASE}?serverTimezone=Asia/Seoul  # DB ??
     username: ${MYSQL_NAME}  # DB user ???
     password: ${MYSQL_PASSWORD}  # DB user ???

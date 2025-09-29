@@ -8,6 +8,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,14 +24,16 @@ public class ConnectWebSocketClient extends WebSocketClient {
 
     private final StockBroadcastService broadcastService;
     private final ObjectMapper objectMapper;
+    private final StringRedisTemplate redisTemplate;
 
     private String iv;
     private String key;
 
-    public ConnectWebSocketClient(StockBroadcastService broadcastService, ObjectMapper objectMapper) throws Exception {
+    public ConnectWebSocketClient(StockBroadcastService broadcastService, ObjectMapper objectMapper, StringRedisTemplate redisTemplate) throws Exception {
         super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
         this.broadcastService = broadcastService;
         this.objectMapper = objectMapper;
+        this.redisTemplate = redisTemplate;
     }
 
     /** Spring Boot 실행되면 자동 연결 */
@@ -78,6 +82,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
             } else {
                 receiveRealTimeDomestic(message);
                 broadcastService.broadcast(message);
+
             }
         } catch (Exception e) {
             log.error("메시지 처리 실패", e);
@@ -96,6 +101,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
         } else {
             String[] fields = data.split("\\^");
             log.info("종목코드={}, 체결시간={}, 현재가={}", fields[0], fields[1], fields[2]);
+            redisTemplate.opsForValue().set("stock:price:" + fields[0], String.valueOf(fields[2])); // Redis에 종목 코드와 실시간 현재가 저장
         }
     }
 
