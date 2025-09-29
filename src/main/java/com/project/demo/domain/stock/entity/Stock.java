@@ -24,29 +24,31 @@ public class Stock extends TimeStamped {
 
     // 주식 식별 코드
     @Column(nullable = false)
-    private String symbol;
+    private String ticker; // 종목 코드
 
-    @Column(name = "stock_name", nullable = false)
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Market market;
 
-    @Column(nullable = false)
-    private int price;
+    private Long volume; // 누적 거래야
 
+//    @Column(nullable = false)
+//    private int price;
 
     @OneToMany(mappedBy = "stock")
     private List<Transaction> transactions;
 
     @Builder
-    public Stock(Long id, String symbol, String name, Market market, int price) {
+    public Stock(Long id, String ticker, String name, Market market, Long volume) {
         this.id = id;
-        this.symbol = symbol;
+        this.ticker = ticker;
         this.name = name;
         this.market = market;
-        this.price = price;
+        this.volume = volume;
+//        this.price = price;
     }
 
 

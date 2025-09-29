@@ -23,9 +23,16 @@ public class StockController {
      * @return
      * @throws Exception
      */
-    @GetMapping("/{trId}/{trKey}")
-    public ResponseEntity<ApiResponse<String>> getStockPrice(@PathVariable String trId, @PathVariable String trKey) throws Exception {
-        stockService.getStockInfo(trId, trKey); // 종목 구독 체결
-        return ResponseEntity.ok(ApiResponse.createSuccess(trKey + ": 정보 조회 성공"));
-    }
+//    @GetMapping("/{trId}/{trKey}")
+//    public ResponseEntity<ApiResponse<String>> getStockPrice(@PathVariable String trId, @PathVariable String trKey) throws Exception {
+//        stockService.getStockInfo(trId, trKey); // 종목 구독 체결
+//        return ResponseEntity.ok(ApiResponse.createSuccess(trKey + ": 정보 조회 성공"));
+//    }
+
+
+//    @GetMapping("/top30")
+//    public ResponseEntity<String> getTop30() {
+//        String response = stockService.getTopMarketCapStocks();
+//        return ResponseEntity.ok(response);
+//    }
 }
