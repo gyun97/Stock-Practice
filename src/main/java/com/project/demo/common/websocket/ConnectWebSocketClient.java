@@ -1,22 +1,20 @@
 package com.project.demo.common.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.oauth.service.AesDecryptUtil;
 import com.project.demo.common.time.MarketTime;
+import com.project.demo.domain.stock.repository.StockRepository;
 import com.project.demo.domain.stock.service.StockBroadcastService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
-import java.time.*;
-
-import static com.project.demo.common.time.MarketTime.KST;
 
 @Slf4j
 @Component
@@ -25,18 +23,22 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private final StockBroadcastService broadcastService;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final StockRepository stockRepository;
 
     private String iv;
     private String key;
 
-    public ConnectWebSocketClient(StockBroadcastService broadcastService, ObjectMapper objectMapper, StringRedisTemplate redisTemplate) throws Exception {
+    public ConnectWebSocketClient(StockBroadcastService broadcastService, ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository) throws Exception {
         super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
         this.broadcastService = broadcastService;
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
+        this.stockRepository = stockRepository;
     }
 
-    /** Spring Boot 실행되면 자동 연결 */
+    /**
+     * Spring Boot 실행되면 자동 연결
+     */
     @PostConstruct
     public void init() {
         new Thread(() -> {
@@ -54,12 +56,13 @@ public class ConnectWebSocketClient extends WebSocketClient {
         }).start();
     }
 
-    /** 장 종료 감시 → 1분마다 실행 */
-    @Scheduled(cron = "0 * 9-16 * * MON-FRI", zone = "Asia/Seoul")
-    public void checkMarketClose() {
-        ZonedDateTime now = ZonedDateTime.now(KST);
-        if (!MarketTime.isMarketOpenAt(now) && this.isOpen()) {
-            log.info("장 마감 감지 → WebSocket 연결 종료");
+    /**
+     * 장 마감 직후 15:31에 1회 실행 → WebSocket 종료
+     */
+    @Scheduled(cron = "0 31 15 * * MON-FRI", zone = "Asia/Seoul")
+    public void closeAtMarketClose() {
+        if (this.isOpen()) {
+            log.info("장 마감 시각 도달 → WebSocket 연결 종료");
             this.close();
         }
     }
@@ -69,19 +72,20 @@ public class ConnectWebSocketClient extends WebSocketClient {
         log.info("서버와 연결됨: {}", handshake);
     }
 
+    // 메시지가 수신되었을 때 자동으로 특정 메서드를 실행하는 콜백(callback) 메서드
     @Override
     public void onMessage(String message) {
         try {
             if (message.startsWith("{")) {
                 var json = objectMapper.readTree(message);
                 if (json.has("body") && json.get("body").has("output")) {
-                    this.iv = json.get("body").get("output").get("iv").asText();
-                    this.key = json.get("body").get("output").get("key").asText();
+                    this.iv = json.get("body").get("output").get("iv").asText(); // iv: 실시간 결과 복호화에 필요한 AES256((Initialize Vector))
+                    this.key = json.get("body").get("output").get("key").asText(); // key: 실시간 결과 복호화에 필요한 AES256 Key
                     log.info("iv={}, key={}", iv, key);
                 }
             } else {
-                receiveRealTimeDomestic(message);
-                broadcastService.broadcast(message);
+                receiveRealTimeData(message); // 웹소켓 실시간 주식 데이터 전처리 및 Redis 저장
+                broadcastService.broadcast(message); // 프론트 엔드에 Redis Pub/Sub을 통해 실시간 데이터 전송
 
             }
         } catch (Exception e) {
@@ -89,7 +93,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
         }
     }
 
-    private void receiveRealTimeDomestic(String message) throws Exception {
+    // 실시간 주식 데이터 수신
+    private void receiveRealTimeData(String message) throws Exception {
         String[] parts = message.split("\\|");
         String encFlag = parts[0];
         String trId = parts[1];
@@ -100,8 +105,28 @@ public class ConnectWebSocketClient extends WebSocketClient {
             log.info("복호화 결과: {}", decrypted);
         } else {
             String[] fields = data.split("\\^");
-            log.info("종목코드={}, 체결시간={}, 현재가={}", fields[0], fields[1], fields[2]);
-            redisTemplate.opsForValue().set("stock:price:" + fields[0], String.valueOf(fields[2])); // Redis에 종목 코드와 실시간 현재가 저장
+
+            String ticker = fields[0];
+            String tradeTime = fields[1];
+            double price = Double.parseDouble(fields[2]);
+            double changeAmount = Double.parseDouble(fields[4]);
+            double changeRate = Double.parseDouble(fields[5]);
+            String companyName = stockRepository.findNameByTicker(ticker);
+
+            ObjectNode out = objectMapper.createObjectNode();
+            out.put("stockCode", ticker);
+            out.put("price", price);
+            out.put("changeAmount", changeAmount);
+            out.put("changeRate", changeRate);
+            out.put("companyName", companyName);
+            out.put("tradeTime", tradeTime); // WebSocket만 tradeTime 갱신
+
+            String json = objectMapper.writeValueAsString(out);
+
+            redisTemplate.opsForValue().set("stock:data:" + ticker, json);
+            redisTemplate.convertAndSend("stock:updates", json);
+
+            log.info("Redis 저장 & Pub/Sub 발행(WS) → {}", json);
         }
     }
 
@@ -114,33 +139,4 @@ public class ConnectWebSocketClient extends WebSocketClient {
     public void onError(Exception ex) {
         log.error("WebSocket 에러 발생", ex);
     }
-
-//    // === 장 시간 계산 로직 ===
-//    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
-//    private static final LocalTime REGULAR_OPEN  = LocalTime.of(9, 0);
-//    private static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 30);
-//
-//    public boolean isMarketOpen() {
-//        return isMarketOpenAt(ZonedDateTime.now(KST));
-//    }
-//
-//    public boolean isMarketOpenAt(ZonedDateTime when) {
-//        boolean isWeekday = isWeekday(when.toLocalDate());
-//        boolean inRegularHours = isInRegularSession(when.toLocalTime());
-//        boolean isHoliday = isKrxHoliday(when.toLocalDate());
-//        return isWeekday && !isHoliday && inRegularHours;
-//    }
-//
-//    private boolean isWeekday(LocalDate date) {
-//        DayOfWeek dow = date.getDayOfWeek();
-//        return dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY;
-//    }
-//
-//    private boolean isInRegularSession(LocalTime time) {
-//        return !time.isBefore(REGULAR_OPEN) && !time.isAfter(REGULAR_CLOSE);
-//    }
-//
-//    private boolean isKrxHoliday(LocalDate date) {
-//        return false; // 추후 확장 가능
-//    }
 }
