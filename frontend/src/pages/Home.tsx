@@ -47,7 +47,7 @@ export default function Home() {
   // STOMP 실시간 업데이트 반영 (Redis Pub/Sub -> 백엔드 브로드캐스트를 전제로 /topic/stocks 구독)
 
   const onTick = useMemo(() => (payload: any, raw: string) => {
-    const code = String(payload?.stockCode ?? '')
+    const code = String(payload?.ticker ?? '')
     const price = toNum(payload?.price)
     const changeRate = toNum(payload?.changeRate)
     const companyName = payload?.companyName as string | undefined
@@ -57,7 +57,7 @@ export default function Home() {
     if (companyName) {
       console.log("실시간 수신:", { companyName, price, changeRate })
     } else {
-      console.log("실시간 수신(이름없음):", { stockCode: code, price, changeRate })
+      console.log("실시간 수신(이름없음):", { ticker: code, price, changeRate })
     }
 
     if (!code || price == null) return

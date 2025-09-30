@@ -25,9 +25,6 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +38,7 @@ public class StockSubscribe {
     private final ObjectMapper mapper;
     private final KisApprovalKeyService approvalKeyService;
     private final KisApiAccessTokenService kisApiAccessTokenService;
-    private final StockBroadcastService stockBroadcastService;
+//    private final StockBroadcastService stockBroadcastService;
     private final StockRepository stockRepository;
     private final WebClient webClient;
     private final ConnectWebSocketClient client;
@@ -130,12 +127,12 @@ public class StockSubscribe {
         } else { // 만약 장외시간이라면
             for (String ticker : allTickers) {
                 getStockPriceRest(ticker); // Rest API로 종가 가져오기
-                Thread.sleep(500); // 0.1초 딜레이 → 초당 10건
+                Thread.sleep(500); // KIS 초당 거래 요청 제한 때문에 0.5초 딜레이(이 이하는 초당 거래 요청 횟수 초과)
             }
         }
     }
 
-    // 해당 주식 종목 구독
+    // 서버 가동시 사이트에서 다룰 30개 주식 종목 구독
     private void subscribeStock(String ticker) throws JsonProcessingException {
         ObjectNode header = mapper.createObjectNode();
 
@@ -183,6 +180,7 @@ public class StockSubscribe {
         client.send(json);
     }
 
+    // 서버 가동시 사이트에서 다룰 30개 주식 종목 최초 정보 가져오기
     public void getStockPriceRest(String trKey) {
         String url = baseUrl + "/uapi/domestic-stock/v1/quotations/inquire-price";
 
@@ -211,9 +209,11 @@ public class StockSubscribe {
             Object output = body.get("output");
             Map<String, Object> om = (Map<String, Object>) output;
 
-            double price = Double.parseDouble(Optional.ofNullable(om.get("stck_prpr")).orElse("0").toString());
-            double changeAmount = Double.parseDouble(Optional.ofNullable(om.get("prdy_vrss")).orElse("0").toString());
+            int price = Integer.parseInt(Optional.ofNullable(om.get("stck_prpr")).orElse("0").toString());
+            long changeAmount = Long.parseLong(Optional.ofNullable(om.get("prdy_vrss")).orElse("0").toString());
             double changeRate = Double.parseDouble(Optional.ofNullable(om.get("prdy_ctrt")).orElse("0").toString());
+            long volume = Long.parseLong(Optional.ofNullable(om.get("acml_vol")).orElse("0").toString());
+
 
             // Redis에 기존 데이터가 있으면 tradeTime 유지
             String key = "stock:data:" + trKey;
@@ -230,19 +230,24 @@ public class StockSubscribe {
             String companyName = stockRepository.findNameByTicker(trKey); // 회사 이름
 
             ObjectNode out = mapper.createObjectNode();
-            out.put("stockCode", trKey);
-            out.put("price", price);
-            out.put("changeAmount", changeAmount);
-            out.put("changeRate", changeRate);
-            out.put("companyName", companyName);
+            out.put("ticker", trKey); // 종목 코드
+            out.put("price", price); // 현재가
+            out.put("changeAmount", changeAmount); // 주가 변화
+            out.put("changeRate", changeRate); // 등락률
+            out.put("companyName", companyName); // 회사 이름
+            out.put("volume", volume); // 거래량
             if (tradeTime != null) {
                 out.put("tradeTime", tradeTime); // WebSocket에서 갱신된 값 유지
             }
 
             String json = mapper.writeValueAsString(out);
 
-            redisTemplate.opsForValue().set(key, json);
-            redisTemplate.convertAndSend("stock:updates", json);
+            redisTemplate.opsForValue().set(key, json); // Redis에 주가 정보 저장
+
+            // 거래량 순 정렬용 ZSET 업데이트
+            redisTemplate.opsForZSet().add("stock:rank:volume", trKey, volume);
+
+            redisTemplate.convertAndSend("stock:updates", json); // 백엔드가 KIS에서 받은 데이터를 RedisSubscriber에 발송
 
             log.info("Redis 저장 & Pub/Sub 발행(REST) → {}", json);
 

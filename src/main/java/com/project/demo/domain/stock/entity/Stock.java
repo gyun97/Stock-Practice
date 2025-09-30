@@ -33,7 +33,7 @@ public class Stock extends TimeStamped {
     @Enumerated(EnumType.STRING)
     private Market market;
 
-    private Long volume; // 누적 거래야
+    private Long volume; // 누적 거래량
 
 //    @Column(nullable = false)
 //    private int price;

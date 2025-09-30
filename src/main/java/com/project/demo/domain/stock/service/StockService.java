@@ -1,20 +1,14 @@
 package com.project.demo.domain.stock.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.project.demo.domain.stock.dto.response.CandleResponse;
+import com.project.demo.domain.stock.dto.response.StockResponse;
+
+import java.util.List;
 
 public interface StockService {
 
-    // 종목 구독
-//    public ResponseEntity<ApiResponse<String>> subscribe(String code) throws Exception;
-//    public void getStockInfo(String trId, String trKey) throws JsonProcessingException;
+    public List<StockResponse> showAllStock();
 
-    // 종목 구독 해제
-//    public ResponseEntity<ApiResponse<String>> unsubscribe(String code) throws  Exception;
-
-//    public boolean isMarketOpen();
-
-
-
-
+    public List<CandleResponse> getMinuteCandles(String ticker, String date, String time);
 
 }
