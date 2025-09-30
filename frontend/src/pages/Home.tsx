@@ -1,0 +1,164 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { createStompClient } from '../lib/socket'
+
+type Row = {
+  ticker: string
+  name: string
+  price: number
+  changeRate: number
+  logoUrl?: string
+  volume: number
+}
+
+export default function Home() {
+  const [rows, setRows] = useState<Row[]>([])
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const loaderRef = useRef<HTMLDivElement | null>(null)
+  const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
+
+  // 초기 페이지 로드
+  useEffect(() => {
+    fetch(`/api/v1/stocks`)
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(json => {
+        const raw = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : [])
+        const normalized: Row[] = raw.map((it: any) => {
+          const ticker = String(it?.ticker ?? it?.stockCode ?? it?.code ?? it?.symbol ?? '')
+          const name = String(it?.name ?? it?.companyName ?? it?.stockName ?? '')
+          const price = toNum(it?.price ?? it?.stck_prpr ?? it?.currentPrice) ?? 0
+          const changeRate = toNum(it?.changeRate ?? it?.prdy_ctrt ?? it?.rate) ?? 0
+          const logoUrl = it?.logoUrl as string | undefined
+
+          const volume = toNum(it?.volume ?? it?.acml_vol ?? it?.accumulatedVolume) ?? 0
+          return { ticker, name, price, changeRate, logoUrl, volume }
+//           return { ticker, name, price, changeRate, logoUrl}
+        }).filter((r: Row) => r.ticker && r.name)
+        setRows(normalized)
+        setHasMore(false) // 서버 페이징 구현 전까지 false
+      })
+      .catch(err => {
+        console.error("주식 데이터 불러오기 실패", err)
+        // setRows([]) // 실패 시 빈 값
+      })
+  }, [])
+
+  // STOMP 실시간 업데이트 반영 (Redis Pub/Sub -> 백엔드 브로드캐스트를 전제로 /topic/stocks 구독)
+
+  const onTick = useMemo(() => (payload: any, raw: string) => {
+    const code = String(payload?.stockCode ?? '')
+    const price = toNum(payload?.price)
+    const changeRate = toNum(payload?.changeRate)
+    const companyName = payload?.companyName as string | undefined
+    const logoUrl = payload?.logoUrl as string | undefined
+    const volume = toNum(payload?.volume ?? payload?.accumulatedVolume ?? payload?.acml_vol)
+
+    if (companyName) {
+      console.log("실시간 수신:", { companyName, price, changeRate })
+    } else {
+      console.log("실시간 수신(이름없음):", { stockCode: code, price, changeRate })
+    }
+
+    if (!code || price == null) return
+    setRows(prev => {
+      const found = prev.some(r => r.ticker === code)
+      return found
+        ? prev.map(r =>
+            r.ticker === code
+              ? { ...r, price, changeRate: changeRate ?? r.changeRate, name: companyName ?? r.name, logoUrl: logoUrl ?? r.logoUrl, volume: volume ?? r.volume }
+              : r
+          )
+        : [...prev, { ticker: code, name: companyName ?? code, price, changeRate, logoUrl, volume: volume ?? 0 }]
+    })
+  }, [])
+
+  useEffect(() => {
+    const client = createStompClient(onTick)
+    client.activate()
+    stompRef.current = client
+    return () => { client.deactivate() }
+  }, [onTick])
+
+  // 무한 스크롤 옵저버 (서버 페이징 연결 시 활성화)
+  useEffect(() => {
+    if (!loaderRef.current || !hasMore) return
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) {
+        setPage(p => p + 1)
+        // TODO: /api/stocks/summary?page=... 로 확장 가능
+      }
+    })
+    io.observe(loaderRef.current)
+    return () => io.disconnect()
+  }, [hasMore])
+
+  return (
+    <div style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
+      <h2 style={{ margin: '8px 0 16px' }}>실시간 차트 (정렬 기준: 거래량 순)</h2>
+      <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+        {/* 헤더 라벨 제거 (로고 | 종목명 | 현재가 | 등락률 | 거래량) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 140px 120px 140px', alignItems: 'center', padding: '8px 16px', background: '#f8fafc' }} />
+        {rows.map(row => (
+          <Link key={row.ticker} to={`/stocks/${row.ticker}`} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 140px 120px 140px', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: '1px solid #f1f5f9', textDecoration: 'none', color: 'inherit' }}>
+            <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
+            <div>{row.name}</div>
+
+
+            <div style={{ textAlign: 'right' }}>
+              {row.price != null ? `${row.price.toLocaleString()}원` : '-'}
+            </div>
+
+            <div
+              style={{
+                textAlign: 'right',
+                color:
+                  row.changeRate != null
+                    ? row.changeRate > 0
+                      ? '#ef4444' // 양수: 빨강
+                      : row.changeRate < 0
+                      ? '#3b82f6' // 음수: 파랑 (Tailwind의 blue-500)
+                      : '#374151' // 0일 때: 회색
+                    : '#374151'
+              }}
+            >
+              {row.changeRate != null ? `${row.changeRate.toFixed(2)}%` : '-'}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              {row.volume != null ? `${row.volume.toLocaleString()}주` : '-'}
+            </div>
+          </Link>
+        ))}
+        <div ref={loaderRef} style={{ height: 24 }} />
+      </div>
+    </div>
+  )
+}
+
+function toNum(v: any): number | undefined {
+  if (v == null) return undefined
+  const n = Number(String(v).replace(/[^0-9.-]/g, ''))
+  return Number.isFinite(n) ? n : undefined
+}
+
+function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; logoUrl?: string }) {
+  const fallbackBg = '#e5e7eb'
+  const initials = (name || ticker || '?').slice(0, 2)
+  const safeName = (name || '').replace(/[\\/#?&%:"*<>|]/g, '').replace(/\s+/g, '')
+  const src = logoUrl ?? `/logos/${safeName}.png`
+  const onError = (e: any) => {
+    e.currentTarget.style.display = 'none'
+    const sib = e.currentTarget.nextSibling as HTMLElement | null
+    if (sib) sib.style.display = 'flex'
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <img src={src} alt={name} width={32} height={32} style={{ borderRadius: 6, objectFit: 'contain', background: '#fff', border: '1px solid #e5e7eb' }} onError={onError} />
+      <div style={{ display: 'none', width: 32, height: 32, borderRadius: 6, alignItems: 'center', justifyContent: 'center', background: fallbackBg, color: '#374151', fontWeight: 600, fontSize: 12, border: '1px solid #e5e7eb' }}>
+        {initials}
+      </div>
+    </div>
+  )
+}
+
+
