@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.oauth.service.AesDecryptUtil;
 import com.project.demo.common.time.MarketTime;
 import com.project.demo.domain.stock.repository.StockRepository;
-import com.project.demo.domain.stock.service.StockBroadcastService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
@@ -20,7 +19,6 @@ import java.net.URI;
 @Component
 public class ConnectWebSocketClient extends WebSocketClient {
 
-    private final StockBroadcastService broadcastService;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
     private final StockRepository stockRepository;
@@ -28,9 +26,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private String iv;
     private String key;
 
-    public ConnectWebSocketClient(StockBroadcastService broadcastService, ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository) throws Exception {
+    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository) throws Exception {
         super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
-        this.broadcastService = broadcastService;
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
         this.stockRepository = stockRepository;
@@ -85,8 +82,6 @@ public class ConnectWebSocketClient extends WebSocketClient {
                 }
             } else {
                 receiveRealTimeData(message); // 웹소켓 실시간 주식 데이터 전처리 및 Redis 저장
-                broadcastService.broadcast(message); // 프론트 엔드에 Redis Pub/Sub을 통해 실시간 데이터 전송
-
             }
         } catch (Exception e) {
             log.error("메시지 처리 실패", e);
@@ -106,25 +101,28 @@ public class ConnectWebSocketClient extends WebSocketClient {
         } else {
             String[] fields = data.split("\\^");
 
-            String ticker = fields[0];
+            String ticker = fields[0]; // 종목 코드
             String tradeTime = fields[1];
-            double price = Double.parseDouble(fields[2]);
-            double changeAmount = Double.parseDouble(fields[4]);
-            double changeRate = Double.parseDouble(fields[5]);
+            int price = Integer.parseInt(fields[2]);
+            double changeAmount = Double.parseDouble(fields[4]); // 주가 변화
+            double changeRate = Double.parseDouble(fields[5]); // 등락률
+            long volume = Long.parseLong(fields[13]); // 누적 거래량
             String companyName = stockRepository.findNameByTicker(ticker);
 
             ObjectNode out = objectMapper.createObjectNode();
-            out.put("stockCode", ticker);
+            out.put("ticker", ticker);
             out.put("price", price);
             out.put("changeAmount", changeAmount);
             out.put("changeRate", changeRate);
             out.put("companyName", companyName);
             out.put("tradeTime", tradeTime); // WebSocket만 tradeTime 갱신
+            out.put("volume", volume);
 
             String json = objectMapper.writeValueAsString(out);
 
-            redisTemplate.opsForValue().set("stock:data:" + ticker, json);
-            redisTemplate.convertAndSend("stock:updates", json);
+            redisTemplate.opsForValue().set("stock:data:" + ticker, json); // Redis에 실시간 해당 종목 데이터 저장
+            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
+            redisTemplate.convertAndSend("stock:updates", json); // 백엔드가 KIS에서 받은 데이터를 RedisSubscriber에 발송
 
             log.info("Redis 저장 & Pub/Sub 발행(WS) → {}", json);
         }

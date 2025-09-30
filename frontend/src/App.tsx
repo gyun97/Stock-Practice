@@ -4,7 +4,7 @@ import { createStompClient } from './lib/socket'
 import LiveChart from './components/LiveChart'
 import type { LineData, Time } from 'lightweight-charts'
 
-type Tick = { price?: number; tradeTime?: string; stockCode?: string }
+type Tick = { price?: number; tradeTime?: string; ticker?: string }
 
 export default function App() {
   const [last, setLast] = useState<Tick>({})
@@ -15,8 +15,8 @@ export default function App() {
   const handler = useMemo(() => (payload: any) => {
     const price = toNum(payload?.price ?? payload?.currentPrice)
     const tradeTime = String(payload?.tradeTime ?? '')
-    const stockCode = String(payload?.stockCode ?? payload?.symbol ?? '')
-    if (price != null) setLast({ price, tradeTime, stockCode })
+    const ticker = String(payload?.ticker ?? payload?.symbol ?? '')
+    if (price != null) setLast({ price, tradeTime, ticker })
   }, [])
 
   useEffect(() => {

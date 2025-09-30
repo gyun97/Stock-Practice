@@ -10,7 +10,7 @@ export default function Detail() {
   const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
 
   const onTick = useMemo(() => (payload: any) => {
-    const code = String(payload?.stockCode ?? payload?.symbol ?? '')
+    const code = String(payload?.ticker ?? payload?.symbol ?? '')
     if (code !== ticker) return
     const price = toNum(payload?.price ?? payload?.stck_prpr)
     const tradeTime = String(payload?.tradeTime ?? payload?.stck_cntg_hour ?? '')
