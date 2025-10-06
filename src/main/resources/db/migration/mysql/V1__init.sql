@@ -69,9 +69,16 @@ CREATE TABLE `portfoliostocks` (
     FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
 );
 
+CREATE TABLE candles (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ticker VARCHAR(12) NOT NULL COMMENT '종목코드 (예: 005930)',
+    date CHAR(8) NOT NULL COMMENT '영업일자 (yyyyMMdd)',
+    time CHAR(6) NOT NULL COMMENT '체결시간 (HHmmss)',
+    open BIGINT NOT NULL COMMENT '시가',
+    high BIGINT NOT NULL COMMENT '고가',
+    low BIGINT NOT NULL COMMENT '저가',
+    close BIGINT NOT NULL COMMENT '종가',
+    volume BIGINT NOT NULL COMMENT '거래량',
+    UNIQUE KEY uq_candle (ticker, date, time)
+)
 
-
---INSERT INTO `stocks` (stockId, ticker, name, market, price, createdAt, updatedAt, accVolume)
---VALUES
---  (1, '005930', '삼성전자', 'KRX', 83300, NOW(), NOW(), 17196340),
---  (2, '000660', 'SK하이닉스', 'KRX', 336500, NOW(), NOW(), 3685324);

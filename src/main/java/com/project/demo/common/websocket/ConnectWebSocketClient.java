@@ -3,7 +3,7 @@ package com.project.demo.common.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.oauth.service.AesDecryptUtil;
-import com.project.demo.common.time.MarketTime;
+import com.project.demo.common.util.MarketTime;
 import com.project.demo.domain.stock.repository.StockRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -54,9 +54,9 @@ public class ConnectWebSocketClient extends WebSocketClient {
     }
 
     /**
-     * 장 마감 직후 15:31에 1회 실행 → WebSocket 종료
+     * 장 마감 15:20에 1회 실행 → WebSocket 종료
      */
-    @Scheduled(cron = "0 31 15 * * MON-FRI", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 20 15 * * MON-FRI", zone = "Asia/Seoul")
     public void closeAtMarketClose() {
         if (this.isOpen()) {
             log.info("장 마감 시각 도달 → WebSocket 연결 종료");

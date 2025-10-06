@@ -1,6 +1,6 @@
 package com.project.demo.domain.portfolio.entity;
 
-import com.project.demo.common.time.TimeStamped;
+import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;

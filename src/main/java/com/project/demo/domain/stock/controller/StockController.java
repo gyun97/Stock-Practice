@@ -25,6 +25,7 @@ public class StockController {
 
     /**
      * 전체 주식 정보 가져오기
+     *
      * @return 각 주식의 [종목 코드, 가격, 주가 변화량, 등락률, 회사 이름, 체결 시간, 누적 거래량] 리스트
      */
     @GetMapping
@@ -32,28 +33,28 @@ public class StockController {
         return ResponseEntity.ok(ApiResponse.createSuccess(stockService.showAllStock()));
     }
 
-    @GetMapping("/{ticker}/order")
-    public ResponseEntity<ApiResponse<List<CandleResponse>>> getMinuteCandles(
-            @PathVariable String ticker,
-            @RequestParam(required = false) String date,
-            @RequestParam(required = false) String time) {
+//    @GetMapping("/{ticker}")
+//    public ResponseEntity<ApiResponse<List<CandleResponse>>> getMinuteCandles(
+//            @PathVariable String ticker,
+//            @RequestParam(required = false) String date,
+//            @RequestParam(required = false) String time) {
+//
+//        // 기본값: 현재 일자
+//        if (date == null) date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+//
+//        // 기본값: 현재 시각 (HHmmss)
+//        if (time == null) time = LocalTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
+//
+//        List<CandleResponse> minuteCandles = stockService.getMinuteCandles(ticker, date, time);
+//        return ResponseEntity.ok(ApiResponse.createSuccess(minuteCandles));
+//    }
 
-        // 기본값: 현재 일자
-        if (date == null) {
-            date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        }
+    @GetMapping("/{ticker}/period")
+    public ResponseEntity<ApiResponse<List<CandleResponse>>> getPeriodStockInfo(
+            @PathVariable String ticker, @RequestParam(required = true) String period) {
 
-        // 기본값: 현재 시각 (HHmmss)
-        if (time == null) {
-            time = LocalTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
-        }
-
-        List<CandleResponse> minuteCandles = stockService.getMinuteCandles(ticker, date, time);
-        return ResponseEntity.ok(ApiResponse.createSuccess(minuteCandles));
+        List<CandleResponse> response = stockService.getPeriodStockInfo(ticker, period);
+        return ResponseEntity.ok(ApiResponse.createSuccess(response));
     }
-
-
-
-
 
 }

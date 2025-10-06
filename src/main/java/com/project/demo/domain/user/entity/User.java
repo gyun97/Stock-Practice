@@ -1,6 +1,6 @@
 package com.project.demo.domain.user.entity;
 
-import com.project.demo.common.time.TimeStamped;
+import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.transaction.entity.Transaction;
 import jakarta.persistence.*;
 import lombok.*;

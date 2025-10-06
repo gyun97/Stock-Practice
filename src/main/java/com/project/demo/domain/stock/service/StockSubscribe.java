@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.oauth.service.KisApiAccessTokenService;
 import com.project.demo.common.oauth.service.KisApprovalKeyService;
-import com.project.demo.common.time.MarketTime;
+import com.project.demo.common.util.MarketTime;
 import com.project.demo.common.websocket.ConnectWebSocketClient;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.stock.enums.Market;
