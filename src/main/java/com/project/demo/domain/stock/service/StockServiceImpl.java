@@ -2,6 +2,7 @@ package com.project.demo.domain.stock.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.demo.common.util.DateUtil;
 import com.project.demo.domain.stock.dto.response.CandleResponse;
 import com.project.demo.domain.stock.dto.response.StockResponse;
 import com.project.demo.domain.stock.repository.StockRepository;
@@ -13,14 +14,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -40,7 +36,12 @@ public class StockServiceImpl implements StockService {
     @Value("${kis.app.secret}")
     private String appSecret;
 
-    private String accessToken;
+    @Value("${REAL_BASE_URL}")
+    private String baseUrl;
+
+    public String getAccessToken() {
+        return redisTemplate.opsForValue().get("kis:access_token");
+    }
 
     // 전체 주식 30개 거래량 순으로 정보 반환
     @Override
@@ -69,11 +70,11 @@ public class StockServiceImpl implements StockService {
     }
 
     public List<CandleResponse> getMinuteCandles(String ticker, String date, String time) {
-        String url = "https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice";
+        String url = "uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice";
 
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(url.replace("https://openapi.koreainvestment.com:9443", "")) // base 제거
+                        .path(url)
                         .queryParam("FID_COND_MRKT_DIV_CODE", "J")  // KRX
                         .queryParam("FID_INPUT_ISCD", ticker)       // ex: 005930
                         .queryParam("FID_INPUT_HOUR_1", time)       // ex: 090000
@@ -82,7 +83,7 @@ public class StockServiceImpl implements StockService {
                         .queryParam("FID_FAKE_TICK_INCU_YN", "N")
                         .build())
                 .header(HttpHeaders.CONTENT_TYPE, "application/json; charset=utf-8")
-                .header("authorization", "Bearer " + redisTemplate.opsForValue().get("kis:access_token"))
+                .header("authorization", "Bearer " + getAccessToken())
                 .header("appkey", appKey)
                 .header("appsecret", appSecret)
                 .header("tr_id", "FHKST03010230")
@@ -99,7 +100,7 @@ public class StockServiceImpl implements StockService {
                                     .open(node.get("stck_oprc").asInt())
                                     .high(node.get("stck_hgpr").asInt())
                                     .low(node.get("stck_lwpr").asInt())
-                                    .close(node.get("stck_prpr").asInt())
+                                    .close(node.get("stck_clpr").asInt())
                                     .volume(node.get("cntg_vol").asLong())
                                     .build();
                             candles.add(candle);
@@ -110,6 +111,59 @@ public class StockServiceImpl implements StockService {
                 .block();
     }
 
+    public List<CandleResponse> getPeriodStockInfo(String ticker, String period) {
+        String endDate = DateUtil.today(); // 오늘 날짜
+        String tmpStartDate = "";
+        switch (period) {
+            case "D": // 일
+                tmpStartDate = DateUtil.daysAgo(30); // 30일 전(약 한달치)
+                break;
+            case "M": // 달
+                tmpStartDate = DateUtil.monthsAgo(12); // 12달 전(1년치)
+                break;
+            case "Y": // 연
+                tmpStartDate = DateUtil.yearsAgo(10); // 10년 전(10년치)
+                break;
+            case "W": // 주
+                tmpStartDate = DateUtil.weeksAgo(24); // 24주 전(약 6개 치)
+                break;
+        }
+        String startDate = tmpStartDate;
 
-
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice")
+                        .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                        .queryParam("FID_INPUT_ISCD", ticker)
+                        .queryParam("FID_INPUT_DATE_1", startDate)
+                        .queryParam("FID_INPUT_DATE_2", endDate)
+                        .queryParam("FID_PERIOD_DIV_CODE", period) // D/W/M/Y
+                        .queryParam("FID_ORG_ADJ_PRC", "0")
+                        .build())
+                .header("authorization", "Bearer " + getAccessToken())
+                .header("appkey", appKey)
+                .header("appsecret", appSecret)
+                .header("tr_id", "FHKST03010100")
+                .header("custtype", "P")
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .map(json -> {
+                    List<CandleResponse> candles = new ArrayList<>();
+                    if (json.has("output2")) {
+                        for (JsonNode node : json.get("output2")) {
+                            CandleResponse candle = CandleResponse.builder()
+                                    .date(node.get("stck_bsop_date").asText())
+                                    .open(node.get("stck_oprc").asInt())
+                                    .high(node.get("stck_hgpr").asInt())
+                                    .low(node.get("stck_lwpr").asInt())
+                                    .close(node.get("stck_clpr").asInt())
+                                    .volume(node.get("acml_vol").asLong())
+                                    .build();
+                            candles.add(candle);
+                        }
+                    }
+                    return candles;
+                })
+                .block();
+    }
 }
