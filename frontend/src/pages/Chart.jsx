@@ -4,19 +4,21 @@ import { useParams, Link } from 'react-router-dom'
 export default function Chart() {
   const { ticker = '' } = useParams()
   const [candleData, setCandleData] = useState([])
-  const [selectedPeriod, setSelectedPeriod] = useState('D')
+  const [selectedPeriod, setSelectedPeriod] = useState('MIN')
   const [loading, setLoading] = useState(false)
   const [companyName, setCompanyName] = useState('')
+  const [currentPrice, setCurrentPrice] = useState(null)
   const canvasRef = useRef(null)
 
   const periods = [
+    { key: 'MIN', label: '분' },
     { key: 'D', label: '일' },
     { key: 'W', label: '주' },
     { key: 'M', label: '월' },
     { key: 'Y', label: '년' }
   ]
 
-  // 회사 정보 로드 함수
+  // 회사 정보 및 실시간 시세 로드 함수
   const loadCompanyInfo = async () => {
     if (!ticker) return
     
@@ -27,8 +29,18 @@ export default function Chart() {
         const stocks = result.data
         if (stocks && Array.isArray(stocks)) {
           const stock = stocks.find(s => s.ticker === ticker)
-          if (stock && stock.companyName) {
-            setCompanyName(stock.companyName)
+          if (stock) {
+            if (stock.companyName) {
+              setCompanyName(stock.companyName)
+            }
+            // 실시간 시세 정보 설정
+            setCurrentPrice({
+              price: stock.price,
+              changeAmount: stock.changeAmount,
+              changeRate: stock.changeRate,
+              volume: stock.volume,
+              tradeTime: stock.tradeTime
+            })
           }
         }
       }
@@ -44,7 +56,16 @@ export default function Chart() {
     setLoading(true)
     try {
       console.log(`데이터 로드 시작: ${ticker}, period: ${period}`)
-      const response = await fetch(`/api/v1/stocks/${ticker}/period?period=${period}`)
+      
+      let response
+      if (period === 'MIN') {
+        // 분 단위 데이터는 다른 API 사용
+        response = await fetch(`/api/v1/stocks/${ticker}`)
+      } else {
+        // 기간별 데이터는 기존 API 사용
+        response = await fetch(`/api/v1/stocks/${ticker}/period?period=${period}`)
+      }
+      
       console.log('응답 상태:', response.status)
       
       if (!response.ok) {
@@ -58,13 +79,21 @@ export default function Chart() {
       console.log('파싱된 캔들 데이터:', data.slice(0, 3))
       
       if (data.length > 0) {
-        // 날짜 오름차순 정렬
-        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date))
+        // 분 단위는 시간순 정렬, 나머지는 날짜순 정렬
+        const sortedData = period === 'MIN' 
+          ? [...data].sort((a, b) => {
+              // 분 단위는 date+time으로 정렬
+              const aDateTime = a.date + (a.time || '000000')
+              const bDateTime = b.date + (b.time || '000000')
+              return aDateTime.localeCompare(bDateTime)
+            })
+          : [...data].sort((a, b) => a.date.localeCompare(b.date))
+        
         console.log('정렬된 데이터:', sortedData.slice(0, 3))
         
         // 정렬된 데이터로 상태 업데이트 및 차트 그리기
         setCandleData(sortedData)
-        drawChart(sortedData)
+        drawChart(sortedData, period)
       } else {
         setCandleData([])
       }
@@ -76,7 +105,7 @@ export default function Chart() {
   }
 
   // 분리된 차트 그리기 (주가 라인 + 거래량 막대)
-  const drawChart = (data) => {
+  const drawChart = (data, period = 'D') => {
     const canvas = canvasRef.current
     if (!canvas || data.length === 0) return
 
@@ -197,7 +226,7 @@ export default function Chart() {
     ctx.textAlign = 'left'
     ctx.fillText('거래량', marginLeft, volumeStartY - 5)
 
-    // X축 라벨 (일부 날짜만)
+    // X축 라벨 (일부 날짜/시간만)
     ctx.fillStyle = '#666'
     ctx.font = '12px Arial'
     ctx.textAlign = 'center'
@@ -206,11 +235,24 @@ export default function Chart() {
       const index = Math.floor((i / labelCount) * data.length)
       const x = marginLeft + (index / (data.length - 1)) * chartWidth
       const y = volumeStartY + volumeChartHeight + 20
-      const dateStr = data[index].date
-      const year = dateStr.substring(0, 4)
-      const month = dateStr.substring(4, 6)
-      const day = dateStr.substring(6, 8)
-      ctx.fillText(`${year}-${month}-${day}`, x, y)
+      
+      let labelText
+      if (period === 'MIN') {
+        // 분 단위는 시간 표시
+        const timeStr = data[index].time || '000000'
+        const hour = timeStr.substring(0, 2)
+        const minute = timeStr.substring(2, 4)
+        labelText = `${hour}:${minute}`
+      } else {
+        // 기간별은 날짜 표시
+        const dateStr = data[index].date
+        const year = dateStr.substring(0, 4)
+        const month = dateStr.substring(4, 6)
+        const day = dateStr.substring(6, 8)
+        labelText = `${year}-${month}-${day}`
+      }
+      
+      ctx.fillText(labelText, x, y)
     }
     
   }
@@ -257,6 +299,66 @@ export default function Chart() {
       {loading && (
         <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
           데이터를 불러오는 중...
+        </div>
+      )}
+
+      {/* 실시간 시세 정보 */}
+      {currentPrice && (
+        <div style={{
+          background: '#f8f9fa',
+          border: '1px solid #e9ecef',
+          borderRadius: 8,
+          padding: '16px 20px',
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          maxWidth: 1200
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+            {/* 현재가 */}
+            <div>
+              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>현재가</div>
+              <div style={{ 
+                fontSize: 24, 
+                fontWeight: 'bold', 
+                color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
+              }}>
+                {currentPrice.price.toLocaleString()}원
+              </div>
+            </div>
+
+            {/* 등락률 */}
+            <div>
+              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>등락률</div>
+              <div style={{ 
+                fontSize: 18, 
+                fontWeight: 'bold',
+                color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
+              }}>
+                {currentPrice.changeAmount >= 0 ? '+' : ''}{currentPrice.changeAmount.toLocaleString()}원
+                <span style={{ fontSize: 14, marginLeft: 8 }}>
+                  ({currentPrice.changeAmount >= 0 ? '+' : ''}{currentPrice.changeRate.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+
+            {/* 거래량 */}
+            <div>
+              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>거래량</div>
+              <div style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>
+                {Math.round(currentPrice.volume / 1000000)}M
+              </div>
+            </div>
+          </div>
+
+          {/* 체결시간 */}
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>체결시간</div>
+            <div style={{ fontSize: 14, color: '#333' }}>
+              {currentPrice.tradeTime || '실시간'}
+            </div>
+          </div>
         </div>
       )}
 

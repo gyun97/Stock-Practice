@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.project.demo.common.oauth.service.KisApiAccessTokenService;
-import com.project.demo.common.oauth.service.KisApprovalKeyService;
+import com.project.demo.common.kis.KisApiAccessTokenService;
+import com.project.demo.common.kis.KisApprovalKeyService;
 import com.project.demo.common.util.MarketTime;
 import com.project.demo.common.websocket.ConnectWebSocketClient;
 import com.project.demo.domain.stock.entity.Stock;
@@ -33,12 +33,11 @@ import java.util.Set;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class StockSubscribe {
+public class InitStockSubscribe {
 
     private final ObjectMapper mapper;
     private final KisApprovalKeyService approvalKeyService;
     private final KisApiAccessTokenService kisApiAccessTokenService;
-//    private final StockBroadcastService stockBroadcastService;
     private final StockRepository stockRepository;
     private final WebClient webClient;
     private final ConnectWebSocketClient client;
@@ -126,7 +125,7 @@ public class StockSubscribe {
             }
         } else { // 만약 장외시간이라면
             for (String ticker : allTickers) {
-                getStockPriceRest(ticker); // Rest API로 종가 가져오기
+                getStockInfoRest(ticker); // Rest API로 종가 가져오기
                 Thread.sleep(500); // KIS 초당 거래 요청 제한 때문에 0.5초 딜레이(이 이하는 초당 거래 요청 횟수 초과)
             }
         }
@@ -181,7 +180,7 @@ public class StockSubscribe {
     }
 
     // 서버 가동시 사이트에서 다룰 30개 주식 종목 최초 정보 가져오기
-    public void getStockPriceRest(String trKey) {
+    public void getStockInfoRest(String trKey) {
         String url = baseUrl + "/uapi/domestic-stock/v1/quotations/inquire-price";
 
         log.info("url: {}", url);
@@ -255,4 +254,6 @@ public class StockSubscribe {
             log.warn("REST 현재가 브로드캐스트 실패", e);
         }
     }
+
+
 }

@@ -34,7 +34,7 @@ public class StockController {
     }
 
 //    @GetMapping("/{ticker}")
-//    public ResponseEntity<ApiResponse<List<CandleResponse>>> getMinuteCandles(
+//    public ResponseEntity<ApiResponse<List<StockResponse>>> getMinuteCandles(
 //            @PathVariable String ticker,
 //            @RequestParam(required = false) String date,
 //            @RequestParam(required = false) String time) {
@@ -45,7 +45,7 @@ public class StockController {
 //        // 기본값: 현재 시각 (HHmmss)
 //        if (time == null) time = LocalTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
 //
-//        List<CandleResponse> minuteCandles = stockService.getMinuteCandles(ticker, date, time);
+//        List<StockResponse> minuteCandles = stockService.getMinuteCandles(ticker, date, time);
 //        return ResponseEntity.ok(ApiResponse.createSuccess(minuteCandles));
 //    }
 
