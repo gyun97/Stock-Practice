@@ -1,6 +1,6 @@
 package com.project.demo.domain.stock.entity;
 
-import com.project.demo.common.time.TimeStamped;
+import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.stock.enums.Market;
 import com.project.demo.domain.transaction.entity.Transaction;
 import jakarta.persistence.*;
@@ -33,7 +33,7 @@ public class Stock extends TimeStamped {
     @Enumerated(EnumType.STRING)
     private Market market;
 
-    private Long volume; // 누적 거래야
+    private Long volume; // 누적 거래량
 
 //    @Column(nullable = false)
 //    private int price;

@@ -1,13 +1,14 @@
-package com.project.demo.common.time;
+package com.project.demo.common.util;
 
 import java.time.*;
+//import kr.holiday.Holiday;
 
 public class MarketTime {
 
     // === 장 시간 계산 로직 ===
     public static final ZoneId KST = ZoneId.of("Asia/Seoul");
     public static final LocalTime REGULAR_OPEN  = LocalTime.of(9, 0);
-    public static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 30);
+    public static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 20);
 
     public static boolean isMarketOpen() {
         return isMarketOpenAt(ZonedDateTime.now(KST));
@@ -16,8 +17,9 @@ public class MarketTime {
     public static boolean isMarketOpenAt(ZonedDateTime when) {
         boolean isWeekday = isWeekday(when.toLocalDate());
         boolean inRegularHours = isInRegularSession(when.toLocalTime());
-        boolean isHoliday = isKrxHoliday(when.toLocalDate());
-        return isWeekday && !isHoliday && inRegularHours;
+//        boolean isHoliday = isKrxHoliday(when.toLocalDate());
+//        return isWeekday && !isHoliday && inRegularHours;
+        return isWeekday && inRegularHours;
     }
 
     private static boolean isWeekday(LocalDate date) {
@@ -29,7 +31,7 @@ public class MarketTime {
         return !time.isBefore(REGULAR_OPEN) && !time.isAfter(REGULAR_CLOSE);
     }
 
-    private static boolean isKrxHoliday(LocalDate date) {
-        return false; // 추후 확장 가능
-    }
+//    private static boolean isKrxHoliday(LocalDate date) {
+//        return Holiday.isHoliday(date);  // 자동으로 주말 + 공휴일 판별
+//    }
 }

@@ -33,7 +33,7 @@ function parseCaretPayload(raw: string) {
     const data = parts[3] ?? ''
     const fields = data.split('^')
     return {
-      stockCode: fields[0],
+      ticker: fields[0],
       tradeTime: fields[1],
 //       curTime: fields[1],
       price: fields[2],

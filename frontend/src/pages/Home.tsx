@@ -47,7 +47,7 @@ export default function Home() {
   // STOMP 실시간 업데이트 반영 (Redis Pub/Sub -> 백엔드 브로드캐스트를 전제로 /topic/stocks 구독)
 
   const onTick = useMemo(() => (payload: any, raw: string) => {
-    const code = String(payload?.stockCode ?? '')
+    const code = String(payload?.ticker ?? '')
     const price = toNum(payload?.price)
     const changeRate = toNum(payload?.changeRate)
     const companyName = payload?.companyName as string | undefined
@@ -57,10 +57,14 @@ export default function Home() {
     if (companyName) {
       console.log("실시간 수신:", { companyName, price, changeRate })
     } else {
-      console.log("실시간 수신(이름없음):", { stockCode: code, price, changeRate })
+      console.log("실시간 수신(이름없음):", { ticker: code, price, changeRate })
     }
 
     if (!code || price == null) return
+    
+    // 장 마감 시간(15:30) 이후에는 실시간 업데이트 중단
+//     if (!isMarketOpen()) return
+    
     setRows(prev => {
       const found = prev.some(r => r.ticker === code)
       return found
@@ -100,7 +104,7 @@ export default function Home() {
         {/* 헤더 라벨 제거 (로고 | 종목명 | 현재가 | 등락률 | 거래량) */}
         <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 140px 120px 140px', alignItems: 'center', padding: '8px 16px', background: '#f8fafc' }} />
         {rows.map(row => (
-          <Link key={row.ticker} to={`/stocks/${row.ticker}`} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 140px 120px 140px', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: '1px solid #f1f5f9', textDecoration: 'none', color: 'inherit' }}>
+          <Link key={row.ticker} to={`/stocks/${row.ticker}/chart`} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 140px 120px 140px', alignItems: 'center', gap: 12, padding: '12px 16px', borderTop: '1px solid #f1f5f9', textDecoration: 'none', color: 'inherit' }}>
             <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
             <div>{row.name}</div>
 
@@ -139,6 +143,24 @@ function toNum(v: any): number | undefined {
   if (v == null) return undefined
   const n = Number(String(v).replace(/[^0-9.-]/g, ''))
   return Number.isFinite(n) ? n : undefined
+}
+
+// 장 마감 시간 체크 (한국 시간 기준)
+function isMarketOpen(): boolean {
+  const now = new Date()
+  const dayOfWeek = now.getDay()
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+
+  // 주말 체크
+  if (dayOfWeek === 0 || dayOfWeek === 6) return false
+
+  // 장 시간 체크 (09:00 ~ 15:30)
+  const currentTime = hours * 60 + minutes
+  const marketOpen = 9 * 60 // 09:00
+  const marketClose = 15 * 60 + 30 // 15:30
+
+  return currentTime >= marketOpen && currentTime <= marketClose
 }
 
 function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; logoUrl?: string }) {

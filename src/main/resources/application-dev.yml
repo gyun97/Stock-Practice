@@ -18,7 +18,10 @@ management:
       exposure:
         include: mappings
 
-#MySQL ??
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY}
+
 spring:
   config:
     import: optional:file:.env[.properties]
