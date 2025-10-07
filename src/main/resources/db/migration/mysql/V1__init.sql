@@ -80,5 +80,10 @@ CREATE TABLE candles (
     close BIGINT NOT NULL COMMENT '종가',
     volume BIGINT NOT NULL COMMENT '거래량',
     UNIQUE KEY uq_candle (ticker, date, time)
-)
+);
+
+CREATE TABLE refresh_tokens (
+    rt_key BIGINT PRIMARY KEY,
+    rt_value VARCHAR(255) NOT NULL COMMENT '토큰 값'
+);
 

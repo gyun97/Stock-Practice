@@ -1,4 +1,4 @@
-package com.project.demo.common.oauth.service;
+package com.project.demo.common.kis;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.project.demo.common.oauth.service;
+package com.project.demo.common.kis;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;

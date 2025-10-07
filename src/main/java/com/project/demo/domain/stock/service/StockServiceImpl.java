@@ -69,7 +69,8 @@ public class StockServiceImpl implements StockService {
         return result;
     }
 
-    public List<CandleResponse> getMinuteCandles(String ticker, String date, String time) {
+    // 당일 분봉 수집
+    public List<StockResponse> getMinuteCandles(String ticker, String date, String time) {
         String url = "uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice";
 
         return webClient.get()
@@ -91,26 +92,22 @@ public class StockServiceImpl implements StockService {
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .map(json -> {
-                    List<CandleResponse> candles = new ArrayList<>();
+                    List<StockResponse> stocks = new ArrayList<>();
                     if (json.has("output2")) {
                         for (JsonNode node : json.get("output2")) {
-                            CandleResponse candle = CandleResponse.builder()
-                                    .date(node.get("stck_bsop_date").asText())
-                                    .time(node.get("stck_cntg_hour").asText())
-                                    .open(node.get("stck_oprc").asInt())
-                                    .high(node.get("stck_hgpr").asInt())
-                                    .low(node.get("stck_lwpr").asInt())
-                                    .close(node.get("stck_clpr").asInt())
-                                    .volume(node.get("cntg_vol").asLong())
+                            StockResponse candle = StockResponse.builder()
+                                    .tradeTime(node.get("stck_cntg_hour").asText())
+                                    .price(node.get("stck_prpr").asInt())
                                     .build();
-                            candles.add(candle);
+                            stocks.add(candle);
                         }
                     }
-                    return candles;
+                    return stocks;
                 })
                 .block();
     }
 
+    // 기간별 해당 종목 주가, 거래량 조회(연/월/주/일)
     public List<CandleResponse> getPeriodStockInfo(String ticker, String period) {
         String endDate = DateUtil.today(); // 오늘 날짜
         String tmpStartDate = "";

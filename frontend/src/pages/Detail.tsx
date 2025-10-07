@@ -6,7 +6,34 @@ export default function Detail() {
   const { ticker = '' } = useParams()
   const [lastPrice, setLastPrice] = useState<number | undefined>(undefined)
   const [lastTime, setLastTime] = useState<string | undefined>(undefined)
+  const [companyName, setCompanyName] = useState<string>('')
+  const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined)
   const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
+
+  // 회사 정보 로드 함수
+  const loadCompanyInfo = async () => {
+    if (!ticker) return
+    
+    try {
+      const response = await fetch(`/api/v1/stocks`)
+      if (response.ok) {
+        const result = await response.json()
+        const stocks = result.data
+        if (stocks && Array.isArray(stocks)) {
+          const stock = stocks.find(s => s.ticker === ticker)
+          if (stock) {
+            if (stock.companyName) {
+              setCompanyName(stock.companyName)
+              // 로고 URL을 기업명으로 직접 생성
+              setLogoUrl(`/logos/${stock.companyName}.png`)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('회사 정보 로드 실패:', error)
+    }
+  }
 
   const onTick = useMemo(() => (payload: any) => {
     const code = String(payload?.ticker ?? payload?.symbol ?? '')
@@ -23,6 +50,7 @@ export default function Detail() {
   }, [ticker])
 
   useEffect(() => {
+    loadCompanyInfo()
     const client = createStompClient(onTick)
     client.activate()
     stompRef.current = client
@@ -34,7 +62,8 @@ export default function Detail() {
     <div style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Link to="/" style={{ textDecoration: 'none' }}>← 목록</Link>
-        <h2 style={{ margin: 0 }}>{ticker}</h2>
+        <LogoCell name={companyName || ticker} ticker={ticker} logoUrl={logoUrl} />
+        <h2 style={{ margin: 0 }}>{companyName || ticker}</h2>
         {lastPrice != null && <span style={{ color: '#6b7280' }}>{lastPrice.toLocaleString()}원</span>}
       </div>
       
@@ -93,5 +122,53 @@ function isMarketOpen(): boolean {
   return currentTime >= marketOpen && currentTime <= marketClose
 }
 
-
-
+function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; logoUrl?: string }) {
+  const fallbackBg = '#e5e7eb'
+  const initials = (name || ticker || '?').slice(0, 2)
+  
+  // 로고 URL 우선 사용, 없으면 기업명으로 생성
+  const src = logoUrl || `/logos/${name || ticker}.png`
+  
+  console.log('로고 로딩 시도:', { name, ticker, logoUrl, src })
+  
+  const onError = (e: any) => {
+    console.log('로고 로딩 실패:', src)
+    e.currentTarget.style.display = 'none'
+    const sib = e.currentTarget.nextSibling as HTMLElement | null
+    if (sib) sib.style.display = 'flex'
+  }
+  
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <img 
+        src={src} 
+        alt={name} 
+        width={40} 
+        height={40} 
+        style={{ 
+          borderRadius: 8, 
+          objectFit: 'contain', 
+          background: '#fff', 
+          border: '1px solid #e5e7eb' 
+        }} 
+        onError={onError}
+        onLoad={() => console.log('로고 로딩 성공:', src)}
+      />
+      <div style={{ 
+        display: 'none', 
+        width: 40, 
+        height: 40, 
+        borderRadius: 8, 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        background: fallbackBg, 
+        color: '#374151', 
+        fontWeight: 600, 
+        fontSize: 14, 
+        border: '1px solid #e5e7eb' 
+      }}>
+        {initials}
+      </div>
+    </div>
+  )
+}

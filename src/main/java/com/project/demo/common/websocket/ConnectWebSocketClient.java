@@ -2,7 +2,7 @@ package com.project.demo.common.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.project.demo.common.oauth.service.AesDecryptUtil;
+import com.project.demo.common.kis.AesDecryptUtil;
 import com.project.demo.common.util.MarketTime;
 import com.project.demo.domain.stock.repository.StockRepository;
 import jakarta.annotation.PostConstruct;
