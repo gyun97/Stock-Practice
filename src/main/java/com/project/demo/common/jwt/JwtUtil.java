@@ -1,8 +1,8 @@
 package com.project.demo.common.jwt;
 
 
-import com.project.demo.common.auth.entity.RefreshToken;
-import com.project.demo.common.auth.repository.RefreshTokenRepository;
+import com.project.demo.common.exception.auth.ExpiredTokenException;
+import com.project.demo.domain.auth.repository.RefreshTokenRepository;
 import com.project.demo.domain.user.enums.UserRole;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.http.ResponseCookie;
 
@@ -77,7 +76,7 @@ public class JwtUtil {
     public String createRefreshToken(Long userId) {
         Date now = new Date();
 
-        String refreshToken = BEARER_PREFIX +
+        String refreshToken =
                 Jwts.builder()
                         .setSubject(String.valueOf(userId))
                         .setIssuedAt(now)
@@ -90,55 +89,14 @@ public class JwtUtil {
         return refreshToken;
     }
 
-
-//    // JWT를 쿠키에 저장, 만료된 쿠키 삭제 후 새로운 쿠키 추가
-//    public void addJwtToCookie(String token, HttpServletResponse res) {
-//        // 기존 쿠키 제거
-//        Cookie oldCookie = new Cookie(AUTHORIZATION_HEADER, null);
-//        oldCookie.setMaxAge(0);
-//        oldCookie.setPath("/");
-//        oldCookie.setHttpOnly(true);
-//        res.addCookie(oldCookie);
-//
-//        // 새로운 토큰 쿠키 설정
-//        try {
-//            token = URLEncoder.encode(token, "utf-8").replaceAll("\\+", "%20");
-//            Cookie newCookie = new Cookie(AUTHORIZATION_HEADER, token);
-//            newCookie.setPath("/");
-//            newCookie.setMaxAge((int) TOKEN_TIME / 1000);
-//            newCookie.setHttpOnly(true);
-//            res.addCookie(newCookie);
-//        } catch (UnsupportedEncodingException e) {
-//            log.error("Encoding error for token: {}", e.getMessage());
-//        }
-//    }
-//
-//    // 요청 리퀘스트의 쿠키에서 토큰 가져오기
-//    public String getTokenFromRequest(HttpServletRequest httpServletRequest) {
-//        Cookie[] cookies = httpServletRequest.getCookies();
-//        if (cookies != null) {
-//            for (Cookie cookie : cookies) {
-//                if (cookie.getName().equals(AUTHORIZATION_HEADER)) {
-//                    try {
-//                        return URLDecoder.decode(cookie.getValue(), "UTF-8");
-//                    } catch (UnsupportedEncodingException e) {
-//                        log.error("Decoding error for cookie value: {}", e.getMessage());
-//                        return null;
-//                    }
-//                }
-//            }
-//        }
-//        return null;
-//    }
-
     // Access Token을 응답 헤더에 추가
     public void addAccessTokenToHeader(String accessToken, HttpServletResponse res) {
-        String accToken = BEARER_PREFIX + accessToken;
-        res.setHeader(AUTHORIZATION_HEADER, accToken);
+        res.setHeader(AUTHORIZATION_HEADER, accessToken);
     }
 
     // Refresh Token을 HttpOnly 쿠키로 응답에 추가
     public void addRefreshTokenToCookie(String refreshToken, HttpServletResponse response, boolean isSecure, String domain) {
+//        refreshToken = refreshToken.replaceAll("\\s+", "");
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
                 .httpOnly(true)                      // JS 접근 차단해서 XSS 위험 줄이기
                 .secure(isSecure)                    // HTTPS일 때만 전송 (프로덕션 true 권장)
@@ -216,7 +174,7 @@ public class JwtUtil {
             log.info("Expired JWT token, 만료된 JWT token 입니다.");
 
             // 쿠키 제거와 함께 만료 메시지 반환
-            throw new RuntimeException("Token expired");
+            throw new ExpiredTokenException();
         } catch (SecurityException | MalformedJwtException | SignatureException e) {
             log.error("Invalid JWT signature, 유효하지 않는 JWT 서명 입니다.");
         } catch (UnsupportedJwtException e) {

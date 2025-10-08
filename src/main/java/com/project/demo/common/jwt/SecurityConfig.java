@@ -48,9 +48,9 @@ public class SecurityConfig {
                 // URL 별 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
                                 .requestMatchers(
-                                        "/api/v1/users/login",
-                                        "/api/v1/users/signup",
-                                        "/api/v1/auth/**",
+                                        "/api/v1/auth/login",
+                                        "/api/v1/auth/sign-up",
+//                                        "/api/v1/auth/**",
                                         "/api/v1/auth/kakao-url",
                                         "/api/v1/users/kakao/callback",
                                         "/api/v1/auth/naver-url",

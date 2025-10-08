@@ -5,8 +5,11 @@ CREATE TABLE `users` (
     `name` VARCHAR(100) NOT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
+    `withdrawal_at` DATETIME NULL,
     `balance` DOUBLE NOT NULL,
     `email` VARCHAR(255) NOT NULL,
+    `is_deleted` BOOLEAN NOT NULL,
+    `user_role` VARCHAR(20) NOT NULL,
     PRIMARY KEY (`user_id`)
 );
 
