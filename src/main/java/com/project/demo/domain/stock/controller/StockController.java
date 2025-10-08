@@ -8,11 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -30,7 +26,7 @@ public class StockController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<StockResponse>>> showAll() {
-        return ResponseEntity.ok(ApiResponse.createSuccess(stockService.showAllStock()));
+        return ResponseEntity.ok(ApiResponse.requestSuccess(stockService.showAllStock()));
     }
 
 //    @GetMapping("/{ticker}")
@@ -54,7 +50,7 @@ public class StockController {
             @PathVariable String ticker, @RequestParam(required = true) String period) {
 
         List<CandleResponse> response = stockService.getPeriodStockInfo(ticker, period);
-        return ResponseEntity.ok(ApiResponse.createSuccess(response));
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
     }
 
 }

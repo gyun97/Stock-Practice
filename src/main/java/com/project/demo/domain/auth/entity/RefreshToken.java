@@ -1,4 +1,4 @@
-package com.project.demo.common.auth.entity;
+package com.project.demo.domain.auth.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,10 +17,10 @@ public class RefreshToken {
 
     @Id
     @Column(nullable = false, name = "rt_key")
-    private Long key;
+    private Long key; // key = 유저 ID
 
     @Column(name = "rt_value")
-    private String value;
+    private String value; // 토큰 값
 
     @Builder
     public RefreshToken(Long key, String value) {
