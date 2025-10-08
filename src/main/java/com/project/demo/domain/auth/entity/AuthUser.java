@@ -1,4 +1,4 @@
-package com.project.demo.common.auth.entity;
+package com.project.demo.domain.auth.entity;
 
 import com.project.demo.domain.user.enums.UserRole;
 import lombok.AllArgsConstructor;

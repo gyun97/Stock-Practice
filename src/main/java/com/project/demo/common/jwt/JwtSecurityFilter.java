@@ -1,6 +1,6 @@
 package com.project.demo.common.jwt;
 
-import com.project.demo.common.auth.entity.AuthUser;
+import com.project.demo.domain.auth.entity.AuthUser;
 import com.project.demo.domain.user.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;

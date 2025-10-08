@@ -1,6 +1,6 @@
 package com.project.demo.common.jwt;
 
-import com.project.demo.common.auth.entity.AuthUser;
+import com.project.demo.domain.auth.entity.AuthUser;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 
 public class JwtAuthenticationToken extends AbstractAuthenticationToken {
