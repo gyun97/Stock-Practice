@@ -6,6 +6,7 @@ import com.project.demo.domain.user.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
@@ -26,10 +27,12 @@ public class User extends TimeStamped {
     private String name;
 
     @Column(nullable = false)
-    private double balance;
+    private double balance; // 잔액
 
     @Column(name = "is_deleted", nullable = false)
-    private boolean isDeleted = false;
+    private boolean isDeleted = false; // 탈퇴 여부
+
+    private LocalDateTime withdrawalAt; // 탈퇴일
 
     @Enumerated(EnumType.STRING)
     private UserRole userRole; // 운영자/일반 유저
@@ -37,20 +40,44 @@ public class User extends TimeStamped {
     @Column(length = 100, unique = true, nullable = false)
     private String email;
 
-    private long refreshToken;
-
     @OneToMany(mappedBy = "user")
     private List<Transaction> transactions;
 
     @Builder
-    public User(Long id, String password, String name, double balance, UserRole userRole, String email) {
+    public User(Long id, String password, String name, double balance, UserRole userRole, String email, boolean isDeleted) {
         this.id = id;
         this.password = password;
         this.name = name;
         this.balance = balance;
         this.userRole = userRole;
         this.email = email;
+        this.isDeleted = isDeleted;
     }
 
+    /*
+        유저 회원가입시 새 유저 객체 생성
+     */
+    @Builder
+    public static User createNewUser(String email, String name, String encodedPassword, UserRole role) {
+        return User.builder()
+                .email(email)
+                .name(name)
+                .password(encodedPassword)
+                .userRole(role)
+                .balance(10000000)
+                .isDeleted(false)
+                .build();
+    }
 
+    /*
+        탈퇴 회원 재가입
+     */
+    public void reactivate(String newPassword, String newName, UserRole newRole) {
+        this.password = newPassword;
+        this.name = newName;
+        this.userRole = newRole;
+        this.isDeleted = false;
+        this.withdrawalAt = null;
+        this.balance = 10000000;
+    }
 }
