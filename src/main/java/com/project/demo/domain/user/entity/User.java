@@ -55,7 +55,7 @@ public class User extends TimeStamped {
     }
 
     /*
-        유저 회원가입시 새 유저 객체 생성
+    유저 회원가입시 새 유저 객체 생성
      */
     @Builder
     public static User createNewUser(String email, String name, String encodedPassword, UserRole role) {
@@ -70,7 +70,7 @@ public class User extends TimeStamped {
     }
 
     /*
-        탈퇴 회원 재가입
+    탈퇴 회원 재가입
      */
     public void reactivate(String newPassword, String newName, UserRole newRole) {
         this.password = newPassword;
@@ -80,4 +80,12 @@ public class User extends TimeStamped {
         this.withdrawalAt = null;
         this.balance = 10000000;
     }
+
+    /*
+    회원 탈퇴 상태로 전환(소프트 딜리트)
+     */
+    public void updateIsDeleted() {
+        this.isDeleted = true;
+    }
 }
+
