@@ -1,6 +1,7 @@
 package com.project.demo.domain.user.controller;
 
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
+import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.service.UserService;
 import com.project.demo.domain.user.service.UserServiceImpl;
@@ -13,6 +14,7 @@ import com.project.demo.domain.user.dto.response.SignUpResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -85,6 +87,12 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
     }
 
+    /**
+     * 비밀번호 변경 API
+     * @param authUser
+     * @param passwordUpdateRequest
+     * @return [비밀번호 변경 성공 문구]
+     */
     @PatchMapping("/password")
     public ResponseEntity<ApiResponse<String>> updatePassword(
             @AuthenticationPrincipal AuthUser authUser,
@@ -92,6 +100,17 @@ public class UserController {
 
         String response = userService.updatePassword(authUser, passwordUpdateRequest);
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
+    }
+
+    /**
+     * 유저 개인정보 조회 API
+     * @param userId
+     * @return [유저 이메일, 유저 이름, 유저의 잔액]
+     */
+    @GetMapping("/{userId}")
+    public ResponseEntity<ApiResponse<GetUserResponse>> getUser(@PathVariable Long userId) {
+        GetUserResponse response = userService.getUserInfo(userId);
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200  코드
     }
 
     /**

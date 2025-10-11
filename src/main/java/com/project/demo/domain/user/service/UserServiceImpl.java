@@ -6,6 +6,7 @@ import com.project.demo.common.exception.user.InValidNewPasswordException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
+import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.entity.RefreshToken;
 import com.project.demo.domain.user.repository.RefreshTokenRepository;
@@ -136,6 +137,9 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
+    /*
+    비밀번호 변경
+     */
     @Transactional
     public String updatePassword(AuthUser authUser, PasswordUpdateRequest passwordUpdateRequest) {
 
@@ -179,6 +183,20 @@ public class UserServiceImpl implements UserService {
         log.info("Refresh Token: {}", refreshTokenValue);
 
         return new SignUpResponse(accessToken, refreshTokenValue);
+    }
+
+    /*
+    유저 개인정보 조회
+     */
+    public GetUserResponse getUserInfo(Long userId) {
+        User user = getUserById(userId);
+        GetUserResponse userInfo = GetUserResponse.builder()
+                .name(user.getName())
+                .email(user.getEmail())
+                .balance(user.getBalance())
+                .build();
+
+        return userInfo;
     }
 
     /*

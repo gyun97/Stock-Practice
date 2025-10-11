@@ -1,12 +1,10 @@
 package com.project.demo.domain.user.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 
 @Getter
 @RequiredArgsConstructor
+@Builder
 public class SignUpResponse {
 
     private final String accessToken;
