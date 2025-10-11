@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PasswordUpdateRequest {
 
-    @NotBlank
+    @NotBlank(message = "기존 비밀번호를 입력하세요.")
     private String currentPassword; // 현재 비밀번호 확인용
 
-    @NotBlank
+    @NotBlank(message = "새로 변경할 비밀번호를 입력하세요.")
     private String newPassword;  // 새 비밀번호
 
-    @NotBlank
+    @NotBlank(message = "변경한 비밀번호를 한 번 더 입력해주세요.")
     private String checkNewPassword;  // 새 비밀번호 확인
 }
