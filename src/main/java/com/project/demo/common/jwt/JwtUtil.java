@@ -2,7 +2,7 @@ package com.project.demo.common.jwt;
 
 
 import com.project.demo.common.exception.auth.ExpiredTokenException;
-import com.project.demo.domain.auth.repository.RefreshTokenRepository;
+import com.project.demo.domain.user.repository.RefreshTokenRepository;
 import com.project.demo.domain.user.enums.UserRole;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -53,7 +53,9 @@ public class JwtUtil {
         key = Keys.hmacShaKeyFor(bytes);
     }
 
-    // Access Token 생성
+    /*
+    Access Token 생성
+     */
     public String createAccessToken(Long userId, String email, UserRole userRole, String name) {
         Date date = new Date();
 
@@ -72,7 +74,9 @@ public class JwtUtil {
         return newAccessToken;
     }
 
-    // Refresh Token 생성
+    /*
+    Refresh Token 생성
+     */
     public String createRefreshToken(Long userId) {
         Date now = new Date();
 
@@ -89,12 +93,16 @@ public class JwtUtil {
         return refreshToken;
     }
 
-    // Access Token을 응답 헤더에 추가
+     /*
+     Access Token을 응답 헤더에 추가
+      */
     public void addAccessTokenToHeader(String accessToken, HttpServletResponse res) {
         res.setHeader(AUTHORIZATION_HEADER, accessToken);
     }
 
-    // Refresh Token을 HttpOnly 쿠키로 응답에 추가
+    /*
+    Refresh Token을 HttpOnly 쿠키로 응답에 추가
+     */
     public void addRefreshTokenToCookie(String refreshToken, HttpServletResponse response, boolean isSecure, String domain) {
 //        refreshToken = refreshToken.replaceAll("\\s+", "");
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
@@ -112,8 +120,9 @@ public class JwtUtil {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
-
-     // Refresh Token 삭제 (로그아웃 시 사용)
+    /*
+    Refresh Token 삭제 (로그아웃, 회원탈퇴 시 사용)
+     */
     public void clearRefreshTokenCookie(HttpServletResponse response, boolean isSecure, String domain) {
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
                 .httpOnly(true)
@@ -130,7 +139,9 @@ public class JwtUtil {
     }
 
 
-    // 요청 헤더에서 JWT 추출
+    /*
+    요청 헤더에서 Access Token 추출
+     */
     public String getAccessTokenFromRequest(HttpServletRequest req) {
         String accessToken = req.getHeader(AUTHORIZATION_HEADER);
 
@@ -142,7 +153,9 @@ public class JwtUtil {
         return null;
     }
 
-
+    /*
+    쿠키에서 Refresh Token 추출
+     */
     public String getRefreshTokenFromCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) throw new IllegalStateException("Cookie가 없습니다.");
@@ -155,6 +168,9 @@ public class JwtUtil {
         return null;
     }
 
+    /*
+    Bearer 제거하고 순수 토큰 값 추출
+     */
     public String substringToken(String tokenValue) throws ServerException {
         if (StringUtils.hasText(tokenValue) && tokenValue.startsWith(BEARER_PREFIX)) {
             return tokenValue.substring(7);
@@ -162,7 +178,9 @@ public class JwtUtil {
         throw new ServerException("Token not found");
     }
 
-    // 토큰 유효성 검증
+    /*
+    토큰 유효성 검증
+     */
     public boolean validateToken(String token) {
         try {
             Jwts.parserBuilder()// JWT 파서를 생성할 준비
@@ -185,6 +203,9 @@ public class JwtUtil {
         return false;
     }
 
+    /*
+    Payload에서 유저 정보 추출
+     */
     public Claims getUserInfoFromToken(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
