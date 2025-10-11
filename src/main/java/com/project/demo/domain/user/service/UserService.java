@@ -1,9 +1,11 @@
 package com.project.demo.domain.user.service;
 
 import com.project.demo.domain.user.dto.request.LoginRequest;
+import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
 import com.project.demo.domain.user.dto.request.SignUpRequest;
 import com.project.demo.domain.user.dto.response.LoginResponse;
 import com.project.demo.domain.user.dto.response.SignUpResponse;
+import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.entity.User;
 
 public interface UserService {
@@ -21,4 +23,6 @@ public interface UserService {
     public LoginResponse login(LoginRequest loginRequest);
 
     public String deleteUser(Long userId, String inputPassword);
+
+    public String updatePassword(AuthUser authUser, PasswordUpdateRequest passwordUpdateRequest);
 }

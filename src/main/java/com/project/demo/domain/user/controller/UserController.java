@@ -1,5 +1,7 @@
 package com.project.demo.domain.user.controller;
 
+import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
+import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.service.UserService;
 import com.project.demo.domain.user.service.UserServiceImpl;
 import com.project.demo.common.jwt.JwtUtil;
@@ -14,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -79,6 +82,15 @@ public class UserController {
         String response = userService.deleteUser(userId, inputPassword);
         jwtUtil.clearRefreshTokenCookie(httpServletResponse, true, null);
 
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
+    }
+
+    @PatchMapping("/password")
+    public ResponseEntity<ApiResponse<String>> updatePassword(
+            @AuthenticationPrincipal AuthUser authUser,
+            @RequestBody @Valid PasswordUpdateRequest passwordUpdateRequest) {
+
+        String response = userService.updatePassword(authUser, passwordUpdateRequest);
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
     }
 

@@ -87,5 +87,12 @@ public class User extends TimeStamped {
     public void updateIsDeleted() {
         this.isDeleted = true;
     }
+
+    /*
+    비밀번호 변경
+     */
+    public void changePassword(String newPassword) {
+        this.password = newPassword;
+    }
 }
 

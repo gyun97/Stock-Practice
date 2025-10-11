@@ -1,9 +1,12 @@
 package com.project.demo.domain.user.service;
 
 import com.project.demo.common.exception.auth.*;
-import com.project.demo.common.exception.user.IncorrectPasswordException;
+import com.project.demo.common.exception.auth.IncorrectPasswordException;
+import com.project.demo.common.exception.user.InValidNewPasswordException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
+import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
+import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.entity.RefreshToken;
 import com.project.demo.domain.user.repository.RefreshTokenRepository;
 import com.project.demo.domain.user.dto.request.LoginRequest;
@@ -113,8 +116,7 @@ public class UserServiceImpl implements UserService {
     public String deleteUser(Long userId, String inputPassword) {
 
         // PK로 유저 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundUserException());
+        User user = getUserById(userId);
 
         // 비밀번호 검증
         validateCorrectPassword(inputPassword, user.getPassword());
@@ -125,7 +127,38 @@ public class UserServiceImpl implements UserService {
         // 탈퇴 처리(is_deleted : true)
         user.updateIsDeleted();
 
-        return "PK ID {} 유저가 탈퇴처리되었습니다.";
+        return "PK ID " + userId + "인 유저가 탈퇴처리되었습니다.";
+    }
+
+    private User getUserById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundUserException());
+        return user;
+    }
+
+    @Transactional
+    public String updatePassword(AuthUser authUser, PasswordUpdateRequest passwordUpdateRequest) {
+
+        // 바꾸려고 입력한 두 동일한 새 비밀번호가 일치하는지 확인
+        if (!passwordUpdateRequest.getNewPassword().equals(passwordUpdateRequest.getCheckNewPassword())) {
+            throw new NewPasswordMismatch();
+        }
+
+        // 유저 가져오기
+        User user = getUserById(authUser.getUserId());
+
+        // 비밀번호 검증
+        validateCorrectPassword(passwordUpdateRequest.getCurrentPassword(), user.getPassword());
+
+        // 새 비밀번호가 기존 비밀번호와 다른지 확인
+        if (passwordUpdateRequest.getCurrentPassword().equals(passwordUpdateRequest.getNewPassword())) {
+            throw new InValidNewPasswordException();
+        }
+
+        // 새로운 비밀번호 변경
+        user.changePassword(passwordEncoder.encode(passwordUpdateRequest.getNewPassword()));
+
+        return "PK ID " + user.getId() + "인 유저의 비밀번호가 변경되었습니다.";
     }
 
     /*

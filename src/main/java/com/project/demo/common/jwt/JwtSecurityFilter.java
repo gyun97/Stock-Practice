@@ -40,9 +40,8 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
         // 클라이언트가 보낸 요청 헤더(Authorization: Bearer <JWT>)에서 토큰을 꺼내기
         String tokenValue = jwtUtil.getAccessTokenFromRequest(httpRequest);
         if (StringUtils.hasText(tokenValue)) {
-            String jwt = jwtUtil.substringToken(tokenValue);
             try {
-                Claims claims = jwtUtil.extractClaims(jwt);
+                Claims claims = jwtUtil.extractClaims(tokenValue);
                 Long userId = Long.parseLong(claims.getSubject());
                 String email = claims.get("email", String.class);
                 UserRole userRole = UserRole.of(claims.get("userRole", String.class));
