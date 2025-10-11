@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus;
 public class ApiResponse<T> {
     private int statusCode;
     private String message;
-    private String code; // 프론트 분기용
     private T data;
 
     // 상태 코드, 메시지, 데이터를 관리(성공시)

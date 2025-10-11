@@ -1,10 +1,14 @@
 package com.project.demo.domain.auth.service;
 
 import com.project.demo.common.exception.auth.*;
+import com.project.demo.common.exception.user.IncorrectPasswordException;
+import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
 import com.project.demo.domain.auth.entity.RefreshToken;
 import com.project.demo.domain.auth.repository.RefreshTokenRepository;
+import com.project.demo.domain.user.dto.request.LoginRequest;
 import com.project.demo.domain.user.dto.request.SignUpRequest;
+import com.project.demo.domain.user.dto.response.LoginResponse;
 import com.project.demo.domain.user.dto.response.SignUpResponse;
 import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.user.enums.UserRole;
@@ -73,11 +77,55 @@ public class AuthServiceImpl implements AuthService{
         return issueTokens(savedUser);
     }
 
+    /*
+    로그인 처리 메서드
+     */
+    @Transactional
+    public LoginResponse login(LoginRequest loginRequest) {
+        String inputEmail = loginRequest.getEmail();
+        String inputPassword = loginRequest.getPassword();
 
+        log.info("입력한 계정: {}", inputEmail);
+        log.info("입력한 비밀번호: {}", inputPassword);
+
+        // 해당 이메일 계정의 유저가 존재하는지 확인
+        User user = userRepository.findByEmail(inputEmail)
+                .orElseThrow(() -> new NotFoundUserException());
+
+        // 탈퇴한 계정인지 확인
+        checkDeletedUser(user);
+
+        String correctPassword = user.getPassword();
+
+        // 비밀번호 검증
+        validateCorrectPassword(inputPassword, correctPassword);
+
+        // Access Token, Refresh Token 발급
+        SignUpResponse tokens = issueTokens(user);
+
+        return new LoginResponse(tokens.getAccessToken(), tokens.getRefreshToken()); // Access Token, Refresh Token 반환
+    }
+
+    @Transactional
+    public String deleteUser(Long userId, String inputPassword) {
+
+        // PK로 유저 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundUserException());
+
+        // 비밀번호 검증
+        validateCorrectPassword(inputPassword, user.getPassword());
+
+        // 탈퇴 처리(is_deleted : true)
+        user.updateIsDeleted();
+
+        return "PK ID {} 유저가 탈퇴처리되었습니다.";
+    }
 
     /*
     로그인, 회원가입한 유저에게 JWT 토큰 발급
      */
+    @Transactional
     public SignUpResponse issueTokens(User savedUser) {
         String accessToken = jwtUtil.createAccessToken(savedUser.getId(), savedUser.getEmail(), savedUser.getUserRole(), savedUser.getName());
         String refreshTokenValue = jwtUtil.createRefreshToken(savedUser.getId());
@@ -88,9 +136,11 @@ public class AuthServiceImpl implements AuthService{
                 .value(refreshTokenValue)
                 .build());
 
+        log.info("Access Token: {}", accessToken);
+        log.info("Refresh Token: {}", refreshTokenValue);
+
         return new SignUpResponse(accessToken, refreshTokenValue);
     }
-
 
     /*
        이미 회원가입되어 활동하고 있는 이메일인지 검증
@@ -143,11 +193,32 @@ public class AuthServiceImpl implements AuthService{
     }
 
     /*
-    DB에 있는 토큰과의 비교 검증
+    DB에 있는 Refresh Token과 클라이언트의 Refresh Token 비교 검증
      */
     public void isValid(Long userId, String refreshToken) {
         RefreshToken existingToken = refreshTokenRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundToken());
+                .orElseThrow(() -> new NotFoundTokenException());
 
     }
+
+    /*
+    비밀번호 검증
+     */
+    public void validateCorrectPassword(String inputPassword, String correctPassword) {
+        log.info("입력 비밀번호: {}", inputPassword);
+        log.info("정확한 비밀번호: {}", correctPassword);
+
+        if (!passwordEncoder.matches(inputPassword, correctPassword)) {
+            throw new IncorrectPasswordException();
+        }
+    }
+
+    /*
+    탈퇴한 계정인지 확인
+     */
+    public void checkDeletedUser(User user) {
+        if (user.isDeleted()) throw new NotFoundUserException();
+    }
+
+
 }
