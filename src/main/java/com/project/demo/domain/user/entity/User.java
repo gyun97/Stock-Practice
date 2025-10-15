@@ -109,10 +109,17 @@ public class User extends TimeStamped {
     }
 
     /*
-    보유액 차감
+    보유 잔액 차감
      */
     public void deductBalance(int price) {
         this.balance -= price;
+    }
+
+    /*
+    보유 잔액 증감
+     */
+    public void addBalance(int price) {
+        this.balance += price;
     }
 }
 
