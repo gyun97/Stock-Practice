@@ -1,6 +1,7 @@
 package com.project.demo.domain.user.controller;
 
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
+import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.service.UserService;
@@ -110,6 +111,17 @@ public class UserController {
     @GetMapping("/{userId}")
     public ResponseEntity<ApiResponse<GetUserResponse>> getUser(@PathVariable Long userId) {
         GetUserResponse response = userService.getUserInfo(userId);
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200  코드
+    }
+
+    /**
+     * 유저 개인정보 수정 API
+     * @param userId
+     * @return [유저 이메일, 유저 이름, 유저의 잔액]
+     */
+    @PatchMapping("/{userId}")
+    public ResponseEntity<ApiResponse<GetUserResponse>> updateUser(@PathVariable Long userId, @RequestBody UpdateUserInfoRequest updateUserInfoRequest) {
+        GetUserResponse response = userService.updateUserInfo(userId, updateUserInfoRequest);
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200  코드
     }
 

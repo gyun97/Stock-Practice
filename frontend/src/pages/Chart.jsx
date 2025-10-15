@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { createStompClient } from '../lib/socket'
 
 export default function Chart() {
   const { ticker = '' } = useParams()
@@ -9,6 +10,7 @@ export default function Chart() {
   const [companyName, setCompanyName] = useState('')
   const [currentPrice, setCurrentPrice] = useState(null)
   const canvasRef = useRef(null)
+  const stompRef = useRef(null)
 
   const periods = [
     { key: 'MIN', label: '분' },
@@ -47,6 +49,50 @@ export default function Chart() {
     } catch (error) {
       console.error('회사 정보 로드 실패:', error)
     }
+  }
+
+  // 실시간 업데이트 핸들러
+  const onTick = useMemo(() => (payload, raw) => {
+    console.log('Chart onTick 호출됨:', { payload, raw, ticker })
+    
+    const code = String(payload?.ticker ?? payload?.symbol ?? '')
+    console.log('수신된 ticker:', code, '현재 ticker:', ticker)
+    
+    if (code !== ticker) {
+      console.log('ticker 불일치로 무시:', code, '!==', ticker)
+      return
+    }
+    
+    const price = toNum(payload?.price ?? payload?.stck_prpr)
+    const tradeTime = String(payload?.tradeTime ?? payload?.stck_cntg_hour ?? '')
+    const changeAmountValue = toNum(payload?.changeAmount ?? payload?.prdy_vrss)
+    const changeRateValue = toNum(payload?.changeRate ?? payload?.prdy_ctrt)
+    const volumeValue = toNum(payload?.volume ?? payload?.acml_vol ?? payload?.accumulatedVolume)
+    
+    console.log('파싱된 데이터:', { price, tradeTime, changeAmountValue, changeRateValue, volumeValue })
+    
+    if (price == null) {
+      console.log('price가 null이어서 무시')
+      return
+    }
+    
+    console.log('실시간 업데이트 적용:', { ticker, price, changeAmountValue, changeRateValue, volumeValue, tradeTime })
+    
+    // 실시간 시세 정보 업데이트
+    setCurrentPrice({
+      price: price,
+      changeAmount: changeAmountValue || 0,
+      changeRate: changeRateValue || 0,
+      volume: volumeValue || 0,
+      tradeTime: tradeTime
+    })
+  }, [ticker])
+
+  // 숫자 변환 유틸리티 함수
+  function toNum(v) {
+    if (v == null) return undefined
+    const n = Number(String(v).replace(/[^0-9.-]/g, ''))
+    return Number.isFinite(n) ? n : undefined
   }
 
   // 데이터 로드 함수
@@ -257,11 +303,33 @@ export default function Chart() {
     
   }
 
-  // 기간 변경 시 데이터 다시 로드
+  // 기간 변경 시 데이터 다시 로드 및 WebSocket 연결
   useEffect(() => {
+    console.log('Chart 페이지 마운트, ticker:', ticker)
     loadCompanyInfo()
     loadData(selectedPeriod)
-  }, [ticker, selectedPeriod])
+    
+    // WebSocket 클라이언트 생성 및 연결
+    const client = createStompClient(onTick)
+    console.log('Chart WebSocket 클라이언트 생성:', client)
+    
+    // WebSocket 연결 상태 확인을 위한 추가 로그
+    client.onConnect = () => {
+      console.log('Chart 페이지 WebSocket 연결 성공!')
+    }
+    
+    client.onStompError = (frame) => {
+      console.error('Chart 페이지 WebSocket STOMP 오류:', frame)
+    }
+    
+    client.activate()
+    stompRef.current = client
+    
+    return () => { 
+      console.log('Chart 페이지 언마운트, WebSocket 연결 해제')
+      client.deactivate() 
+    }
+  }, [ticker, selectedPeriod, onTick])
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', padding: 16 }}>

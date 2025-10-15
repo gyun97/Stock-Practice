@@ -8,9 +8,12 @@ export default function Detail() {
   const [lastTime, setLastTime] = useState<string | undefined>(undefined)
   const [companyName, setCompanyName] = useState<string>('')
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined)
+  const [changeAmount, setChangeAmount] = useState<number | undefined>(undefined)
+  const [changeRate, setChangeRate] = useState<number | undefined>(undefined)
+  const [volume, setVolume] = useState<number | undefined>(undefined)
   const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
 
-  // 회사 정보 로드 함수
+  // 회사 정보 및 초기 주식 데이터 로드 함수
   const loadCompanyInfo = async () => {
     if (!ticker) return
     
@@ -27,6 +30,13 @@ export default function Detail() {
               // 로고 URL을 기업명으로 직접 생성
               setLogoUrl(`/logos/${stock.companyName}.png`)
             }
+            
+            // 초기 주식 데이터 설정
+            if (stock.price != null) setLastPrice(stock.price)
+            if (stock.changeAmount != null) setChangeAmount(stock.changeAmount)
+            if (stock.changeRate != null) setChangeRate(stock.changeRate)
+            if (stock.volume != null) setVolume(stock.volume)
+            if (stock.tradeTime) setLastTime(stock.tradeTime)
           }
         }
       }
@@ -35,26 +45,65 @@ export default function Detail() {
     }
   }
 
-  const onTick = useMemo(() => (payload: any) => {
+  const onTick = useMemo(() => (payload: any, raw: string) => {
+    console.log('Detail onTick 호출됨:', { payload, raw, ticker })
+    
     const code = String(payload?.ticker ?? payload?.symbol ?? '')
-    if (code !== ticker) return
+    console.log('수신된 ticker:', code, '현재 ticker:', ticker)
+    
+    if (code !== ticker) {
+      console.log('ticker 불일치로 무시:', code, '!==', ticker)
+      return
+    }
+    
     const price = toNum(payload?.price ?? payload?.stck_prpr)
     const tradeTime = String(payload?.tradeTime ?? payload?.stck_cntg_hour ?? '')
-    if (price == null) return
+    const changeAmountValue = toNum(payload?.changeAmount ?? payload?.prdy_vrss)
+    const changeRateValue = toNum(payload?.changeRate ?? payload?.prdy_ctrt)
+    const volumeValue = toNum(payload?.volume ?? payload?.acml_vol ?? payload?.accumulatedVolume)
     
-    // 장 마감 시간(15:30) 이후에는 실시간 업데이트 중단
-    if (!isMarketOpen()) return
+    console.log('파싱된 데이터:', { price, tradeTime, changeAmountValue, changeRateValue, volumeValue })
+    
+    if (price == null) {
+      console.log('price가 null이어서 무시')
+      return
+    }
+    
+    // 장 마감 시간 체크를 주석 처리하여 항상 실시간 업데이트 허용
+    // if (!isMarketOpen()) return
+    
+    console.log('실시간 업데이트 적용:', { ticker, price, changeAmountValue, changeRateValue, volumeValue, tradeTime })
     
     setLastPrice(price)
     setLastTime(tradeTime)
+    if (changeAmountValue != null) setChangeAmount(changeAmountValue)
+    if (changeRateValue != null) setChangeRate(changeRateValue)
+    if (volumeValue != null) setVolume(volumeValue)
   }, [ticker])
 
   useEffect(() => {
+    console.log('Detail 페이지 마운트, ticker:', ticker)
     loadCompanyInfo()
+    
     const client = createStompClient(onTick)
+    console.log('WebSocket 클라이언트 생성:', client)
+    
+    // WebSocket 연결 상태 확인을 위한 추가 로그
+    client.onConnect = () => {
+      console.log('Detail 페이지 WebSocket 연결 성공!')
+    }
+    
+    client.onStompError = (frame) => {
+      console.error('Detail 페이지 WebSocket STOMP 오류:', frame)
+    }
+    
     client.activate()
     stompRef.current = client
-    return () => { client.deactivate() }
+    
+    return () => { 
+      console.log('Detail 페이지 언마운트, WebSocket 연결 해제')
+      client.deactivate() 
+    }
   }, [onTick])
 
 
@@ -85,11 +134,57 @@ export default function Detail() {
       </div>
       
       <div style={{ padding: 20, border: '1px solid #ddd', borderRadius: 8, background: '#f9f9f9' }}>
-        <p>실시간 가격 정보가 여기에 표시됩니다.</p>
-        {lastPrice != null && (
-          <div>
-            <p><strong>현재가:</strong> {lastPrice.toLocaleString()}원</p>
-            {lastTime && <p><strong>거래시간:</strong> {lastTime}</p>}
+        <h3 style={{ marginTop: 0 }}>실시간 주식 정보</h3>
+        {lastPrice != null ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>현재가</div>
+              <div style={{ 
+                fontSize: 24, 
+                fontWeight: 'bold', 
+                color: changeAmount != null && changeAmount >= 0 ? '#e74c3c' : '#3498db'
+              }}>
+                {lastPrice.toLocaleString()}원
+              </div>
+            </div>
+            
+            <div>
+              <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>등락률</div>
+              <div style={{ 
+                fontSize: 18, 
+                fontWeight: 'bold',
+                color: changeAmount != null && changeAmount >= 0 ? '#e74c3c' : '#3498db'
+              }}>
+                {changeAmount != null ? (
+                  <>
+                    {changeAmount >= 0 ? '+' : ''}{changeAmount.toLocaleString()}원
+                    {changeRate != null && (
+                      <span style={{ fontSize: 14, marginLeft: 8 }}>
+                        ({changeRate >= 0 ? '+' : ''}{changeRate.toFixed(2)}%)
+                      </span>
+                    )}
+                  </>
+                ) : '-'}
+              </div>
+            </div>
+            
+            <div>
+              <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>거래량</div>
+              <div style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>
+                {volume != null ? `${Math.round(volume / 1000000)}M` : '-'}
+              </div>
+            </div>
+            
+            <div>
+              <div style={{ fontSize: 14, color: '#666', marginBottom: 4 }}>체결시간</div>
+              <div style={{ fontSize: 14, color: '#333' }}>
+                {lastTime || '실시간'}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', color: '#666' }}>
+            <p>주식 데이터를 불러오는 중...</p>
           </div>
         )}
       </div>

@@ -1,8 +1,9 @@
-package com.project.demo.domain.transaction.entity;
+package com.project.demo.domain.execution.entity;
 
 import com.project.demo.common.util.TimeStamped;
+import com.project.demo.domain.order.entity.Order;
+import com.project.demo.domain.order.enums.OrderType;
 import com.project.demo.domain.stock.entity.Stock;
-import com.project.demo.domain.transaction.ExecutionType;
 import com.project.demo.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -23,7 +24,7 @@ public class Execution extends TimeStamped {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "execution_type", nullable = false)
-    private ExecutionType type;
+    private OrderType type;
 
     @Column(nullable = false)
     private int price;
@@ -31,27 +32,25 @@ public class Execution extends TimeStamped {
     @Column(nullable = false)
     private int quantity;
 
-    private int totalAmount;
+    private int totalPrice;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stock_id", nullable = false)
-    private Stock stock;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn
+    private Order order;
 
     @Builder
-    public Execution(Long id, ExecutionType type, int price, int quantity, Stock stock, User user) {
+    public Execution(Long id, OrderType type, int price, int quantity, Stock stock, User user, Order order) {
         this.id = id;
         this.type = type;
         this.price = price;
         this.quantity = quantity;
-        this.stock = stock;
-        this.user = user;
+        this.order = order;
     }
 
-    // 거래 총 금액 계산
+
+    /*
+    거래 총 금액 계산
+     */
     public void calculateTotalAmount(int price, int quantity) {
         this.totalAmount = price * quantity;
     }

@@ -1,8 +1,8 @@
 package com.project.demo.domain.stock.entity;
 
 import com.project.demo.common.util.TimeStamped;
+import com.project.demo.domain.order.entity.Order;
 import com.project.demo.domain.stock.enums.Market;
-import com.project.demo.domain.transaction.entity.Transaction;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -39,7 +39,7 @@ public class Stock extends TimeStamped {
 //    private int price;
 
     @OneToMany(mappedBy = "stock")
-    private List<Transaction> transactions;
+    private List<Order> orders;
 
     @Builder
     public Stock(Long id, String ticker, String name, Market market, Long volume) {
