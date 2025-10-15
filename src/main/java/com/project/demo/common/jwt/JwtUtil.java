@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -39,12 +40,6 @@ public class JwtUtil {
     @Value("${JWT_SECRET_KEY}")
     private String secretKey;
     private Key key;
-
-    private final RefreshTokenRepository refreshTokenRepository;
-
-    public JwtUtil(RefreshTokenRepository refreshTokenRepository) {
-        this.refreshTokenRepository = refreshTokenRepository;
-    }
 
     @PostConstruct
     public void init() {

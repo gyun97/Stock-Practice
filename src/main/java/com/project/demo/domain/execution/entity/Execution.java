@@ -23,7 +23,7 @@ public class Execution extends TimeStamped {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "execution_type", nullable = false)
+    @Column(name = "order_type", nullable = false)
     private OrderType type;
 
     @Column(nullable = false)
@@ -35,24 +35,24 @@ public class Execution extends TimeStamped {
     private int totalPrice;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn
+    @JoinColumn(name = "order_id", unique = true)
     private Order order;
 
     @Builder
-    public Execution(Long id, OrderType type, int price, int quantity, Stock stock, User user, Order order) {
+    public Execution(Long id, OrderType type, int price, int quantity, int totalPrice, Order order) {
         this.id = id;
         this.type = type;
         this.price = price;
         this.quantity = quantity;
+        this.totalPrice = totalPrice;
         this.order = order;
     }
 
-
     /*
-    거래 총 금액 계산
-     */
+        거래 총 금액 계산
+         */
     public void calculateTotalAmount(int price, int quantity) {
-        this.totalAmount = price * quantity;
+        this.totalPrice = price * quantity;
     }
 
 }

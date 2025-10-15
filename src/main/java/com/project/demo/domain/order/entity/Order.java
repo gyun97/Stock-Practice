@@ -1,6 +1,7 @@
 package com.project.demo.domain.order.entity;
 
 import com.project.demo.common.util.TimeStamped;
+import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.order.enums.OrderType;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.user.entity.User;
@@ -22,7 +23,7 @@ public class Order extends TimeStamped {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "execution_type", nullable = false)
+    @Column(name = "order_type", nullable = false)
     private OrderType type;
 
     @Column(nullable = false)
@@ -41,38 +42,21 @@ public class Order extends TimeStamped {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    private Order order;
-
     @Builder
-    public Order(Long id, OrderType type, int price, int quantity, int totalAmount, Stock stock, User user, Order order) {
+    public Order(Long id, OrderType type, int price, int quantity, int totalPrice, Stock stock, User user) {
         this.id = id;
         this.type = type;
         this.price = price;
         this.quantity = quantity;
-        this.totalAmount = totalAmount;
+        this.totalPrice = totalPrice;
         this.stock = stock;
         this.user = user;
-        this.order = order;
     }
 
     /*
     거래 총 금액 계산
      */
     public void calculateTotalAmount(int price, int quantity) {
-        this.totalAmount = price * quantity;
+        this.totalPrice = price * quantity;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
