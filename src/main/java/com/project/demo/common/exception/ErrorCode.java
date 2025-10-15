@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum ErrorCode {
 
-
     // 인증 관련 에러 코드
     EMAIL_DUPLICATE(HttpStatus.CONFLICT, "AUTH-001", "이미 존재하는 이메일입니다."),
     NAME_DUPLICATE(HttpStatus.CONFLICT, "AUTH-005", "이미 사용되고 있는 이름입니다."),
@@ -28,7 +27,7 @@ public enum ErrorCode {
 
     // 주문 관련 에러 코드
     MONEY_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "ORDER-001", "보유 금액이 부족합니다"),
-
+    STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "ORDER-002", "보유 주식 수가 부족합니다"),
 
     // 주식 관련 에러 코드
     STOCK_NOT_FOUND(HttpStatus.BAD_REQUEST, "STOCK-001", "해당 주식을 찾을 수 없습니다");

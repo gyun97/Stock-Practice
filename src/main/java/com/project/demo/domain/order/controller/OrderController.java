@@ -25,10 +25,17 @@ public class OrderController {
      * @return 종목 이름, 수량 포함한 주식 매수 성공 알림 문구
      */
     @PostMapping("/buying/{ticker}")
-    public ResponseEntity<ApiResponse<String>> buyStock(@AuthenticationPrincipal AuthUser authUser, @PathVariable String ticker, @RequestParam int quantity) {
+    public ResponseEntity<ApiResponse<String>> buyingStock(@AuthenticationPrincipal AuthUser authUser, @PathVariable String ticker, @RequestParam int quantity) {
         String response = orderService.buyingStock(authUser.getUserId(), ticker, quantity);
         return ResponseEntity.ok(ApiResponse.createdSuccess(response));
     }
+
+    @PostMapping("/selling/{ticker}")
+    public ResponseEntity<ApiResponse<String>> sellingStock(@AuthenticationPrincipal AuthUser authUser, @PathVariable String ticker, @RequestParam int quantity) {
+        String response = orderService.sellingStock(authUser.getUserId(), ticker, quantity);
+        return ResponseEntity.ok(ApiResponse.createdSuccess(response));
+    }
+
 
 
 

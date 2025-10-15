@@ -3,6 +3,7 @@ package com.project.demo.domain.order.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.exception.order.NotEnoughMoneyException;
+import com.project.demo.common.exception.order.NotEnoughStockException;
 import com.project.demo.common.exception.stock.NotFoundStockException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.domain.execution.entity.Execution;
@@ -84,7 +85,7 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    주문 체결
+    매수 주문 체결
      */
     @Transactional
     public void executeBuy(Order order, User user, Stock stock, int price, int quantity, int totalPrice) {
@@ -132,9 +133,85 @@ public class OrderServiceImpl implements OrderService{
         }
     }
 
+    /*
+    주식 즉시 매도
+    */
+    @Transactional
+    public String sellingStock(Long userId, String ticker, int quantity) {
 
+        // 유저
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundUserException());
 
+        // 주식
+        Stock stock = stockRepository.findByTicker(ticker)
+                .orElseThrow(() -> new NotFoundStockException());
 
+        // 보유 주식 확인
+        UserStock userStock = userStockRepository.findByUserAndStock(user, stock)
+                .orElseThrow(() -> new NotEnoughStockException());
+
+        if (userStock.getTotalQuantity() < quantity) {
+            throw new NotEnoughStockException(); // 보유량보다 매수량이 많으면 예외
+        }
+
+        // 주식 현재가
+        int stockPrice = getStockPrice(ticker);
+
+        // 총 매도 금액
+        int totalPrice = stockPrice * quantity;
+
+        // 주문(Order) 생성
+        Order newOrder = Order.builder()
+                .type(OrderType.SELL)
+                .price(stockPrice)
+                .quantity(quantity)
+                .totalPrice(totalPrice)
+                .user(user)
+                .stock(stock)
+                .build();
+
+        orderRepository.save(newOrder);
+
+        // 주문 체결
+        executeSell(newOrder, user, stock, stockPrice, quantity, totalPrice);
+
+        return stock.getName() + " 주식 " + quantity + "주 매도에 성공하였습니다!";
+    }
+
+    /*
+    주문 체결 (매도)
+    */
+    @Transactional
+    public void executeSell(Order order, User user, Stock stock, int price, int quantity, int totalPrice) {
+
+        // 유저 잔액 증가
+        user.addBalance(totalPrice);
+
+        // 체결 생성
+        Execution execution = Execution.builder()
+                .order(order)
+                .type(OrderType.SELL)
+                .price(price)
+                .quantity(quantity)
+                .totalPrice(totalPrice)
+                .build();
+
+        executionRepository.save(execution);
+
+        // UserStock 갱신
+        UserStock userStock = userStockRepository.findByUserAndStock(user, stock)
+                .orElseThrow(() -> new NotEnoughStockException());
+
+        int remainingQuantity = userStock.getTotalQuantity() - quantity;
+
+        if (remainingQuantity > 0) {
+            userStock.updateQuantity(remainingQuantity);
+        } else {
+            // 남은 수량 없으면 삭제
+            userStockRepository.delete(userStock);
+        }
+    }
 
 
 
