@@ -3,6 +3,7 @@ package com.project.demo.domain.user.service;
 import com.project.demo.domain.user.dto.request.LoginRequest;
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
 import com.project.demo.domain.user.dto.request.SignUpRequest;
+import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.dto.response.LoginResponse;
 import com.project.demo.domain.user.dto.response.SignUpResponse;
@@ -28,4 +29,6 @@ public interface UserService {
     public String updatePassword(AuthUser authUser, PasswordUpdateRequest passwordUpdateRequest);
 
     public GetUserResponse getUserInfo(Long userId);
+
+    public GetUserResponse updateUserInfo(Long userId, UpdateUserInfoRequest request);
 }

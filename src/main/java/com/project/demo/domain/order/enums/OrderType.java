@@ -1,4 +1,7 @@
 package com.project.demo.domain.order.enums;
 
-public class OrderType {
+// 거래 타입
+public enum OrderType {
+    BUY, SELL
 }
+

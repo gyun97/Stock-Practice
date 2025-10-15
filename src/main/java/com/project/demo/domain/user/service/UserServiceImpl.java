@@ -6,6 +6,7 @@ import com.project.demo.common.exception.user.InValidNewPasswordException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
+import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.entity.RefreshToken;
@@ -25,9 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
-/*
-Refresh Token을 통한 Access Token 재발급 서비스
-*/
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -131,20 +129,14 @@ public class UserServiceImpl implements UserService {
         return "PK ID " + userId + "인 유저가 탈퇴처리되었습니다.";
     }
 
-    private User getUserById(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundUserException());
-        return user;
-    }
-
     /*
     비밀번호 변경
      */
     @Transactional
-    public String updatePassword(AuthUser authUser, PasswordUpdateRequest passwordUpdateRequest) {
+    public String updatePassword(AuthUser authUser, PasswordUpdateRequest request) {
 
         // 바꾸려고 입력한 두 동일한 새 비밀번호가 일치하는지 확인
-        if (!passwordUpdateRequest.getNewPassword().equals(passwordUpdateRequest.getCheckNewPassword())) {
+        if (!request.getNewPassword().equals(request.getCheckNewPassword())) {
             throw new NewPasswordMismatch();
         }
 
@@ -152,15 +144,15 @@ public class UserServiceImpl implements UserService {
         User user = getUserById(authUser.getUserId());
 
         // 비밀번호 검증
-        validateCorrectPassword(passwordUpdateRequest.getCurrentPassword(), user.getPassword());
+        validateCorrectPassword(request.getCurrentPassword(), user.getPassword());
 
         // 새 비밀번호가 기존 비밀번호와 다른지 확인
-        if (passwordUpdateRequest.getCurrentPassword().equals(passwordUpdateRequest.getNewPassword())) {
+        if (request.getCurrentPassword().equals(request.getNewPassword())) {
             throw new InValidNewPasswordException();
         }
 
         // 새로운 비밀번호 변경
-        user.changePassword(passwordEncoder.encode(passwordUpdateRequest.getNewPassword()));
+        user.changePassword(passwordEncoder.encode(request.getNewPassword()));
 
         return "PK ID " + user.getId() + "인 유저의 비밀번호가 변경되었습니다.";
     }
@@ -197,6 +189,34 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         return userInfo;
+    }
+
+    /*
+    유저 개인 정보 수정
+     */
+    @Transactional
+    public GetUserResponse updateUserInfo(Long userId, UpdateUserInfoRequest request) {
+        User user = getUserById(userId);
+
+        // 유저 정보 수정
+        user.updateUserInfo(request);
+
+        GetUserResponse userInfo = GetUserResponse.builder()
+                .name(user.getName())
+                .email(user.getEmail())
+                .balance(user.getBalance())
+                .build();
+
+        return userInfo;
+    }
+
+    /*
+    ID로 유저 객체 가져오기
+     */
+    private User getUserById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundUserException());
+        return user;
     }
 
     /*

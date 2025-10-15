@@ -59,7 +59,12 @@ public class SecurityConfig {
                                         "/actuator/health",
                                         "/api/v1/users/naver/callback",
                                         "/swagger-ui/**",
-                                        "/v3/api-docs/**"
+                                        "/v3/api-docs/**",
+                                        "/api/v1/stocks/**",
+                                        // WebSocket 관련 경로 추가
+                                        "/ws/**",           // WebSocket 연결 경로
+                                        "/topic/**",        // STOMP 토픽 구독 경로
+                                        "/app/**"           // STOMP 메시지 전송 경로
                                 ).permitAll() // 해당 URL 인증 없이 접근 가능
 //                                .requestMatchers("/api/v1/members/gathering/1/request").hasAnyAuthority(UserRole.ROLE_USER.name())
                                 .anyRequest().authenticated() // 위 조건 외 나머지 요청은 반드시 JWT 인증 필요

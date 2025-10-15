@@ -35,14 +35,27 @@ CREATE TABLE `portfolios` (
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
     `total_quantity` BIGINT NOT NULL,
-    `avg_price` DOUBLE NOT NULL,
     PRIMARY KEY (`port_id`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`)
 );
 
-DROP TABLE IF EXISTS `transactions`;
-CREATE TABLE `transactions` (
-    `transaction_id` BIGINT NOT NULL AUTO_INCREMENT,
+DROP TABLE IF EXISTS `executions`;
+CREATE TABLE `executions` (
+    `execution_id` BIGINT NOT NULL AUTO_INCREMENT,
+    `type` VARCHAR(20) NOT NULL,
+    `price` DOUBLE NOT NULL,
+    `quantity` BIGINT NOT NULL,
+    `created_at` DATETIME NOT NULL,
+    `updated_at` DATETIME NOT NULL,
+    `total_price` DOUBLE NOT NULL,
+    PRIMARY KEY (`execution_id`),
+    FOREIGN KEY (`order_id`) REFERENCES `orders`(`orders_id`)
+);
+
+
+DROP TABLE IF EXISTS `orders`;
+CREATE TABLE `orders` (
+    `order_id` BIGINT NOT NULL AUTO_INCREMENT,
     `type` VARCHAR(20) NOT NULL,
     `price` DOUBLE NOT NULL,
     `quantity` BIGINT NOT NULL,
@@ -50,25 +63,25 @@ CREATE TABLE `transactions` (
     `updated_at` DATETIME NOT NULL,
     `user_id` BIGINT NOT NULL,
     `stock_id` BIGINT NOT NULL,
-    `total_amount` DOUBLE NOT NULL,
-    PRIMARY KEY (`transaction_id`),
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`),
+    `total_price` DOUBLE NOT NULL,
+    PRIMARY KEY (`order_id`),
+    FOREIGN KEY (`order_id`) REFERENCES `orders`(`orders_id`),
     FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
 );
 
-DROP TABLE IF EXISTS `portfoliostocks`;
-CREATE TABLE `portfoliostocks` (
-    `port_stock_id` BIGINT NOT NULL AUTO_INCREMENT,
-    `port_id` BIGINT NOT NULL,
+DROP TABLE IF EXISTS `user_stocks`;
+CREATE TABLE `user_stocks` (
+    `user_stock_id` BIGINT NOT NULL AUTO_INCREMENT,
     `stock_id` BIGINT NOT NULL,
+    `user_id` BIGINT NOT NULL,
     `quantity` BIGINT NOT NULL,
     `avg_price` DOUBLE NOT NULL,
     `return_rate` DOUBLE NOT NULL,
     `total_amount` DOUBLE NOT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
-    PRIMARY KEY (`port_stock_id`),
-    FOREIGN KEY (`port_id`) REFERENCES `portfolios`(`port_id`),
+    PRIMARY KEY (`user_stock_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`),
     FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
 );
 

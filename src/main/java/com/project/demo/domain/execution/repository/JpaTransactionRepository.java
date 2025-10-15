@@ -1,4 +1,4 @@
-package com.project.demo.domain.transaction.repository;
+package com.project.demo.domain.execution.repository;
 
 public class JpaTransactionRepository {
 }

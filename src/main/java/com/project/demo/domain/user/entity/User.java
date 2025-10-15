@@ -1,10 +1,15 @@
 package com.project.demo.domain.user.entity;
 
 import com.project.demo.common.util.TimeStamped;
-import com.project.demo.domain.transaction.entity.Transaction;
+import com.project.demo.domain.execution.entity.Execution;
+import com.project.demo.domain.order.entity.Order;
+import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.enums.UserRole;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -41,7 +46,7 @@ public class User extends TimeStamped {
     private String email;
 
     @OneToMany(mappedBy = "user")
-    private List<Transaction> transactions;
+    private List<Order> orders;
 
     @Builder
     public User(Long id, String password, String name, double balance, UserRole userRole, String email, boolean isDeleted) {
@@ -79,6 +84,14 @@ public class User extends TimeStamped {
         this.isDeleted = false;
         this.withdrawalAt = null;
         this.balance = 10000000;
+    }
+
+    /*
+    유저 개인 정보 수정
+     */
+    public void updateUserInfo(UpdateUserInfoRequest request) {
+        if (request.getNewEmail() != null) this.email = request.getNewEmail();
+        if (request.getNewName() != null) this.name = request.getNewName();
     }
 
     /*
