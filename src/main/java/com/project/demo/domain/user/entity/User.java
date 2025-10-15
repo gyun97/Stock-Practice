@@ -32,7 +32,7 @@ public class User extends TimeStamped {
     private String name;
 
     @Column(nullable = false)
-    private double balance; // 잔액
+    private long balance; // 잔액
 
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false; // 탈퇴 여부
@@ -45,11 +45,11 @@ public class User extends TimeStamped {
     @Column(length = 100, unique = true, nullable = false)
     private String email;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Order> orders;
 
     @Builder
-    public User(Long id, String password, String name, double balance, UserRole userRole, String email, boolean isDeleted) {
+    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted) {
         this.id = id;
         this.password = password;
         this.name = name;
@@ -106,6 +106,13 @@ public class User extends TimeStamped {
      */
     public void changePassword(String newPassword) {
         this.password = newPassword;
+    }
+
+    /*
+    보유액 차감
+     */
+    public void deductBalance(int price) {
+        this.balance -= price;
     }
 }
 

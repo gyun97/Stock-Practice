@@ -38,7 +38,7 @@ public class Stock extends TimeStamped {
 //    @Column(nullable = false)
 //    private int price;
 
-    @OneToMany(mappedBy = "stock")
+    @OneToMany(mappedBy = "stock", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Order> orders;
 
     @Builder
