@@ -1,7 +1,8 @@
 package com.project.demo.domain.transaction.entity;
 
+import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.stock.entity.Stock;
-import com.project.demo.domain.transaction.TransactionType;
+import com.project.demo.domain.transaction.ExecutionType;
 import com.project.demo.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -10,19 +11,19 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "executions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Transaction {
+public class Execution extends TimeStamped {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "transaction_id")
+    @Column(name = "execution_id")
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type", nullable = false)
-    private TransactionType type;
+    @Column(name = "execution_type", nullable = false)
+    private ExecutionType type;
 
     @Column(nullable = false)
     private int price;
@@ -41,7 +42,7 @@ public class Transaction {
     private User user;
 
     @Builder
-    public Transaction(Long id, TransactionType type, int price, int quantity, Stock stock, User user) {
+    public Execution(Long id, ExecutionType type, int price, int quantity, Stock stock, User user) {
         this.id = id;
         this.type = type;
         this.price = price;
