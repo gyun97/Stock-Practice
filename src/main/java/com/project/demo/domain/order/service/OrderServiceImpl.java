@@ -16,15 +16,16 @@ import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.stock.repository.StockRepository;
 import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.user.repository.UserRepository;
-import com.project.demo.domain.user.service.UserService;
 import com.project.demo.domain.userstock.entity.UserStock;
 import com.project.demo.domain.userstock.repository.UserStockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -35,7 +36,6 @@ public class OrderServiceImpl implements OrderService{
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
-    private final UserService userService;
     private final UserStockRepository userStockRepository;
     private final StockRepository stockRepository;
     private final ExecutionRepository executionRepository;
@@ -50,10 +50,10 @@ public class OrderServiceImpl implements OrderService{
 
         // 유저
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundUserException());
+                .orElseThrow(NotFoundUserException::new);
 
         Stock stock = stockRepository.findByTicker(ticker)
-                .orElseThrow(() -> new NotFoundStockException());
+                .orElseThrow(NotFoundStockException::new);
 
         // 주식 현재가
         int stockPrice = getStockPrice(ticker);
@@ -74,6 +74,8 @@ public class OrderServiceImpl implements OrderService{
                 .user(user)
                 .stock(stock)
                 .type(OrderType.BUY)
+                .isExecuted(true)
+                .isReserved(false)
                 .build();
 
         orderRepository.save(newOrder);
@@ -141,15 +143,15 @@ public class OrderServiceImpl implements OrderService{
 
         // 유저
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundUserException());
+                .orElseThrow(NotFoundUserException::new);
 
         // 주식
         Stock stock = stockRepository.findByTicker(ticker)
-                .orElseThrow(() -> new NotFoundStockException());
+                .orElseThrow(NotFoundStockException::new);
 
         // 보유 주식 확인
         UserStock userStock = userStockRepository.findByUserAndStock(user, stock)
-                .orElseThrow(() -> new NotEnoughStockException());
+                .orElseThrow(NotEnoughStockException::new);
 
         if (userStock.getTotalQuantity() < quantity) {
             throw new NotEnoughStockException(); // 보유량보다 매수량이 많으면 예외
@@ -169,6 +171,8 @@ public class OrderServiceImpl implements OrderService{
                 .totalPrice(totalPrice)
                 .user(user)
                 .stock(stock)
+                .isReserved(false)
+                .isExecuted(true)
                 .build();
 
         orderRepository.save(newOrder);
@@ -184,11 +188,8 @@ public class OrderServiceImpl implements OrderService{
     */
     @Transactional
     public void executeSell(Order order, User user, Stock stock, int price, int quantity, int totalPrice) {
-
-        // 유저 잔액 증가
         user.addBalance(totalPrice);
 
-        // 체결 생성
         Execution execution = Execution.builder()
                 .order(order)
                 .type(OrderType.SELL)
@@ -196,24 +197,120 @@ public class OrderServiceImpl implements OrderService{
                 .quantity(quantity)
                 .totalPrice(totalPrice)
                 .build();
-
         executionRepository.save(execution);
 
-        // UserStock 갱신
         UserStock userStock = userStockRepository.findByUserAndStock(user, stock)
-                .orElseThrow(() -> new NotEnoughStockException());
+                .orElseThrow(NotEnoughStockException::new);
 
         int remainingQuantity = userStock.getTotalQuantity() - quantity;
 
-        if (remainingQuantity > 0) {
-            userStock.updateQuantity(remainingQuantity);
-        } else {
-            // 남은 수량 없으면 삭제
-            userStockRepository.delete(userStock);
+        // 차익 계산
+        int avgPrice = userStock.getAvgPrice();
+        int profit = (price - avgPrice) * quantity;
+        double returnRate = ((double) profit / (avgPrice * quantity)) * 100; // 수익률 계산
+
+        log.info("[매도체결] {} 매도 수익: {}원 (수익률: {}%)", stock.getName(), profit, returnRate);
+
+        if (remainingQuantity > 0) { // 아직 남은 주식이 있다면
+            userStock.updateQuantity(remainingQuantity); // 수량 업데이트
+        } else { // 모든 주식을 다 팔았다면
+            userStockRepository.delete(userStock); // 보유 주식에서 삭제
         }
     }
 
+    /*
+    예약 매수 등록 (특정 가격 이하로 떨어지면 매수)
+    */
+    @Transactional
+    public String reserveBuy(Long userId, String ticker, int quantity, int targetPrice) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(NotFoundUserException::new);
 
+        Stock stock = stockRepository.findByTicker(ticker)
+                .orElseThrow(NotFoundStockException::new);
+
+        int totalPrice = targetPrice * quantity;
+
+        if (user.getBalance() < totalPrice) throw new NotEnoughMoneyException();
+
+        Order reservedOrder = Order.builder()
+                .type(OrderType.BUY)
+                .price(targetPrice)
+                .quantity(quantity)
+                .totalPrice(totalPrice)
+                .user(user)
+                .stock(stock)
+                .isReserved(true)
+                .isExecuted(false)
+                .build();
+
+        orderRepository.save(reservedOrder);
+
+        return String.format("%s 주식 예약 매수 등록 완료 (%.0f원 이하 시 체결)", stock.getName(), (double) targetPrice);
+    }
+
+    /*
+    예약 매도 등록 (특정 가격 이상 시 매도)
+    */
+    @Transactional
+    public String reserveSell(Long userId, String ticker, int quantity, int targetPrice) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(NotFoundUserException::new);
+
+        Stock stock = stockRepository.findByTicker(ticker)
+                .orElseThrow(NotFoundStockException::new);
+
+        UserStock userStock = userStockRepository.findByUserAndStock(user, stock)
+                .orElseThrow(NotEnoughStockException::new);
+
+        if (userStock.getTotalQuantity() < quantity) throw new NotEnoughStockException();
+
+        int totalPrice = targetPrice * quantity;
+
+        Order reservedOrder = Order.builder()
+                .type(OrderType.SELL)
+                .price(targetPrice)
+                .quantity(quantity)
+                .totalPrice(totalPrice)
+                .user(user)
+                .stock(stock)
+                .isReserved(true)
+                .isExecuted(false)
+                .build();
+
+        orderRepository.save(reservedOrder);
+
+        return String.format("%s 주식 예약 매도 등록 완료 (%.0f원 이상 시 체결)", stock.getName(), (double) targetPrice);
+    }
+
+    /*
+    예약 주문 자동 체결 스케줄러
+     */
+    @Scheduled(fixedDelay = 5000) // 5초마다 반복
+    @Transactional
+    public void executeReservedOrders() {
+        List<Order> reservedOrders = orderRepository.findAllByIsReservedTrueAndIsExecutedFalse();
+
+        for (Order order : reservedOrders) {
+            int currentPrice = getStockPrice(order.getStock().getTicker());
+
+            // 예약 매수 조건: 현재가 <= 예약가
+            if (order.getType() == OrderType.BUY && currentPrice <= order.getPrice()) {
+                executeBuy(order, order.getUser(), order.getStock(), currentPrice,
+                        order.getQuantity(), currentPrice * order.getQuantity());
+                order.markExecuted();
+                log.info("[예약매수체결] {}: {}원", order.getStock().getName(), currentPrice);
+            }
+
+            // 예약 매도 조건: 현재가 >= 예약가
+            if (order.getType() == OrderType.SELL && currentPrice >= order.getPrice()) {
+                executeSell(order, order.getUser(), order.getStock(), currentPrice,
+                        order.getQuantity(), currentPrice * order.getQuantity());
+                order.markExecuted();
+                log.info("[예약매도체결] {}: {}원", order.getStock().getName(), currentPrice);
+            }
+        }
+    }
 
     /*
     Redis에서 주식 실시간 현재가 꺼내기

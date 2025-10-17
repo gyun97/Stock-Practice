@@ -37,6 +37,8 @@ CREATE TABLE `orders` (
     `stock_id` BIGINT NOT NULL,
     `total_price` DOUBLE NOT NULL,
     `order_type` ENUM('BUY', 'SELL') NOT NULL,
+    `is_reserved` BOOLEAN NOT NULL,
+    `is_executed` BOOLEAN NOT NULL,
     PRIMARY KEY (`order_id`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`),
     FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
