@@ -28,6 +28,7 @@ public enum ErrorCode {
     // 주문 관련 에러 코드
     MONEY_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "ORDER-001", "보유 금액이 부족합니다"),
     STOCK_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "ORDER-002", "보유 주식 수가 부족합니다"),
+    ORDER_NOT_FOUND(HttpStatus.BAD_REQUEST, "ORDER--003", "해당 주문을 찾을 수 없습니다"),
 
     // 주식 관련 에러 코드
     STOCK_NOT_FOUND(HttpStatus.BAD_REQUEST, "STOCK-001", "해당 주식을 찾을 수 없습니다");
