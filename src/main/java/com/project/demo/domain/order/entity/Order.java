@@ -24,15 +24,18 @@ public class Order extends TimeStamped {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false)
-    private OrderType type;
+    private OrderType type;  // BUY or SELL
 
     @Column(nullable = false)
-    private int price;
+    private int price; // 주문가(예약가 포함)
 
     @Column(nullable = false)
     private int quantity;
 
     private int totalPrice;
+
+    private boolean isReserved;  // 예약 주문 여부
+    private boolean isExecuted;  // 체결 완료 여부
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stock_id", nullable = false)
@@ -43,7 +46,7 @@ public class Order extends TimeStamped {
     private User user;
 
     @Builder
-    public Order(Long id, OrderType type, int price, int quantity, int totalPrice, Stock stock, User user) {
+    public Order(Long id, OrderType type, int price, int quantity, int totalPrice, Stock stock, User user, boolean isReserved, boolean isExecuted) {
         this.id = id;
         this.type = type;
         this.price = price;
@@ -51,6 +54,8 @@ public class Order extends TimeStamped {
         this.totalPrice = totalPrice;
         this.stock = stock;
         this.user = user;
+        this.isReserved = isReserved;
+        this.isExecuted = isExecuted;
     }
 
     /*
@@ -58,5 +63,12 @@ public class Order extends TimeStamped {
      */
     public void calculateTotalAmount(int price, int quantity) {
         this.totalPrice = price * quantity;
+    }
+
+    /*
+    주문 체결 상태 업데이트
+     */
+    public void markExecuted() {
+        this.isExecuted = true;
     }
 }

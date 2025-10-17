@@ -15,5 +15,13 @@ public interface OrderService {
 
     public void executeSell(Order order, User user, Stock stock, int price, int quantity, int totalPrice);
 
+    public String reserveBuy(Long userId, String ticker, int quantity, int targetPrice);
+
+    public String reserveSell(Long userId, String ticker, int quantity, int targetPrice);
+
+    public void executeReservedOrders();
+
+
+
 
 }
