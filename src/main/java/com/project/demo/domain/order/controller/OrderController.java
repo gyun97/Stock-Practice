@@ -73,4 +73,15 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.createdSuccess(response));
     }
 
+    /**
+     * 주식 예약 주문 취소
+     * @param orderId
+     * @return
+     */
+    @DeleteMapping("reserve-cancellation/{orderId}")
+    public ResponseEntity<ApiResponse<Void>> cancelReservation(@PathVariable Long orderId) {
+        orderService.cancelReservation(orderId);
+        return ResponseEntity.ok(ApiResponse.requestSuccess(null));
+    }
+
 }

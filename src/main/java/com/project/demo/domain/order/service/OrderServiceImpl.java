@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.exception.order.NotEnoughMoneyException;
 import com.project.demo.common.exception.order.NotEnoughStockException;
+import com.project.demo.common.exception.order.NotFoundOrderException;
 import com.project.demo.common.exception.stock.NotFoundStockException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.domain.execution.entity.Execution;
@@ -310,6 +311,14 @@ public class OrderServiceImpl implements OrderService{
                 log.info("[예약매도체결] {}: {}원", order.getStock().getName(), currentPrice);
             }
         }
+    }
+
+    @Transactional
+    public void cancelReservation(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(NotFoundOrderException::new);
+
+        orderRepository.delete(order);
     }
 
     /*

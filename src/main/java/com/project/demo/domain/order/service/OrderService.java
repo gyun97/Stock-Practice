@@ -21,6 +21,8 @@ public interface OrderService {
 
     public void executeReservedOrders();
 
+    public void cancelReservation(Long orderId);
+
 
 
 
