@@ -182,13 +182,8 @@ public class UserServiceImpl implements UserService {
      */
     public GetUserResponse getUserInfo(Long userId) {
         User user = getUserById(userId);
-        GetUserResponse userInfo = GetUserResponse.builder()
-                .name(user.getName())
-                .email(user.getEmail())
-                .balance(user.getBalance())
-                .build();
 
-        return userInfo;
+        return GetUserResponse.of(user);
     }
 
     /*
@@ -201,13 +196,7 @@ public class UserServiceImpl implements UserService {
         // 유저 정보 수정
         user.updateUserInfo(request);
 
-        GetUserResponse userInfo = GetUserResponse.builder()
-                .name(user.getName())
-                .email(user.getEmail())
-                .balance(user.getBalance())
-                .build();
-
-        return userInfo;
+        return GetUserResponse.of(user);
     }
 
     /*
@@ -215,7 +204,7 @@ public class UserServiceImpl implements UserService {
      */
     private User getUserById(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundUserException());
+                .orElseThrow(NotFoundUserException::new);
         return user;
     }
 
@@ -274,7 +263,7 @@ public class UserServiceImpl implements UserService {
      */
     public void isValid(Long userId, String refreshToken) {
         RefreshToken existingToken = refreshTokenRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundTokenException());
+                .orElseThrow(NotFoundTokenException::new);
 
     }
 

@@ -1,6 +1,7 @@
 package com.project.demo.domain.order.controller;
 
 import com.project.demo.common.response.ApiResponse;
+import com.project.demo.domain.order.dto.response.OrderResponse;
 import com.project.demo.domain.order.service.OrderService;
 import com.project.demo.domain.user.entity.AuthUser;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RequestMapping("/api/v1/orders")
 @RestController
@@ -47,6 +50,7 @@ public class OrderController {
 
     /**
      * 주식 예약 매수(목표가 이하로 주식 가격 하락하면 자동 구매)
+     *
      * @param authUser
      * @param ticker
      * @param quantity
@@ -61,6 +65,7 @@ public class OrderController {
 
     /**
      * 주식 예약 매도(목표가 이상으로 주식 가격 상승하면 자동 판매)
+     *
      * @param authUser
      * @param ticker
      * @param quantity
@@ -76,12 +81,22 @@ public class OrderController {
     /**
      * 주식 예약 주문 취소
      * @param orderId
-     * @return
+     * @return 취소된 주문 내역(오더 ID, 유저 ID, 주식 ID, 주문가(예약가), 주문 수량, 총 가격, 주문 타입, 체결 여부, 예약 여부)
      */
-    @DeleteMapping("reserve-cancellation/{orderId}")
-    public ResponseEntity<ApiResponse<Void>> cancelReservation(@PathVariable Long orderId) {
-        orderService.cancelReservation(orderId);
-        return ResponseEntity.ok(ApiResponse.requestSuccess(null));
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelReservation(@PathVariable Long orderId) {
+        OrderResponse response = orderService.cancelReservation(orderId);
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
     }
 
+    /**
+     * 내 주문 내역 조회
+     * @param authUser
+     * @return [내 주문 내역 리스트](오더 ID, 유저 ID, 주식 ID, 주문가(예약가), 주문 수량, 총 가격, 주문 타입, 체결 여부, 예약 여부)
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getMyOrders(@AuthenticationPrincipal AuthUser authUser) {
+        List<OrderResponse> response = orderService.getMyOrders(authUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
+    }
 }

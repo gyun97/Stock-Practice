@@ -1,9 +1,11 @@
 package com.project.demo.domain.order.service;
 
+import com.project.demo.domain.order.dto.response.OrderResponse;
 import com.project.demo.domain.order.entity.Order;
-import com.project.demo.domain.order.enums.OrderType;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.user.entity.User;
+
+import java.util.List;
 
 public interface OrderService {
 
@@ -21,7 +23,9 @@ public interface OrderService {
 
     public void executeReservedOrders();
 
-    public void cancelReservation(Long orderId);
+    public OrderResponse cancelReservation(Long orderId);
+
+    public List<OrderResponse> getMyOrders(Long userId);
 
 
 
