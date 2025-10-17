@@ -2,6 +2,7 @@ package com.project.demo.domain.order.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.demo.common.exception.order.ExecutedOrderException;
 import com.project.demo.common.exception.order.NotEnoughMoneyException;
 import com.project.demo.common.exception.order.NotEnoughStockException;
 import com.project.demo.common.exception.order.NotFoundOrderException;
@@ -9,6 +10,7 @@ import com.project.demo.common.exception.stock.NotFoundStockException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.execution.repository.ExecutionRepository;
+import com.project.demo.domain.order.dto.response.OrderResponse;
 import com.project.demo.domain.order.entity.Order;
 import com.project.demo.domain.order.enums.OrderType;
 import com.project.demo.domain.order.repository.OrderRepository;
@@ -28,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -299,7 +302,7 @@ public class OrderServiceImpl implements OrderService{
             if (order.getType() == OrderType.BUY && currentPrice <= order.getPrice()) {
                 executeBuy(order, order.getUser(), order.getStock(), currentPrice,
                         order.getQuantity(), currentPrice * order.getQuantity());
-                order.markExecuted();
+                order.markExecuted(); // 체결 완료로 갱신
                 log.info("[예약매수체결] {}: {}원", order.getStock().getName(), currentPrice);
             }
 
@@ -313,12 +316,32 @@ public class OrderServiceImpl implements OrderService{
         }
     }
 
+    /*
+    내 주문 내역 조회
+     */
+    public List<OrderResponse> getMyOrders(Long userId) {
+        List<Order> myOrders = orderRepository.findByUserId(userId);
+
+        return myOrders.stream().map(OrderResponse::of)
+                .collect(Collectors.toList());
+    }
+
+
+    /*
+    예약 주문 취소
+     */
     @Transactional
-    public void cancelReservation(Long orderId) {
+    public OrderResponse cancelReservation(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(NotFoundOrderException::new);
 
+        // 이미 체결된 주문이라면
+        if (order.isExecuted() || !order.isReserved()) throw new ExecutedOrderException();
+
+        // 주문 내역 삭제
         orderRepository.delete(order);
+
+        return OrderResponse.of(order);
     }
 
     /*
