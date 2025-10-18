@@ -1,6 +1,6 @@
 package com.project.demo.common.jwt;
 
-import com.project.demo.domain.user.enums.UserRole;
+import com.project.demo.domain.user.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +25,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtSecurityFilter jwtSecurityFilter; // 요청이 들어올 때 JWT의 유효성 검증을 담당하는 커스텀 필터
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final CustomOAuth2UserService customOAuth2UserService;
 
     @Value("${FRONTEND_URL}")
     private String frontendUrl;
@@ -32,6 +34,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                // OAuth 인증 처리
+                .oauth2Login(oauth -> oauth
+                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler) // 여기서 JWT 발급
+                )
+
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS 활성화
                 .csrf(AbstractHttpConfigurer::disable) // JWT 기반 인증은 Stateless(무상태) 이므로 CSRF 토큰이 불필요
                 .sessionManagement(session -> session
@@ -61,6 +69,7 @@ public class SecurityConfig {
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",
                                         "/api/v1/stocks/**",
+                                        "/api/v1/users/kakao/callback",
                                         // WebSocket 관련 경로 추가
                                         "/ws/**",           // WebSocket 연결 경로
                                         "/topic/**",        // STOMP 토픽 구독 경로

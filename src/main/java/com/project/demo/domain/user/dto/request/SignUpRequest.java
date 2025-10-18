@@ -26,7 +26,6 @@ public class SignUpRequest {
     @NotBlank(message = "이메일을 입력하세요.")
     private String email;
 
-    @NotBlank
     private String userRole;
 
     private String adminToken = "";

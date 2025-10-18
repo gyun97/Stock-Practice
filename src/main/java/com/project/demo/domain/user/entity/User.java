@@ -42,14 +42,24 @@ public class User extends TimeStamped {
     @Enumerated(EnumType.STRING)
     private UserRole userRole; // 운영자/일반 유저
 
+//    private Long kakaoId;
+//
+//    private Long naverId;
+//
+//    private Long googleId;
+
+    private String provider; // OAuth 주체(kakao", "naver", "google", "local")
+
     @Column(length = 100, unique = true, nullable = false)
     private String email;
+
+    private String profileImage;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Order> orders;
 
     @Builder
-    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted) {
+    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted, String provider, String profileImage) {
         this.id = id;
         this.password = password;
         this.name = name;
@@ -57,13 +67,15 @@ public class User extends TimeStamped {
         this.userRole = userRole;
         this.email = email;
         this.isDeleted = isDeleted;
+        this.provider = provider;
+        this.profileImage = profileImage;
     }
 
     /*
     유저 회원가입시 새 유저 객체 생성
      */
     @Builder
-    public static User createNewUser(String email, String name, String encodedPassword, UserRole role) {
+    public static User createNewUser(String email, String name, String encodedPassword, UserRole role, String provider, String profileImage) {
         return User.builder()
                 .email(email)
                 .name(name)
@@ -71,6 +83,8 @@ public class User extends TimeStamped {
                 .userRole(role)
                 .balance(10000000)
                 .isDeleted(false)
+                .provider(provider)
+                .profileImage(profileImage)
                 .build();
     }
 

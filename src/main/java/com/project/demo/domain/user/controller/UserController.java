@@ -20,7 +20,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -29,8 +33,6 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     private final JwtUtil jwtUtil;
     private final UserServiceImpl refreshTokenService;
-    private final HttpServletRequest httpServletRequest;
-    private final HttpServletResponse httpServletResponse;
     private final UserService userService;
 
     /*
@@ -50,7 +52,7 @@ public class UserController {
      * @return [Access Token, Refresh Token]
      */
     @PostMapping("/sign-up")
-    public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@Valid @RequestBody SignUpRequest signUpRequest) {
+    public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@Valid @RequestBody SignUpRequest signUpRequest, HttpServletResponse httpServletResponse) {
         SignUpResponse response = userService.signUp(signUpRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
@@ -65,7 +67,7 @@ public class UserController {
      * @return [Access Token, Refresh Token]
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletResponse httpServletResponse) {
         LoginResponse response = userService.login(loginRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
@@ -74,6 +76,13 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }
 
+//    @GetMapping("/kakao/callback")
+//    public ResponseEntity<ApiResponse<?>> oauthLogin() {
+//
+//
+//
+//    }
+
     /**
      * 회원 탈퇴 API
      * @param userId
@@ -81,7 +90,7 @@ public class UserController {
      * @return [회원 탈퇴 성공 문구]
      */
     @DeleteMapping("/{userId}")
-    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long userId, @RequestParam(value = "password") String inputPassword) {
+    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long userId, @RequestParam(value = "password") String inputPassword, HttpServletResponse httpServletResponse) {
         String response = userService.deleteUser(userId, inputPassword);
         jwtUtil.clearRefreshTokenCookie(httpServletResponse, true, null);
 
@@ -130,7 +139,7 @@ public class UserController {
      * @return [Access Token]
      */
     @PostMapping("/reissue")
-    public ResponseEntity<ApiResponse<String>> refreshAccessToken() {
+    public ResponseEntity<ApiResponse<String>> refreshAccessToken(HttpServletRequest httpServletRequest) {
 
         String refreshToken = jwtUtil.getRefreshTokenFromCookie(httpServletRequest); // 쿠키에서 Refresh Token 꺼내기
         String newAccessToken = refreshTokenService.refreshAccessToken(refreshToken);

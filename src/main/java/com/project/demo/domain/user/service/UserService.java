@@ -9,6 +9,7 @@ import com.project.demo.domain.user.dto.response.LoginResponse;
 import com.project.demo.domain.user.dto.response.SignUpResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.entity.User;
+import jakarta.servlet.http.HttpServletResponse;
 
 public interface UserService {
 
@@ -31,4 +32,5 @@ public interface UserService {
     public GetUserResponse getUserInfo(Long userId);
 
     public GetUserResponse updateUserInfo(Long userId, UpdateUserInfoRequest request);
+
 }

@@ -99,7 +99,60 @@ export default function Home() {
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
-      <h2 style={{ margin: '8px 0 16px' }}>실시간 차트 (정렬 기준: 거래량 순)</h2>
+      {/* 헤더 - 제목과 로그인/회원가입 버튼 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ margin: 0 }}>실시간 차트 (정렬 기준: 거래량 순)</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link 
+            to="/login" 
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              background: 'white',
+              color: '#374151',
+              textDecoration: 'none',
+              fontSize: 14,
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = '#f9fafb'
+              e.currentTarget.style.borderColor = '#9ca3af'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = 'white'
+              e.currentTarget.style.borderColor = '#d1d5db'
+            }}
+          >
+            로그인
+          </Link>
+          <Link 
+            to="/signup" 
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #2962FF',
+              borderRadius: 6,
+              background: '#2962FF',
+              color: 'white',
+              textDecoration: 'none',
+              fontSize: 14,
+              fontWeight: '500',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = '#1d4ed8'
+              e.currentTarget.style.borderColor = '#1d4ed8'
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = '#2962FF'
+              e.currentTarget.style.borderColor = '#2962FF'
+            }}
+          >
+            회원가입
+          </Link>
+        </div>
+      </div>
       <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
         {/* 헤더 라벨 제거 (로고 | 종목명 | 현재가 | 등락률 | 거래량) */}
         <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 140px 120px 140px', alignItems: 'center', padding: '8px 16px', background: '#f8fafc' }} />

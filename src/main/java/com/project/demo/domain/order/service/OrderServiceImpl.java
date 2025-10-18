@@ -122,7 +122,7 @@ public class OrderServiceImpl implements OrderService{
             int newTotalQuantity = currentQuantity + quantity;
             int newAvgPrice = (currentAvgPrice * currentQuantity + price * quantity) / newTotalQuantity;
 
-            userStock.updateAveragePrice(newAvgPrice);
+            userStock.updateAveragePrice(newAvgPrice); // 평균 구매 갱신
             userStock.updateQuantity(newTotalQuantity);
 
         } else {
