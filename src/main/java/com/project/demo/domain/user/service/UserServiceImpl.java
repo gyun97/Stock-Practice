@@ -1,22 +1,21 @@
 package com.project.demo.domain.user.service;
 
 import com.project.demo.common.exception.auth.*;
-import com.project.demo.common.exception.auth.IncorrectPasswordException;
 import com.project.demo.common.exception.user.InValidNewPasswordException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
+import com.project.demo.domain.user.dto.request.LoginRequest;
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
+import com.project.demo.domain.user.dto.request.SignUpRequest;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
-import com.project.demo.domain.user.entity.AuthUser;
-import com.project.demo.domain.user.entity.RefreshToken;
-import com.project.demo.domain.user.repository.RefreshTokenRepository;
-import com.project.demo.domain.user.dto.request.LoginRequest;
-import com.project.demo.domain.user.dto.request.SignUpRequest;
 import com.project.demo.domain.user.dto.response.LoginResponse;
 import com.project.demo.domain.user.dto.response.SignUpResponse;
+import com.project.demo.domain.user.entity.AuthUser;
+import com.project.demo.domain.user.entity.RefreshToken;
 import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.user.enums.UserRole;
+import com.project.demo.domain.user.repository.RefreshTokenRepository;
 import com.project.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +48,8 @@ public class UserServiceImpl implements UserService {
         String email = signUpRequest.getEmail();
         String name = signUpRequest.getName();
         String password = signUpRequest.getPassword();
-        UserRole userRole = UserRole.of(signUpRequest.getUserRole());
+        UserRole userRole = signUpRequest.getUserRole() == null ? UserRole.ROLE_USER : UserRole.of(signUpRequest.getUserRole());
+//        UserRole userRole = UserRole.of(signUpRequest.getUserRole());
 
         // 닉네임 중복 체크
         validateDuplicateName(name);
@@ -69,7 +69,7 @@ public class UserServiceImpl implements UserService {
             }
         } else {
             // 신규 유저 생성
-            user = User.createNewUser(email, name, passwordEncoder.encode(password), userRole);
+            user = User.createNewUser(email, name, passwordEncoder.encode(password), userRole, "local", "");
         }
 
         // DB 저장 (신규 생성/복구 둘 다)

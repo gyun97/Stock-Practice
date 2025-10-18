@@ -11,6 +11,7 @@ CREATE TABLE `users` (
     `email` VARCHAR(255) NOT NULL,
     `is_deleted` BOOLEAN NOT NULL,
     `user_role` VARCHAR(20) NOT NULL,
+    `profile_image` VARCHAR(255) NULL,
     PRIMARY KEY (`user_id`)
 );
 
