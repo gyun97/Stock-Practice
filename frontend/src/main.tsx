@@ -7,6 +7,7 @@ import Chart from './pages/Chart.jsx'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import MyPage from './pages/MyPage'
+import OrderManagement from './pages/OrderManagement'
 
 const router = createBrowserRouter([
   { path: '/', element: <Home /> },
@@ -15,6 +16,7 @@ const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <SignUp /> },
   { path: '/mypage', element: <MyPage /> },
+  { path: '/order-management', element: <OrderManagement /> },
 ])
 
 createRoot(document.getElementById('root')!).render(

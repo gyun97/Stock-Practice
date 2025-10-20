@@ -124,6 +124,7 @@ public class UserServiceImpl implements UserService {
         return LoginResponse.builder()
                 .accessToken(tokens.getAccessToken())
                 .refreshToken(tokens.getRefreshToken())
+                .userId(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .build(); // Access Token, Refresh Token, 사용자 정보 반환
@@ -133,13 +134,9 @@ public class UserServiceImpl implements UserService {
     유저 회원 탈퇴
      */
     @Transactional
-    public String deleteUser(Long userId, String inputPassword) {
-
+    public String deleteUser(Long userId) {
         // PK로 유저 조회
         User user = getUserById(userId);
-
-        // 비밀번호 검증
-        validateCorrectPassword(inputPassword, user.getPassword());
 
         // Refresh Token 삭제
         refreshTokenRepository.deleteById(userId);
@@ -243,8 +240,11 @@ public class UserServiceImpl implements UserService {
         이미 사용하고 있는 이름(닉네임)인지 확인
      */
     public void validateDuplicateName(String name) {
+
         if (userRepository.existsByName(name)) {
-            throw new DuplicateNameException();
+            User user = userRepository.findByName(name).get();
+
+            if (!user.isDeleted()) throw new DuplicateNameException();
         }
     }
 

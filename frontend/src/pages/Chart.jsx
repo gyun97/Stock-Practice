@@ -31,7 +31,7 @@ export default function Chart() {
   // 회사 정보 및 실시간 시세 로드 함수
   const loadCompanyInfo = async () => {
     if (!ticker) return
-    
+
     try {
       const response = await fetch(`/api/v1/stocks`)
       if (response.ok) {
@@ -65,30 +65,30 @@ export default function Chart() {
   // 실시간 업데이트 핸들러
   const onTick = useMemo(() => (payload, raw) => {
     console.log('Chart onTick 호출됨:', { payload, raw, ticker })
-    
+
     const code = String(payload?.ticker ?? payload?.symbol ?? '')
     console.log('수신된 ticker:', code, '현재 ticker:', ticker)
-    
+
     if (code !== ticker) {
       console.log('ticker 불일치로 무시:', code, '!==', ticker)
       return
     }
-    
+
     const price = toNum(payload?.price ?? payload?.stck_prpr)
     const tradeTime = String(payload?.tradeTime ?? payload?.stck_cntg_hour ?? '')
     const changeAmountValue = toNum(payload?.changeAmount ?? payload?.prdy_vrss)
     const changeRateValue = toNum(payload?.changeRate ?? payload?.prdy_ctrt)
     const volumeValue = toNum(payload?.volume ?? payload?.acml_vol ?? payload?.accumulatedVolume)
-    
+
     console.log('파싱된 데이터:', { price, tradeTime, changeAmountValue, changeRateValue, volumeValue })
-    
+
     if (price == null) {
       console.log('price가 null이어서 무시')
       return
     }
-    
+
     console.log('실시간 업데이트 적용:', { ticker, price, changeAmountValue, changeRateValue, volumeValue, tradeTime })
-    
+
     // 실시간 시세 정보 업데이트
     setCurrentPrice({
       price: price,
@@ -109,11 +109,11 @@ export default function Chart() {
   // 데이터 로드 함수
   const loadData = async (period) => {
     if (!ticker) return
-    
+
     setLoading(true)
     try {
       console.log(`데이터 로드 시작: ${ticker}, period: ${period}`)
-      
+
       let response
       if (period === 'MIN') {
         // 분 단위 데이터는 다른 API 사용
@@ -122,22 +122,22 @@ export default function Chart() {
         // 기간별 데이터는 기존 API 사용
         response = await fetch(`/api/v1/stocks/${ticker}/period?period=${period}`)
       }
-      
+
       console.log('응답 상태:', response.status)
-      
+
       if (!response.ok) {
         throw new Error(`데이터 로드 실패: ${response.status}`)
       }
-      
+
       const result = await response.json()
       console.log('받은 데이터:', result)
-      
+
       const data = result.data || []
       console.log('파싱된 캔들 데이터:', data.slice(0, 3))
-      
+
       if (data.length > 0) {
         // 분 단위는 시간순 정렬, 나머지는 날짜순 정렬
-        const sortedData = period === 'MIN' 
+        const sortedData = period === 'MIN'
           ? [...data].sort((a, b) => {
               // 분 단위는 date+time으로 정렬
               const aDateTime = a.date + (a.time || '000000')
@@ -145,9 +145,9 @@ export default function Chart() {
               return aDateTime.localeCompare(bDateTime)
             })
           : [...data].sort((a, b) => a.date.localeCompare(b.date))
-        
+
         console.log('정렬된 데이터:', sortedData.slice(0, 3))
-        
+
         // 정렬된 데이터로 상태 업데이트 및 차트 그리기
         setCandleData(sortedData)
         drawChart(sortedData, period)
@@ -261,7 +261,7 @@ export default function Chart() {
 
     // 캔버스 초기화
     ctx.clearRect(0, 0, width, height)
-    
+
     // 좌표계 설정
     const marginLeft = 60
     const marginRight = 20
@@ -276,23 +276,23 @@ export default function Chart() {
     const maxPrice = Math.max(...prices)
     const maxVolume = Math.max(...volumes)
     const minPrice = 0
-    
+
     // 두 개의 분리된 차트 영역
     const priceChartHeight = chartHeight * 0.5  // 상단 50%
     const volumeChartHeight = chartHeight * 0.5  // 하단 50%
     const gapBetweenCharts = 20  // 차트 간 간격
-    
+
     const priceRange = maxPrice - minPrice
-    
+
     // 1. 주가 라인 차트 그리기 (상단)
     ctx.strokeStyle = '#2962FF'
     ctx.lineWidth = 2
     ctx.beginPath()
-    
+
     data.forEach((item, index) => {
       const x = marginLeft + (index / (data.length - 1)) * chartWidth
       const y = marginTop + priceChartHeight - ((item.close - minPrice) / priceRange) * priceChartHeight
-      
+
       if (index === 0) {
         ctx.moveTo(x, y)
       } else {
@@ -306,7 +306,7 @@ export default function Chart() {
     data.forEach((item, index) => {
       const x = marginLeft + (index / (data.length - 1)) * chartWidth
       const y = marginTop + priceChartHeight - ((item.close - minPrice) / priceRange) * priceChartHeight
-      
+
       ctx.fillStyle = '#2962FF'
       ctx.beginPath()
       ctx.arc(x, y, 3, 0, 2 * Math.PI)
@@ -317,7 +317,7 @@ export default function Chart() {
     ctx.fillStyle = '#666'
     ctx.font = '12px Arial'
     ctx.textAlign = 'right'
-    
+
     for (let i = 0; i <= 4; i++) {
       const value = maxPrice - (i / 4) * (maxPrice - 0)
       const y = marginTop + priceChartHeight - (i / 4) * priceChartHeight + 4
@@ -333,17 +333,17 @@ export default function Chart() {
     // 2. 거래량 막대 그래프 그리기 (하단)
     const volumeStartY = marginTop + priceChartHeight + gapBetweenCharts
     const barWidth = chartWidth / data.length * 0.8
-    
+
     data.forEach((item, index) => {
       const x = marginLeft + (index / (data.length - 1)) * chartWidth - barWidth / 2
       const barHeight = (item.volume / maxVolume) * volumeChartHeight
       const y = volumeStartY + volumeChartHeight - barHeight
-      
+
       // 막대 그래프 그리기 - 빨간색으로 통일
       const barColor = '#ff6b6b'
       ctx.fillStyle = barColor
       ctx.fillRect(x, y, barWidth, barHeight)
-      
+
       // 거래량 수치 표시 (일부 날짜에만)
       if (index % Math.ceil(data.length / 8) === 0) {
         ctx.fillStyle = '#666'
@@ -359,7 +359,7 @@ export default function Chart() {
     ctx.fillStyle = '#666'
     ctx.font = '10px Arial'
     ctx.textAlign = 'right'
-    
+
     for (let i = 0; i <= 4; i++) {
       const value = maxVolume - (i / 4) * maxVolume
       const y = volumeStartY + volumeChartHeight - (i / 4) * volumeChartHeight + 4
@@ -381,7 +381,7 @@ export default function Chart() {
       const index = Math.floor((i / labelCount) * data.length)
       const x = marginLeft + (index / (data.length - 1)) * chartWidth
       const y = volumeStartY + volumeChartHeight + 20
-      
+
       let labelText
       if (period === 'MIN') {
         // 분 단위는 시간 표시
@@ -397,10 +397,10 @@ export default function Chart() {
         const day = dateStr.substring(6, 8)
         labelText = `${year}-${month}-${day}`
       }
-      
+
       ctx.fillText(labelText, x, y)
     }
-    
+
   }
 
   // 기간 변경 시 데이터 다시 로드 및 WebSocket 연결
@@ -409,26 +409,26 @@ export default function Chart() {
     loadCompanyInfo()
     loadData(selectedPeriod)
     loadMyOrders()
-    
+
     // WebSocket 클라이언트 생성 및 연결
     const client = createStompClient(onTick)
     console.log('Chart WebSocket 클라이언트 생성:', client)
-    
+
     // WebSocket 연결 상태 확인을 위한 추가 로그
     client.onConnect = () => {
       console.log('Chart 페이지 WebSocket 연결 성공!')
     }
-    
+
     client.onStompError = (frame) => {
       console.error('Chart 페이지 WebSocket STOMP 오류:', frame)
     }
-    
+
     client.activate()
     stompRef.current = client
-    
-    return () => { 
+
+    return () => {
       console.log('Chart 페이지 언마운트, WebSocket 연결 해제')
-      client.deactivate() 
+      client.deactivate()
     }
   }, [ticker, selectedPeriod, onTick])
 
@@ -440,7 +440,7 @@ export default function Chart() {
           <Link to="/" style={{ textDecoration: 'none', color: '#666' }}>← 목록</Link>
           <h1 style={{ margin: 0, fontSize: 24 }}>{companyName || ticker}</h1>
         </div>
-        
+
         {/* 기간 선택 버튼 - 더 왼쪽으로 이동 */}
         <div style={{ display: 'flex', gap: 8, marginRight: 200 }}>
           {periods.map(({ key, label }) => (
@@ -488,9 +488,9 @@ export default function Chart() {
             {/* 현재가 */}
             <div>
               <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>현재가</div>
-              <div style={{ 
-                fontSize: 24, 
-                fontWeight: 'bold', 
+              <div style={{
+                fontSize: 24,
+                fontWeight: 'bold',
                 color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
               }}>
                 {currentPrice.price.toLocaleString()}원
@@ -500,8 +500,8 @@ export default function Chart() {
             {/* 등락률 */}
             <div>
               <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>등락률</div>
-              <div style={{ 
-                fontSize: 18, 
+              <div style={{
+                fontSize: 18,
                 fontWeight: 'bold',
                 color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
               }}>
