@@ -6,20 +6,19 @@ import com.project.demo.domain.user.dto.request.SignUpRequest;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.dto.response.LoginResponse;
-import com.project.demo.domain.user.dto.response.SignUpResponse;
+import com.project.demo.domain.user.dto.response.TokensResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.entity.User;
-import jakarta.servlet.http.HttpServletResponse;
 
 public interface UserService {
 
-    public SignUpResponse signUp(SignUpRequest request);
+    public LoginResponse signUp(SignUpRequest request);
 
     public String refreshAccessToken(String refreshToken);
 
     public void isValid(Long userId, String refreshToken);
 
-    public SignUpResponse issueTokens(User user);
+    public TokensResponse issueTokens(User user);
 
     public void validateDuplicateName(String name);
 

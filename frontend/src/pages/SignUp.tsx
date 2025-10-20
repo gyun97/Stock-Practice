@@ -64,14 +64,44 @@ export default function SignUp() {
         }),
       })
 
-      if (response.ok || response.status === 302) {
-        // 성공 응답 (200) 또는 리다이렉트 응답 (302) 모두 성공으로 처리
-        console.log('회원가입 성공:', response.status)
-        setSuccess(true)
-        // 성공 시 로그인 페이지로 리다이렉트
-        setTimeout(() => {
-          navigate('/login')
-        }, 2000)
+              if (response.ok || response.status === 302) {
+                // 성공 응답 (200) 또는 리다이렉트 응답 (302) 모두 성공으로 처리
+                console.log('회원가입 성공:', response.status)
+                
+                // 회원가입 성공 시 자동 로그인 처리
+                try {
+                  const result = await response.json()
+                  console.log('회원가입 응답:', result)
+                  
+                  // JWT 토큰을 로컬 스토리지에 저장
+                  if (result.data && result.data.accessToken) {
+                    localStorage.setItem('accessToken', result.data.accessToken)
+                    localStorage.setItem('refreshToken', result.data.refreshToken)
+                    localStorage.setItem('userInfo', JSON.stringify({
+                      userId: result.data.userId,
+                      email: result.data.email,
+                      name: result.data.name
+                    }))
+                    
+                    console.log('자동 로그인 완료:', result.data.userId)
+                    
+                    // 메인 페이지로 리다이렉트
+                    navigate('/')
+                  } else {
+                    // 토큰이 없는 경우 로그인 페이지로 이동
+                    setSuccess(true)
+                    setTimeout(() => {
+                      navigate('/login')
+                    }, 2000)
+                  }
+                } catch (parseError) {
+                  console.error('응답 파싱 오류:', parseError)
+                  // 파싱 실패 시 로그인 페이지로 이동
+                  setSuccess(true)
+                  setTimeout(() => {
+                    navigate('/login')
+                  }, 2000)
+                }
       } else {
         // 에러 응답인 경우에만 JSON 파싱 시도
         try {
@@ -255,7 +285,6 @@ export default function SignUp() {
               placeholder="이메일을 입력하세요"
             />
           </div>
-
 
           <div style={{ marginBottom: 16 }}>
             <label style={{ 

@@ -4,13 +4,14 @@ import com.project.demo.common.exception.auth.*;
 import com.project.demo.common.exception.user.InValidNewPasswordException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
+import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.domain.user.dto.request.LoginRequest;
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
 import com.project.demo.domain.user.dto.request.SignUpRequest;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.dto.response.LoginResponse;
-import com.project.demo.domain.user.dto.response.SignUpResponse;
+import com.project.demo.domain.user.dto.response.TokensResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.entity.RefreshToken;
 import com.project.demo.domain.user.entity.User;
@@ -43,19 +44,26 @@ public class UserServiceImpl implements UserService {
     회원가입 메서드
      */
     @Transactional
-    public SignUpResponse signUp(SignUpRequest signUpRequest) {
+    public LoginResponse signUp(SignUpRequest signUpRequest) {
 
         String email = signUpRequest.getEmail();
         String name = signUpRequest.getName();
         String password = signUpRequest.getPassword();
-        UserRole userRole = signUpRequest.getUserRole() == null ? UserRole.ROLE_USER : UserRole.of(signUpRequest.getUserRole());
-//        UserRole userRole = UserRole.of(signUpRequest.getUserRole());
+
+        // null 체크 포함해서 UserRole 안전하게 처리
+        String roleStr = signUpRequest.getUserRole();
+        UserRole userRole = (roleStr == null || roleStr.isBlank())
+                ? UserRole.ROLE_USER
+                : UserRole.of(roleStr);
 
         // 닉네임 중복 체크
         validateDuplicateName(name);
 
         // 관리자 토큰 검증
-        validateAdminToken(signUpRequest, signUpRequest.getUserRole());
+        if (!signUpRequest.getAdminToken().equals("")) {
+            validateAdminToken(signUpRequest, signUpRequest.getUserRole());
+        }
+
 
         User user;
 
@@ -69,14 +77,22 @@ public class UserServiceImpl implements UserService {
             }
         } else {
             // 신규 유저 생성
-            user = User.createNewUser(email, name, passwordEncoder.encode(password), userRole, "local", "");
+            user = User.createNewUser(email, name, passwordEncoder.encode(password), userRole, SocialType.LOCAL, "");
         }
 
         // DB 저장 (신규 생성/복구 둘 다)
         User savedUser = userRepository.save(user);
 
         // 공통 토큰 발급 로직
-        return issueTokens(savedUser);
+        TokensResponse tokens = issueTokens(savedUser);
+
+        return LoginResponse.builder()
+                .accessToken(tokens.getAccessToken())
+                .refreshToken(tokens.getRefreshToken())
+                .email(user.getEmail())
+                .name(user.getName())
+                .build(); // Access Token, Refresh Token, 사용자 정보 반환
+
     }
 
     /*
@@ -92,7 +108,7 @@ public class UserServiceImpl implements UserService {
 
         // 해당 이메일 계정의 유저가 존재하는지 확인
         User user = userRepository.findByEmail(inputEmail)
-                .orElseThrow(() -> new NotFoundUserException());
+                .orElseThrow(NotFoundUserException::new);
 
         // 탈퇴한 계정인지 확인
         checkDeletedUser(user);
@@ -103,9 +119,14 @@ public class UserServiceImpl implements UserService {
         validateCorrectPassword(inputPassword, correctPassword);
 
         // Access Token, Refresh Token 발급
-        SignUpResponse tokens = issueTokens(user);
+        TokensResponse tokens = issueTokens(user);
 
-        return new LoginResponse(tokens.getAccessToken(), tokens.getRefreshToken()); // Access Token, Refresh Token 반환
+        return LoginResponse.builder()
+                .accessToken(tokens.getAccessToken())
+                .refreshToken(tokens.getRefreshToken())
+                .email(user.getEmail())
+                .name(user.getName())
+                .build(); // Access Token, Refresh Token, 사용자 정보 반환
     }
 
     /*
@@ -161,7 +182,7 @@ public class UserServiceImpl implements UserService {
     로그인, 회원가입한 유저에게 JWT 토큰 발급
      */
     @Transactional
-    public SignUpResponse issueTokens(User savedUser) {
+    public TokensResponse issueTokens(User savedUser) {
         String accessToken = jwtUtil.createAccessToken(savedUser.getId(), savedUser.getEmail(), savedUser.getUserRole(), savedUser.getName());
         String refreshTokenValue = jwtUtil.createRefreshToken(savedUser.getId());
 
@@ -174,7 +195,7 @@ public class UserServiceImpl implements UserService {
         log.info("Access Token: {}", accessToken);
         log.info("Refresh Token: {}", refreshTokenValue);
 
-        return new SignUpResponse(accessToken, refreshTokenValue);
+        return new TokensResponse(accessToken, refreshTokenValue);
     }
 
     /*
@@ -272,7 +293,6 @@ public class UserServiceImpl implements UserService {
      */
     public void validateCorrectPassword(String inputPassword, String correctPassword) {
         log.info("입력 비밀번호: {}", inputPassword);
-        log.info("정확한 비밀번호: {}", correctPassword);
 
         if (!passwordEncoder.matches(inputPassword, correctPassword)) {
             throw new IncorrectPasswordException();

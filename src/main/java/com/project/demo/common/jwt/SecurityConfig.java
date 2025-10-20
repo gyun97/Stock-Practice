@@ -1,6 +1,8 @@
 package com.project.demo.common.jwt;
 
-import com.project.demo.domain.user.service.CustomOAuth2UserService;
+import com.project.demo.common.oauth2.OAuth2LoginFailureHandler;
+import com.project.demo.common.oauth2.OAuth2SuccessHandler;
+import com.project.demo.common.oauth2.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +28,7 @@ public class SecurityConfig {
 
     private final JwtSecurityFilter jwtSecurityFilter; // 요청이 들어올 때 JWT의 유효성 검증을 담당하는 커스텀 필터
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
     private final CustomOAuth2UserService customOAuth2UserService;
 
     @Value("${FRONTEND_URL}")
@@ -34,12 +37,6 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                // OAuth 인증 처리
-                .oauth2Login(oauth -> oauth
-                        .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-                        .successHandler(oAuth2SuccessHandler) // 여기서 JWT 발급
-                )
-
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS 활성화
                 .csrf(AbstractHttpConfigurer::disable) // JWT 기반 인증은 Stateless(무상태) 이므로 CSRF 토큰이 불필요
                 .sessionManagement(session -> session
@@ -58,25 +55,29 @@ public class SecurityConfig {
                                 .requestMatchers(
                                         "/api/v1/users/login",
                                         "/api/v1/users/sign-up",
-                                        "/api/v1/auth/kakao-url",
-                                        "/api/v1/users/kakao/callback",
-                                        "/api/v1/auth/naver-url",
-                                        "/api/v1/users/naver/callback",
-                                        "/gathering/inbox/**",
+                                        "/oauth2/authorization/**",  // OAuth2 인증 경로
+                                        "/login/oauth2/code/**",     // OAuth2 콜백 경로
                                         "/actuator/prometheus",
                                         "/actuator/health",
-                                        "/api/v1/users/naver/callback",
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",
                                         "/api/v1/stocks/**",
-                                        "/api/v1/users/kakao/callback",
+                                        "/signup/**",
                                         // WebSocket 관련 경로 추가
                                         "/ws/**",           // WebSocket 연결 경로
                                         "/topic/**",        // STOMP 토픽 구독 경로
                                         "/app/**"           // STOMP 메시지 전송 경로
-                                ).permitAll() // 해당 URL 인증 없이 접근 가능
-//                                .requestMatchers("/api/v1/members/gathering/1/request").hasAnyAuthority(UserRole.ROLE_USER.name())
+                                )
+                                .permitAll() // 해당 URL 인증 없이 접근 가능
                                 .anyRequest().authenticated() // 위 조건 외 나머지 요청은 반드시 JWT 인증 필요
+                )
+
+                // OAuth 인증 처리
+                .oauth2Login(oauth -> oauth
+                                .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+                                .successHandler(oAuth2SuccessHandler) // 동의하고 계속하기를 눌렀을 시 Handler
+                                .failureHandler(oAuth2LoginFailureHandler)
+                                .loginPage("/oauth2/authorization/kakao") // 카카오 로그인 페이지
                 )
                 .build();
     }
@@ -87,7 +88,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.addAllowedOriginPattern(frontendUrl); // frontendUrl에서 오는 요청만 허용
+        configuration.addAllowedOriginPattern("*"); // 모든 오리진 허용
         configuration.addAllowedMethod("*"); // 모든 HTTP 메서드(GET, POST, PUT 등) 허용
         configuration.addAllowedHeader("*"); // 쿠키, 인증 헤더 포함 요청도 허용
         configuration.setAllowCredentials(true);

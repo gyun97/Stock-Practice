@@ -2,7 +2,7 @@
 -- 1. users
 CREATE TABLE `users` (
     `user_id` BIGINT NOT NULL AUTO_INCREMENT,
-    `password` VARCHAR(255) NOT NULL,
+    `password` VARCHAR(255) NULL,
     `name` VARCHAR(100) NOT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
@@ -12,6 +12,8 @@ CREATE TABLE `users` (
     `is_deleted` BOOLEAN NOT NULL,
     `user_role` VARCHAR(20) NOT NULL,
     `profile_image` VARCHAR(255) NULL,
+    `social_type` ENUM('NAVER', 'KAKAO', 'GOOGLE', 'LOCAL') NOT NULL,
+    `social_id` VARCHAR(100) NULL,
     PRIMARY KEY (`user_id`)
 );
 
