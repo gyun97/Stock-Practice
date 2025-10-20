@@ -31,7 +31,7 @@ export default function Home() {
       
       // 사용자 정보를 토큰에서 추출 (JWT 디코딩)
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
+        const payload = decodeJwtPayload(token)
         console.log('JWT 페이로드:', payload)
         console.log('JWT에서 추출한 name:', payload.name, '(타입:', typeof payload.name, ', 길이:', payload.name ? payload.name.length : 0, ')')
         
@@ -307,6 +307,19 @@ function isMarketOpen(): boolean {
   const marketClose = 15 * 60 + 30 // 15:30
 
   return currentTime >= marketOpen && currentTime <= marketClose
+}
+
+// JWT 페이로드를 UTF-8로 안전하게 디코딩
+function decodeJwtPayload(token: string): any {
+  const part = token.split('.')[1]
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+  // 패딩 보정
+  const padLen = (4 - (b64.length % 4)) % 4
+  const padded = b64 + '='.repeat(padLen)
+  const binary = atob(padded)
+  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+  const json = new TextDecoder('utf-8').decode(bytes)
+  return JSON.parse(json)
 }
 
 function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; logoUrl?: string }) {
