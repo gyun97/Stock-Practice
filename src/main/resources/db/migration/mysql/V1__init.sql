@@ -1,32 +1,67 @@
-DROP TABLE IF EXISTS users;
+
+-- 1. users
 CREATE TABLE `users` (
     `user_id` BIGINT NOT NULL AUTO_INCREMENT,
-    `password` VARCHAR(255) NOT NULL,
+    `password` VARCHAR(255) NULL,
     `name` VARCHAR(100) NOT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
     `withdrawal_at` DATETIME NULL,
-    `balance` DOUBLE NOT NULL,
+    `balance` BIGINT NOT NULL,
     `email` VARCHAR(255) NOT NULL,
     `is_deleted` BOOLEAN NOT NULL,
     `user_role` VARCHAR(20) NOT NULL,
+    `profile_image` VARCHAR(255) NULL,
+    `social_type` ENUM('NAVER', 'KAKAO', 'GOOGLE', 'LOCAL') NOT NULL,
+    `social_id` VARCHAR(100) NULL,
     PRIMARY KEY (`user_id`)
 );
 
-DROP TABLE IF EXISTS `stocks`;
+-- 2. stocks
 CREATE TABLE `stocks` (
     `stock_id` BIGINT NOT NULL AUTO_INCREMENT,
     `ticker` VARCHAR(50) NOT NULL,
     `name` VARCHAR(100) NOT NULL,
     `market` VARCHAR(50) NULL,
     `volume` BIGINT NULL DEFAULT 0,
---    `price` DOUBLE NOT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
     PRIMARY KEY (`stock_id`)
 );
 
-DROP TABLE IF EXISTS `portfolios`;
+-- 3. orders (executions보다 먼저)
+CREATE TABLE `orders` (
+    `order_id` BIGINT NOT NULL AUTO_INCREMENT,
+    `price` DOUBLE NOT NULL,
+    `quantity` BIGINT NOT NULL,
+    `created_at` DATETIME NOT NULL,
+    `updated_at` DATETIME NOT NULL,
+    `user_id` BIGINT NOT NULL,
+    `stock_id` BIGINT NOT NULL,
+    `total_price` DOUBLE NOT NULL,
+    `order_type` ENUM('BUY', 'SELL') NOT NULL,
+    `is_reserved` BOOLEAN NOT NULL,
+    `is_executed` BOOLEAN NOT NULL,
+    PRIMARY KEY (`order_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`),
+    FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
+);
+
+-- 4. executions (order_id 컬럼 추가됨)
+CREATE TABLE `executions` (
+    `execution_id` BIGINT NOT NULL AUTO_INCREMENT,
+    `order_id` BIGINT NOT NULL,
+    `price` DOUBLE NOT NULL,
+    `quantity` BIGINT NOT NULL,
+    `created_at` DATETIME NOT NULL,
+    `updated_at` DATETIME NOT NULL,
+    `total_price` DOUBLE NOT NULL,
+    `order_type` ENUM('BUY', 'SELL') NOT NULL,
+    PRIMARY KEY (`execution_id`),
+    FOREIGN KEY (`order_id`) REFERENCES `orders`(`order_id`)
+);
+
+-- 5. portfolios
 CREATE TABLE `portfolios` (
     `port_id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL,
@@ -35,43 +70,27 @@ CREATE TABLE `portfolios` (
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
     `total_quantity` BIGINT NOT NULL,
-    `avg_price` DOUBLE NOT NULL,
     PRIMARY KEY (`port_id`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`)
 );
 
-DROP TABLE IF EXISTS `transactions`;
-CREATE TABLE `transactions` (
-    `transaction_id` BIGINT NOT NULL AUTO_INCREMENT,
-    `type` VARCHAR(20) NOT NULL,
-    `price` DOUBLE NOT NULL,
-    `quantity` BIGINT NOT NULL,
+-- 6. user_stocks
+CREATE TABLE `user_stocks` (
+    `user_stock_id` BIGINT NOT NULL AUTO_INCREMENT,
+    `stock_id` BIGINT NOT NULL,
+    `user_id` BIGINT NOT NULL,
+    `total_asset` INT NOT NULL,
+    `avg_return_rate` DOUBLE NOT NULL,
+    `avg_price` INT NOT NULL,
+    `total_quantity` INT NOT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
-    `user_id` BIGINT NOT NULL,
-    `stock_id` BIGINT NOT NULL,
-    `total_amount` DOUBLE NOT NULL,
-    PRIMARY KEY (`transaction_id`),
+    PRIMARY KEY (`user_stock_id`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`),
     FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
 );
 
-DROP TABLE IF EXISTS `portfoliostocks`;
-CREATE TABLE `portfoliostocks` (
-    `port_stock_id` BIGINT NOT NULL AUTO_INCREMENT,
-    `port_id` BIGINT NOT NULL,
-    `stock_id` BIGINT NOT NULL,
-    `quantity` BIGINT NOT NULL,
-    `avg_price` DOUBLE NOT NULL,
-    `return_rate` DOUBLE NOT NULL,
-    `total_amount` DOUBLE NOT NULL,
-    `created_at` DATETIME NOT NULL,
-    `updated_at` DATETIME NOT NULL,
-    PRIMARY KEY (`port_stock_id`),
-    FOREIGN KEY (`port_id`) REFERENCES `portfolios`(`port_id`),
-    FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
-);
-
+-- 7. candles
 CREATE TABLE candles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     ticker VARCHAR(12) NOT NULL COMMENT '종목코드 (예: 005930)',
@@ -85,8 +104,8 @@ CREATE TABLE candles (
     UNIQUE KEY uq_candle (ticker, date, time)
 );
 
+-- 8. refresh_tokens
 CREATE TABLE refresh_tokens (
     rt_key BIGINT PRIMARY KEY,
     rt_value VARCHAR(255) NOT NULL COMMENT '토큰 값'
 );
-

@@ -15,6 +15,10 @@ public enum UserRole {
     private final String userRole;
 
     public static UserRole of(String role) {
+        if (role == null || role.isBlank()) {
+            return ROLE_USER; // 기본값 지정
+        }
+
         return Arrays.stream(UserRole.values())
                 .filter(r -> r.name().equalsIgnoreCase(role))
                 .findFirst()
