@@ -123,10 +123,15 @@ public class InitStockSubscribe {
             for (String ticker : allTickers) {
                 subscribeStock(ticker); // 해당 종목 구독
             }
-        } else { // 만약 장외시간이라면
+        } else { // 만약 장외시간이고 서버 첫 가동이서 데이터 없다면 종목들 데이터 받아오기
             for (String ticker : allTickers) {
+
+                if (redisTemplate.hasKey("stock:data:" + ticker)) {
+                    log.info("Redis에 기존 데이터 존재 → API 호출 생략: {}", ticker);
+                    continue;
+                }
                 getStockInfoRest(ticker); // Rest API로 종가 가져오기
-                Thread.sleep(500); // KIS 초당 거래 요청 제한 때문에 0.5초 딜레이(이 이하는 초당 거래 요청 횟수 초과)
+                Thread.sleep(500); // KIS 초당 거래 요청 제한 때문에 2초 딜레이(이 이하는 초당 거래 요청 횟수 초과)
             }
         }
     }

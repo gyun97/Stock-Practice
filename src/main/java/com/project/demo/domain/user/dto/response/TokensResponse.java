@@ -4,8 +4,7 @@ import lombok.*;
 
 @Getter
 @RequiredArgsConstructor
-@Builder
-public class SignUpResponse {
+public class TokensResponse {
 
     private final String accessToken;
     private final String refreshToken;

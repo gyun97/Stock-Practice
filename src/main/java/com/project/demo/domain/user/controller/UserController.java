@@ -11,20 +11,15 @@ import com.project.demo.common.response.ApiResponse;
 import com.project.demo.domain.user.dto.request.LoginRequest;
 import com.project.demo.domain.user.dto.request.SignUpRequest;
 import com.project.demo.domain.user.dto.response.LoginResponse;
-import com.project.demo.domain.user.dto.response.SignUpResponse;
+import com.project.demo.domain.user.dto.response.TokensResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -52,8 +47,8 @@ public class UserController {
      * @return [Access Token, Refresh Token]
      */
     @PostMapping("/sign-up")
-    public ResponseEntity<ApiResponse<SignUpResponse>> signUp(@Valid @RequestBody SignUpRequest signUpRequest, HttpServletResponse httpServletResponse) {
-        SignUpResponse response = userService.signUp(signUpRequest);
+    public ResponseEntity<ApiResponse<LoginResponse>> signUp(@Valid @RequestBody SignUpRequest signUpRequest, HttpServletResponse httpServletResponse) {
+        LoginResponse response = userService.signUp(signUpRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
         jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, true, null); // 응답 쿠키에 Refresh Token 저장
@@ -76,15 +71,9 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }
 
-//    @GetMapping("/kakao/callback")
-//    public ResponseEntity<ApiResponse<?>> oauthLogin() {
-//
-//
-//
-//    }
 
     /**
-     * 회원 탈퇴 API
+     * 회원 탈퇴(Soft Delete) API
      * @param userId
      * @param inputPassword
      * @return [회원 탈퇴 성공 문구]

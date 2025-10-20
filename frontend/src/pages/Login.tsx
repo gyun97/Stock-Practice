@@ -175,9 +175,58 @@ export default function Login() {
           >
             {loading ? '로그인 중...' : '로그인'}
           </button>
-        </form>
+          </form>
 
-        {/* 회원가입 링크 */}
+          {/* 구분선 */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            margin: '16px 0',
+            color: '#9ca3af',
+            fontSize: 14
+          }}>
+            <div style={{ flex: 1, height: 1, background: '#e5e7eb' }}></div>
+            <span style={{ margin: '0 16px' }}>또는</span>
+            <div style={{ flex: 1, height: 1, background: '#e5e7eb' }}></div>
+          </div>
+
+          {/* 카카오 로그인 버튼 */}
+          <button
+            onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/kakao'}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              background: '#FEE500',
+              color: '#000000',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 14,
+              fontWeight: '500',
+              cursor: 'pointer',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              minHeight: 48
+            }}
+          >
+            <img 
+              src="/logos/kakao_login_medium_narrow.png" 
+//               alt="카카오 로그인"
+              style={{ 
+                width: 24, 
+                height: 24,
+                objectFit: 'contain'
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+            카카오로 로그인
+          </button>
+
+          {/* 회원가입 링크 */}
         <div style={{ textAlign: 'center' }}>
           <span style={{ color: '#6b7280', fontSize: 14 }}>
             계정이 없으신가요?{' '}

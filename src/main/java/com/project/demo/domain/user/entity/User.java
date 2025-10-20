@@ -1,5 +1,6 @@
 package com.project.demo.domain.user.entity;
 
+import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.order.entity.Order;
@@ -10,8 +11,11 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 @Entity
@@ -25,7 +29,6 @@ public class User extends TimeStamped {
     @Column(name = "user_id")
     private Long id;
 
-    @Column(nullable = false)
     private String password;
 
     @Column(nullable = false, unique = true)
@@ -42,13 +45,10 @@ public class User extends TimeStamped {
     @Enumerated(EnumType.STRING)
     private UserRole userRole; // 운영자/일반 유저
 
-//    private Long kakaoId;
-//
-//    private Long naverId;
-//
-//    private Long googleId;
+    @Enumerated(EnumType.STRING)
+    private SocialType socialType; // OAuth 주체(kakao", "naver", "google", "local")
 
-    private String provider; // OAuth 주체(kakao", "naver", "google", "local")
+    private String socialId;
 
     @Column(length = 100, unique = true, nullable = false)
     private String email;
@@ -59,7 +59,7 @@ public class User extends TimeStamped {
     private List<Order> orders;
 
     @Builder
-    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted, String provider, String profileImage) {
+    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted, SocialType socialType, String socialId, String profileImage) {
         this.id = id;
         this.password = password;
         this.name = name;
@@ -67,7 +67,8 @@ public class User extends TimeStamped {
         this.userRole = userRole;
         this.email = email;
         this.isDeleted = isDeleted;
-        this.provider = provider;
+        this.socialType = socialType;
+        this.socialId = socialId;
         this.profileImage = profileImage;
     }
 
@@ -75,7 +76,7 @@ public class User extends TimeStamped {
     유저 회원가입시 새 유저 객체 생성
      */
     @Builder
-    public static User createNewUser(String email, String name, String encodedPassword, UserRole role, String provider, String profileImage) {
+    public static User createNewUser(String email, String name, String encodedPassword, UserRole role, SocialType socialType, String profileImage) {
         return User.builder()
                 .email(email)
                 .name(name)
@@ -83,7 +84,7 @@ public class User extends TimeStamped {
                 .userRole(role)
                 .balance(10000000)
                 .isDeleted(false)
-                .provider(provider)
+                .socialType(socialType)
                 .profileImage(profileImage)
                 .build();
     }
@@ -134,6 +135,13 @@ public class User extends TimeStamped {
      */
     public void addBalance(int price) {
         this.balance += price;
+    }
+
+    /*
+    Spring Security 권한 정보 반환
+     */
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(userRole.name()));
     }
 }
 
