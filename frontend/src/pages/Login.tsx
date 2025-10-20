@@ -238,6 +238,54 @@ export default function Login() {
             카카오로 시작하기
           </button>
 
+          {/* 네이버 로그인 버튼 */}
+          <button
+            onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/naver'}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: 'linear-gradient(135deg, #03C75A 0%, #06d566 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 14,
+              fontWeight: '500',
+              cursor: 'pointer',
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              boxShadow: '0 2px 4px rgba(3, 199, 90, 0.25)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(3, 199, 90, 0.35)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(3, 199, 90, 0.25)'
+            }}
+          >
+            {/* 네이버 아이콘 */}
+            <div style={{
+              width: 16,
+              height: 16,
+              background: '#ffffff',
+              borderRadius: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 10,
+              fontWeight: 'bold',
+              color: '#03C75A'
+            }}>
+              N
+            </div>
+            네이버로 시작하기
+          </button>
+
           {/* 회원가입 링크 */}
         <div style={{ textAlign: 'center' }}>
           <span style={{ color: '#6b7280', fontSize: 14 }}>
