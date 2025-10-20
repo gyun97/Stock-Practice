@@ -73,18 +73,19 @@ public class UserController {
 
 
     /**
-     * 회원 탈퇴(Soft Delete) API
+     * 회원 탈퇴 API(SOft Delete)
      * @param userId
-     * @param inputPassword
-     * @return [회원 탈퇴 성공 문구]
+     * @param httpServletResponse
+     * @return 회원 탈퇴 성공 문구
      */
     @DeleteMapping("/{userId}")
-    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long userId, @RequestParam(value = "password") String inputPassword, HttpServletResponse httpServletResponse) {
-        String response = userService.deleteUser(userId, inputPassword);
+    public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long userId, HttpServletResponse httpServletResponse) {
+        String response = userService.deleteUser(userId);
         jwtUtil.clearRefreshTokenCookie(httpServletResponse, true, null);
 
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
     }
+
 
     /**
      * 비밀번호 변경 API

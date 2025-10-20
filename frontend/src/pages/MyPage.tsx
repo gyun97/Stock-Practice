@@ -17,6 +17,9 @@ export default function MyPage() {
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', checkNewPassword: '' })
   const [pwSubmitting, setPwSubmitting] = useState(false)
   const [pwMessage, setPwMessage] = useState('')
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+  const [deleteMessage, setDeleteMessage] = useState('')
 
   useEffect(() => {
     const checkServerStatus = async () => {
@@ -110,6 +113,15 @@ export default function MyPage() {
     if (!pwSubmitting) setPwModalOpen(false)
   }
 
+  const openDeleteModal = () => {
+    setDeleteMessage('')
+    setDeleteModalOpen(true)
+  }
+
+  const closeDeleteModal = () => {
+    if (!deleteSubmitting) setDeleteModalOpen(false)
+  }
+
   const handlePwChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setPwForm(prev => ({ ...prev, [name]: value }))
@@ -165,6 +177,51 @@ export default function MyPage() {
       setPwMessage('네트워크 오류가 발생했습니다.')
     } finally {
       setPwSubmitting(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setDeleteMessage('')
+
+    const accessToken = localStorage.getItem('accessToken')
+    const userInfo = localStorage.getItem('userInfo')
+    
+    if (!accessToken || !userInfo) {
+      setDeleteMessage('로그인이 필요합니다.')
+      return
+    }
+
+    try {
+      setDeleteSubmitting(true)
+      const parsedUserInfo = JSON.parse(userInfo)
+      const res = await fetch(`/api/v1/users/${parsedUserInfo.userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+
+      if (res.ok) {
+        setDeleteMessage('회원탈퇴가 완료되었습니다.')
+        // 자동 로그아웃
+        setTimeout(() => {
+          localStorage.removeItem('userInfo')
+          localStorage.removeItem('accessToken')
+          localStorage.removeItem('refreshToken')
+          localStorage.removeItem('loginMethod')
+          window.location.href = '/'
+        }, 1500)
+      } else if (res.status === 400 || res.status === 401) {
+        const text = await res.text()
+        setDeleteMessage(text || '회원탈퇴에 실패했습니다.')
+      } else {
+        setDeleteMessage(`회원탈퇴 실패 (상태 코드: ${res.status})`)
+      }
+    } catch (err) {
+      setDeleteMessage('네트워크 오류가 발생했습니다.')
+    } finally {
+      setDeleteSubmitting(false)
     }
   }
 
@@ -409,6 +466,53 @@ export default function MyPage() {
           </div>
         </div>
 
+        {/* 주문 관리 */}
+        <div style={{
+          background: 'white',
+          borderRadius: 12,
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          padding: 24,
+          marginBottom: 24
+        }}>
+          <h3 style={{ 
+            margin: '0 0 16px 0', 
+            fontSize: 16, 
+            fontWeight: '600', 
+            color: '#1f2937' 
+          }}>
+            주문 관리
+          </h3>
+          
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <Link
+              to="/order-management"
+              style={{
+                padding: '12px 24px',
+                border: '1px solid #2962FF',
+                borderRadius: 6,
+                background: 'white',
+                color: '#2962FF',
+                fontSize: 14,
+                fontWeight: '500',
+                textDecoration: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'inline-block'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = '#eff6ff'
+                e.currentTarget.style.borderColor = '#1d4ed8'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.borderColor = '#2962FF'
+              }}
+            >
+              📋 주문 내역 조회
+            </Link>
+          </div>
+        </div>
+
         {/* 액션 버튼들 */}
         <div style={{
           background: 'white',
@@ -478,6 +582,31 @@ export default function MyPage() {
               비밀번호 변경
             </button>
             )}
+            
+            <button
+              onClick={openDeleteModal}
+              style={{
+                padding: '12px 24px',
+                border: '1px solid #dc2626',
+                borderRadius: 6,
+                background: 'white',
+                color: '#dc2626',
+                fontSize: 14,
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = '#fef2f2'
+                e.currentTarget.style.borderColor = '#b91c1c'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.borderColor = '#dc2626'
+              }}
+            >
+              회원탈퇴
+            </button>
           </div>
         </div>
       </div>
@@ -553,6 +682,56 @@ export default function MyPage() {
                 }}>{pwSubmitting ? '변경 중...' : '변경하기'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* 회원탈퇴 모달 */}
+      {deleteModalOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>회원탈퇴</h3>
+              <button onClick={closeDeleteModal} disabled={deleteSubmitting} style={{
+                border: 'none', background: 'transparent', fontSize: 18, cursor: deleteSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
+              }}>✕</button>
+            </div>
+
+            {deleteMessage && (
+              <div style={{
+                padding: 12, background: deleteMessage.includes('완료') ? '#d1fae5' : '#fef2f2', 
+                border: `1px solid ${deleteMessage.includes('완료') ? '#34d399' : '#fecaca'}`,
+                borderRadius: 8, color: deleteMessage.includes('완료') ? '#065f46' : '#dc2626', fontSize: 13, marginBottom: 12
+              }}>
+                {deleteMessage}
+              </div>
+            )}
+
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: '0 0 12px 0', fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
+                정말로 회원탈퇴를 하시겠습니까?
+              </p>
+              <p style={{ margin: 0, fontSize: 13, color: '#6b7280', lineHeight: 1.4 }}>
+                • 탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.<br/>
+                • 보유 중인 주식과 잔액이 모두 삭제됩니다.<br/>
+                • 주문 내역과 거래 기록이 모두 삭제됩니다.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={closeDeleteModal} disabled={deleteSubmitting} style={{
+                padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: deleteSubmitting ? 'not-allowed' : 'pointer'
+              }}>취소</button>
+              <button type="button" onClick={handleDeleteAccount} disabled={deleteSubmitting} style={{
+                padding: '10px 16px', border: 'none', borderRadius: 8, background: deleteSubmitting ? '#9ca3af' : '#dc2626', color: 'white', cursor: deleteSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
+              }}>{deleteSubmitting ? '탈퇴 중...' : '탈퇴하기'}</button>
+            </div>
           </div>
         </div>
       )}
