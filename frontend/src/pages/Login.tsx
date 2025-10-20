@@ -9,6 +9,23 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // JWT 페이로드를 UTF-8로 안전하게 디코딩
+  const decodeJwtPayload = (token: string): any => {
+    try {
+      const part = token.split('.')[1]
+      const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+      const padLen = (4 - (b64.length % 4)) % 4
+      const padded = b64 + '='.repeat(padLen)
+      const binary = atob(padded)
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+      const json = new TextDecoder('utf-8').decode(bytes)
+      return JSON.parse(json)
+    } catch (e) {
+      console.error('JWT 디코딩 실패:', e)
+      return null
+    }
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -34,6 +51,38 @@ export default function Login() {
       if (response.ok) {
         const result = await response.json()
         console.log('로그인 성공:', result)
+        const data = result?.data ?? result
+        // 응답에서 토큰 추출 및 저장
+        const accessToken = data?.accessToken ?? result?.accessToken
+        const refreshToken = data?.refreshToken ?? result?.refreshToken
+        if (accessToken) {
+          localStorage.setItem('accessToken', accessToken)
+        }
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken)
+        }
+
+        // JWT에서 사용자 정보 복원하여 저장
+        if (accessToken) {
+          const payload = decodeJwtPayload(accessToken)
+          if (payload) {
+            const userInfo = {
+              userId: String(payload.sub ?? data?.userId ?? ''),
+              email: String(payload.email ?? data?.email ?? ''),
+              name: String(payload.name ?? data?.name ?? '')
+            }
+            localStorage.setItem('userInfo', JSON.stringify(userInfo))
+          } else {
+            // 페이로드 파싱 실패 시 백엔드 응답의 보조 필드 사용 시도
+            if (data?.email || data?.name) {
+              const fallback = { userId: String(data?.userId ?? ''), email: data?.email ?? '', name: data?.name ?? '' }
+              localStorage.setItem('userInfo', JSON.stringify(fallback))
+            }
+          }
+        }
+
+        // 일반 로그인 플래그 저장
+        localStorage.setItem('loginMethod', 'local')
         // 로그인 성공 시 메인 페이지로 리다이렉트
         window.location.href = '/'
       } else {

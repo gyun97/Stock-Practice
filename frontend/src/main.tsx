@@ -6,6 +6,7 @@ import Detail from './pages/Detail'
 import Chart from './pages/Chart.jsx'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
+import MyPage from './pages/MyPage'
 
 const router = createBrowserRouter([
   { path: '/', element: <Home /> },
@@ -13,6 +14,7 @@ const router = createBrowserRouter([
   { path: '/stocks/:ticker/chart', element: <Chart /> },
   { path: '/login', element: <Login /> },
   { path: '/signup', element: <SignUp /> },
+  { path: '/mypage', element: <MyPage /> },
 ])
 
 createRoot(document.getElementById('root')!).render(

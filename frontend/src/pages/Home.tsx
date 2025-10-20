@@ -42,6 +42,7 @@ export default function Home() {
         }
         
         localStorage.setItem('userInfo', JSON.stringify(userInfo))
+        localStorage.setItem('loginMethod', 'oauth')
         setUserInfo(userInfo)
         
         console.log('OAuth 로그인 완료:', userInfo)
@@ -167,6 +168,30 @@ export default function Home() {
               <span style={{ fontSize: 14, color: '#374151' }}>
                 안녕하세요, <strong>{userInfo.name}</strong>님!
               </span>
+              <Link 
+                to="/mypage" 
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#374151',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f9fafb'
+                  e.currentTarget.style.borderColor = '#9ca3af'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#d1d5db'
+                }}
+              >
+                마이페이지
+              </Link>
               <button
                 onClick={handleLogout}
                 style={{

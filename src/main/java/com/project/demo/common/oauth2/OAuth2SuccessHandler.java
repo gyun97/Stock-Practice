@@ -28,7 +28,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
-    @Value("${FRONTEND_URL:http://localhost:5175}")
+    @Value("${FRONTEND_URL}")
     private String frontEnd;
 
     @Override

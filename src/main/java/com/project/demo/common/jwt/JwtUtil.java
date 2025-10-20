@@ -205,7 +205,14 @@ public class JwtUtil {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
 
+    /*
+    토큰에서 Claim(데이터) 추출
+     */
     public Claims extractClaims(String token) {
+        if (token != null && token.startsWith(BEARER_PREFIX)) {
+            token = token.substring(BEARER_PREFIX.length());
+        }
+
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
