@@ -317,13 +317,29 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    내 주문 내역 조회
+    내 주문 전체 내역 조회
      */
-    public List<OrderResponse> getMyOrders(Long userId) {
+    public List<OrderResponse> getMyAllOrders(Long userId) {
         List<Order> myOrders = orderRepository.findByUserId(userId);
 
         return myOrders.stream().map(OrderResponse::of)
                 .collect(Collectors.toList());
+    }
+
+    public List<OrderResponse> getNormalOrders(Long userId, Long stockId) {
+        List<Order> orders = orderRepository.findNormalOrdersByUserAndStock(userId, stockId);
+
+        return orders.stream().map(OrderResponse::of)
+                .collect(Collectors.toList());
+
+    }
+
+    public List<OrderResponse> getReservationOrders(Long userId, Long stockId) {
+        List<Order> orders = orderRepository.findReservationOrdersByUserAndStock(userId, stockId);
+
+        return orders.stream().map(OrderResponse::of)
+                .collect(Collectors.toList());
+
     }
 
 
