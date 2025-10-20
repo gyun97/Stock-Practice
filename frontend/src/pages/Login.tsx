@@ -195,9 +195,9 @@ export default function Login() {
             onClick={() => window.location.href = 'http://localhost:8080/oauth2/authorization/kakao'}
             style={{
               width: '100%',
-              padding: '12px 16px',
-              background: '#FEE500',
-              color: '#000000',
+              padding: '12px',
+              background: 'linear-gradient(135deg, #FEE500 0%, #FFEB3B 100%)',
+              color: '#3C1E1E',
               border: 'none',
               borderRadius: 6,
               fontSize: 14,
@@ -208,22 +208,34 @@ export default function Login() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              minHeight: 48
+              boxShadow: '0 2px 4px rgba(254, 229, 0, 0.2)',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 8px rgba(254, 229, 0, 0.3)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 2px 4px rgba(254, 229, 0, 0.2)'
             }}
           >
-            <img 
-              src="/logos/kakao_login_medium_narrow.png" 
-//               alt="카카오 로그인"
-              style={{ 
-                width: 24, 
-                height: 24,
-                objectFit: 'contain'
-              }}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-            카카오로 로그인
+            {/* 카카오 아이콘 */}
+            <div style={{
+              width: 16,
+              height: 16,
+              background: '#3C1E1E',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 10,
+              fontWeight: 'bold',
+              color: '#FEE500'
+            }}>
+              K
+            </div>
+            카카오로 시작하기
           </button>
 
           {/* 회원가입 링크 */}
