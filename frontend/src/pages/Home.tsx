@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { createStompClient } from '../lib/socket'
 
 type Row = {
@@ -15,8 +15,68 @@ export default function Home() {
   const [rows, setRows] = useState<Row[]>([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
+  const [userInfo, setUserInfo] = useState<{userId: string, email: string, name: string} | null>(null)
   const loaderRef = useRef<HTMLDivElement | null>(null)
   const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // OAuth 토큰 처리
+  useEffect(() => {
+    const token = searchParams.get('token')
+    if (token) {
+      console.log('OAuth 토큰 받음:', token)
+      
+      // 토큰을 localStorage에 저장
+      localStorage.setItem('accessToken', token)
+      
+      // 사용자 정보를 토큰에서 추출 (JWT 디코딩)
+      try {
+        const payload = decodeJwtPayload(token)
+        console.log('JWT 페이로드:', payload)
+        console.log('JWT에서 추출한 name:', payload.name, '(타입:', typeof payload.name, ', 길이:', payload.name ? payload.name.length : 0, ')')
+        
+        const userInfo = {
+          userId: payload.sub,
+          email: payload.email,
+          name: payload.name
+        }
+        
+        localStorage.setItem('userInfo', JSON.stringify(userInfo))
+        localStorage.setItem('loginMethod', 'oauth')
+        setUserInfo(userInfo)
+        
+        console.log('OAuth 로그인 완료:', userInfo)
+        
+        // URL에서 토큰 파라미터 제거
+        setSearchParams({})
+      } catch (error) {
+        console.error('토큰 파싱 오류:', error)
+      }
+    }
+  }, [searchParams, setSearchParams])
+
+  // 로그인 상태 확인
+  useEffect(() => {
+    const storedUserInfo = localStorage.getItem('userInfo')
+    if (storedUserInfo) {
+      try {
+        setUserInfo(JSON.parse(storedUserInfo))
+      } catch (e) {
+        console.error('사용자 정보 파싱 오류:', e)
+        localStorage.removeItem('userInfo')
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+      }
+    }
+  }, [])
+
+  // 로그아웃 함수
+  const handleLogout = () => {
+    localStorage.removeItem('userInfo')
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
+    setUserInfo(null)
+  }
 
   // 초기 페이지 로드
   useEffect(() => {
@@ -73,7 +133,7 @@ export default function Home() {
               ? { ...r, price, changeRate: changeRate ?? r.changeRate, name: companyName ?? r.name, logoUrl: logoUrl ?? r.logoUrl, volume: volume ?? r.volume }
               : r
           )
-        : [...prev, { ticker: code, name: companyName ?? code, price, changeRate, logoUrl, volume: volume ?? 0 }]
+        : [...prev, { ticker: code, name: companyName ?? code, price, changeRate: changeRate ?? 0, logoUrl, volume: volume ?? 0 }]
     })
   }, [])
 
@@ -99,7 +159,118 @@ export default function Home() {
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: 16 }}>
-      <h2 style={{ margin: '8px 0 16px' }}>실시간 차트 (정렬 기준: 거래량 순)</h2>
+      {/* 헤더 - 제목과 로그인/회원가입 버튼 또는 사용자 정보 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 style={{ margin: 0 }}>실시간 차트 (정렬 기준: 거래량 순)</h2>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {userInfo ? (
+            <>
+              <span style={{ fontSize: 14, color: '#374151' }}>
+                안녕하세요, <strong>{userInfo.name}</strong>님!
+              </span>
+              <Link 
+                to="/mypage" 
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#374151',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f9fafb'
+                  e.currentTarget.style.borderColor = '#9ca3af'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#d1d5db'
+                }}
+              >
+                마이페이지
+              </Link>
+              <button
+                onClick={handleLogout}
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #dc2626',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#dc2626',
+                  fontSize: 14,
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#fef2f2'
+                  e.currentTarget.style.borderColor = '#b91c1c'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#dc2626'
+                }}
+              >
+                로그아웃
+              </button>
+            </>
+          ) : (
+            <>
+              <Link 
+                to="/login" 
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#374151',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f9fafb'
+                  e.currentTarget.style.borderColor = '#9ca3af'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#d1d5db'
+                }}
+              >
+                로그인
+              </Link>
+              <Link 
+                to="/signup" 
+                style={{
+                  padding: '8px 16px',
+                  border: '1px solid #2962FF',
+                  borderRadius: 6,
+                  background: '#2962FF',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#1d4ed8'
+                  e.currentTarget.style.borderColor = '#1d4ed8'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#2962FF'
+                  e.currentTarget.style.borderColor = '#2962FF'
+                }}
+              >
+                회원가입
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
       <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
         {/* 헤더 라벨 제거 (로고 | 종목명 | 현재가 | 등락률 | 거래량) */}
         <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 140px 120px 140px', alignItems: 'center', padding: '8px 16px', background: '#f8fafc' }} />
@@ -161,6 +332,19 @@ function isMarketOpen(): boolean {
   const marketClose = 15 * 60 + 30 // 15:30
 
   return currentTime >= marketOpen && currentTime <= marketClose
+}
+
+// JWT 페이로드를 UTF-8로 안전하게 디코딩
+function decodeJwtPayload(token: string): any {
+  const part = token.split('.')[1]
+  const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+  // 패딩 보정
+  const padLen = (4 - (b64.length % 4)) % 4
+  const padded = b64 + '='.repeat(padLen)
+  const binary = atob(padded)
+  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+  const json = new TextDecoder('utf-8').decode(bytes)
+  return JSON.parse(json)
 }
 
 function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; logoUrl?: string }) {

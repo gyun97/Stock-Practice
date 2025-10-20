@@ -1,12 +1,21 @@
 package com.project.demo.domain.user.entity;
 
+import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.common.util.TimeStamped;
-import com.project.demo.domain.transaction.entity.Transaction;
+import com.project.demo.domain.execution.entity.Execution;
+import com.project.demo.domain.order.entity.Order;
+import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.enums.UserRole;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 @Entity
@@ -20,14 +29,13 @@ public class User extends TimeStamped {
     @Column(name = "user_id")
     private Long id;
 
-    @Column(nullable = false)
     private String password;
 
     @Column(nullable = false, unique = true)
     private String name;
 
     @Column(nullable = false)
-    private double balance; // 잔액
+    private long balance; // 잔액
 
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false; // 탈퇴 여부
@@ -37,14 +45,21 @@ public class User extends TimeStamped {
     @Enumerated(EnumType.STRING)
     private UserRole userRole; // 운영자/일반 유저
 
+    @Enumerated(EnumType.STRING)
+    private SocialType socialType; // OAuth 주체(kakao", "naver", "google", "local")
+
+    private String socialId;
+
     @Column(length = 100, unique = true, nullable = false)
     private String email;
 
-    @OneToMany(mappedBy = "user")
-    private List<Transaction> transactions;
+    private String profileImage;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Order> orders;
 
     @Builder
-    public User(Long id, String password, String name, double balance, UserRole userRole, String email, boolean isDeleted) {
+    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted, SocialType socialType, String socialId, String profileImage) {
         this.id = id;
         this.password = password;
         this.name = name;
@@ -52,13 +67,16 @@ public class User extends TimeStamped {
         this.userRole = userRole;
         this.email = email;
         this.isDeleted = isDeleted;
+        this.socialType = socialType;
+        this.socialId = socialId;
+        this.profileImage = profileImage;
     }
 
     /*
-        유저 회원가입시 새 유저 객체 생성
+    유저 회원가입시 새 유저 객체 생성
      */
     @Builder
-    public static User createNewUser(String email, String name, String encodedPassword, UserRole role) {
+    public static User createNewUser(String email, String name, String encodedPassword, UserRole role, SocialType socialType, String profileImage) {
         return User.builder()
                 .email(email)
                 .name(name)
@@ -66,11 +84,13 @@ public class User extends TimeStamped {
                 .userRole(role)
                 .balance(10000000)
                 .isDeleted(false)
+                .socialType(socialType)
+                .profileImage(profileImage)
                 .build();
     }
 
     /*
-        탈퇴 회원 재가입
+    탈퇴 회원 재가입
      */
     public void reactivate(String newPassword, String newName, UserRole newRole) {
         this.password = newPassword;
@@ -80,4 +100,48 @@ public class User extends TimeStamped {
         this.withdrawalAt = null;
         this.balance = 10000000;
     }
+
+    /*
+    유저 개인 정보 수정
+     */
+    public void updateUserInfo(UpdateUserInfoRequest request) {
+        if (request.getNewEmail() != null) this.email = request.getNewEmail();
+        if (request.getNewName() != null) this.name = request.getNewName();
+    }
+
+    /*
+    회원 탈퇴 상태로 전환(소프트 딜리트)
+     */
+    public void updateIsDeleted() {
+        this.isDeleted = true;
+    }
+
+    /*
+    비밀번호 변경
+     */
+    public void changePassword(String newPassword) {
+        this.password = newPassword;
+    }
+
+    /*
+    보유 잔액 차감
+     */
+    public void deductBalance(int price) {
+        this.balance -= price;
+    }
+
+    /*
+    보유 잔액 증감
+     */
+    public void addBalance(int price) {
+        this.balance += price;
+    }
+
+    /*
+    Spring Security 권한 정보 반환
+     */
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(userRole.name()));
+    }
 }
+

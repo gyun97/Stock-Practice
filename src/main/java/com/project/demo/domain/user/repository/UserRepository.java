@@ -1,5 +1,6 @@
 package com.project.demo.domain.user.repository;
 
+import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -12,4 +13,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     boolean existsByName(String name);
+
+    Optional<User> findBySocialTypeAndSocialId(SocialType socialType, String socialId);
 }
