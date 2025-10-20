@@ -13,6 +13,23 @@ export default function SignUp() {
   const [success, setSuccess] = useState(false)
   const navigate = useNavigate()
 
+  // JWT 페이로드를 UTF-8로 안전하게 디코딩
+  const decodeJwtPayload = (token: string): any => {
+    try {
+      const part = token.split('.')[1]
+      const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+      const padLen = (4 - (b64.length % 4)) % 4
+      const padded = b64 + '='.repeat(padLen)
+      const binary = atob(padded)
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+      const json = new TextDecoder('utf-8').decode(bytes)
+      return JSON.parse(json)
+    } catch (e) {
+      console.error('JWT 디코딩 실패:', e)
+      return null
+    }
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -64,7 +81,7 @@ export default function SignUp() {
         }),
       })
 
-              if (response.ok || response.status === 302) {
+              if (response.ok || response.status === 302 || response.status === 201) {
                 // 성공 응답 (200) 또는 리다이렉트 응답 (302) 모두 성공으로 처리
                 console.log('회원가입 성공:', response.status)
                 
@@ -72,27 +89,37 @@ export default function SignUp() {
                 try {
                   const result = await response.json()
                   console.log('회원가입 응답:', result)
-                  
-                  // JWT 토큰을 로컬 스토리지에 저장
-                  if (result.data && result.data.accessToken) {
-                    localStorage.setItem('accessToken', result.data.accessToken)
-                    localStorage.setItem('refreshToken', result.data.refreshToken)
-                    localStorage.setItem('userInfo', JSON.stringify({
-                      userId: result.data.userId,
-                      email: result.data.email,
-                      name: result.data.name
-                    }))
-                    
-                    console.log('자동 로그인 완료:', result.data.userId)
-                    
-                    // 메인 페이지로 리다이렉트
+
+                  const data = result?.data ?? result
+                  const accessToken = data?.accessToken ?? result?.accessToken
+                  const refreshToken = data?.refreshToken ?? result?.refreshToken
+
+                  if (accessToken) {
+                    localStorage.setItem('accessToken', accessToken)
+                    if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+
+                    // JWT에서 사용자 정보 복원
+                    const payload = decodeJwtPayload(accessToken)
+                    if (payload) {
+                      const userInfo = {
+                        userId: String(payload.sub ?? data?.userId ?? ''),
+                        email: String(payload.email ?? data?.email ?? ''),
+                        name: String(payload.name ?? data?.name ?? '')
+                      }
+                      localStorage.setItem('userInfo', JSON.stringify(userInfo))
+                    } else if (data?.email || data?.name) {
+                      const fallback = { userId: String(data?.userId ?? ''), email: data?.email ?? '', name: data?.name ?? '' }
+                      localStorage.setItem('userInfo', JSON.stringify(fallback))
+                    }
+
+                    // 일반 로그인으로 표시
+                    localStorage.setItem('loginMethod', 'local')
+                    // 메인 페이지로 이동
                     navigate('/')
                   } else {
-                    // 토큰이 없는 경우 로그인 페이지로 이동
+                    // 토큰이 없으면 로그인 페이지로 유도
                     setSuccess(true)
-                    setTimeout(() => {
-                      navigate('/login')
-                    }, 2000)
+                    setTimeout(() => { navigate('/login') }, 1500)
                   }
                 } catch (parseError) {
                   console.error('응답 파싱 오류:', parseError)
@@ -100,7 +127,7 @@ export default function SignUp() {
                   setSuccess(true)
                   setTimeout(() => {
                     navigate('/login')
-                  }, 2000)
+                  }, 1500)
                 }
       } else {
         // 에러 응답인 경우에만 JSON 파싱 시도
