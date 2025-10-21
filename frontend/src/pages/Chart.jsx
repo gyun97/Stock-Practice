@@ -19,6 +19,12 @@ export default function Chart() {
   const [orderErr, setOrderErr] = useState('')
   const canvasRef = useRef(null)
   const stompRef = useRef(null)
+  const tickerRef = useRef(ticker)
+
+  // ticker 변경 시 ref 업데이트
+  useEffect(() => {
+    tickerRef.current = ticker
+  }, [ticker])
 
   const periods = [
     { key: 'MIN', label: '분' },
@@ -62,15 +68,16 @@ export default function Chart() {
     }
   }
 
-  // 실시간 업데이트 핸들러
+  // 실시간 업데이트 핸들러 (메인 페이지와 동일한 방식)
   const onTick = useMemo(() => (payload, raw) => {
-    console.log('Chart onTick 호출됨:', { payload, raw, ticker })
+    const currentTicker = tickerRef.current
+    console.log('Chart onTick 호출됨:', { payload, raw, currentTicker })
 
     const code = String(payload?.ticker ?? payload?.symbol ?? '')
-    console.log('수신된 ticker:', code, '현재 ticker:', ticker)
+    console.log('수신된 ticker:', code, '현재 ticker:', currentTicker)
 
-    if (code !== ticker) {
-      console.log('ticker 불일치로 무시:', code, '!==', ticker)
+    if (code !== currentTicker) {
+      console.log('ticker 불일치로 무시:', code, '!==', currentTicker)
       return
     }
 
@@ -87,7 +94,7 @@ export default function Chart() {
       return
     }
 
-    console.log('실시간 업데이트 적용:', { ticker, price, changeAmountValue, changeRateValue, volumeValue, tradeTime })
+    console.log('실시간 업데이트 적용:', { ticker: currentTicker, price, changeAmountValue, changeRateValue, volumeValue, tradeTime })
 
     // 실시간 시세 정보 업데이트
     setCurrentPrice({
@@ -97,7 +104,7 @@ export default function Chart() {
       volume: volumeValue || 0,
       tradeTime: tradeTime
     })
-  }, [ticker])
+  }, [])
 
   // 숫자 변환 유틸리티 함수
   function toNum(v) {
@@ -403,34 +410,25 @@ export default function Chart() {
 
   }
 
-  // 기간 변경 시 데이터 다시 로드 및 WebSocket 연결
+  // WebSocket 연결 (메인 페이지와 동일한 방식)
+  useEffect(() => {
+    console.log('Chart 페이지 WebSocket 연결 시작')
+    const client = createStompClient(onTick)
+    client.activate()
+    stompRef.current = client
+    return () => { 
+      console.log('Chart 페이지 WebSocket 연결 해제')
+      client.deactivate() 
+    }
+  }, [onTick])
+
+  // 기간 변경 시 데이터 다시 로드
   useEffect(() => {
     console.log('Chart 페이지 마운트, ticker:', ticker)
     loadCompanyInfo()
     loadData(selectedPeriod)
     loadMyOrders()
-
-    // WebSocket 클라이언트 생성 및 연결
-    const client = createStompClient(onTick)
-    console.log('Chart WebSocket 클라이언트 생성:', client)
-
-    // WebSocket 연결 상태 확인을 위한 추가 로그
-    client.onConnect = () => {
-      console.log('Chart 페이지 WebSocket 연결 성공!')
-    }
-
-    client.onStompError = (frame) => {
-      console.error('Chart 페이지 WebSocket STOMP 오류:', frame)
-    }
-
-    client.activate()
-    stompRef.current = client
-
-    return () => {
-      console.log('Chart 페이지 언마운트, WebSocket 연결 해제')
-      client.deactivate()
-    }
-  }, [ticker, selectedPeriod, onTick])
+  }, [ticker, selectedPeriod])
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', padding: 16 }}>
