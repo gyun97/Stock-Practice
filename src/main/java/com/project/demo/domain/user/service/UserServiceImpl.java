@@ -89,6 +89,7 @@ public class UserServiceImpl implements UserService {
         return LoginResponse.builder()
                 .accessToken(tokens.getAccessToken())
                 .refreshToken(tokens.getRefreshToken())
+                .userId(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .build(); // Access Token, Refresh Token, 사용자 정보 반환
@@ -128,6 +129,14 @@ public class UserServiceImpl implements UserService {
                 .email(user.getEmail())
                 .name(user.getName())
                 .build(); // Access Token, Refresh Token, 사용자 정보 반환
+    }
+
+    /*
+    유저 로그아웃
+     */
+    @Transactional
+    public void logout(Long userId) {
+        refreshTokenRepository.deleteById(userId); // DB의 Refresh Token 삭제
     }
 
     /*

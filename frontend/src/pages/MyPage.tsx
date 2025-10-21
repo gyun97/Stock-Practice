@@ -96,13 +96,6 @@ export default function MyPage() {
     fetchUserInfo()
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem('userInfo')
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
-    window.location.href = '/'
-  }
-
   const openPwModal = () => {
     setPwMessage('')
     setPwForm({ currentPassword: '', newPassword: '', checkNewPassword: '' })
@@ -508,7 +501,7 @@ export default function MyPage() {
                 e.currentTarget.style.borderColor = '#2962FF'
               }}
             >
-              📋 주문 내역 조회
+              📋 주문 내역 조회 및 취소
             </Link>
           </div>
         </div>
@@ -530,31 +523,6 @@ export default function MyPage() {
           </h3>
           
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '12px 24px',
-                border: '1px solid #dc2626',
-                borderRadius: 6,
-                background: 'white',
-                color: '#dc2626',
-                fontSize: 14,
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#fef2f2'
-                e.currentTarget.style.borderColor = '#b91c1c'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.borderColor = '#dc2626'
-              }}
-            >
-              로그아웃
-            </button>
-            
             {/* 소셜 로그인 사용자는 비밀번호가 없을 수 있으므로 버튼 숨김 */}
             {localStorage.getItem('loginMethod') !== 'oauth' && (
             <button
