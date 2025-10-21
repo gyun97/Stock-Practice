@@ -8,8 +8,18 @@ type UserInfo = {
   balance: number
 }
 
+type PortfolioInfo = {
+  balance: number
+  stockAsset: number
+  totalAsset: number
+  holdCount: number
+  totalQuantity: number
+  returnRate: number
+}
+
 export default function MyPage() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
+  const [portfolioInfo, setPortfolioInfo] = useState<PortfolioInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
@@ -69,6 +79,9 @@ export default function MyPage() {
           const result = await response.json()
           console.log('API 응답 데이터:', result)
           setUserInfo(result.data)
+          
+          // 포트폴리오 정보도 함께 가져오기
+          await fetchPortfolioInfo(parsedUserInfo.userId, accessToken)
         } else if (response.status === 401) {
           setError('로그인이 만료되었습니다. 다시 로그인해주세요.')
           localStorage.removeItem('userInfo')
@@ -90,6 +103,33 @@ export default function MyPage() {
         }
       } finally {
         setLoading(false)
+      }
+    }
+
+    const fetchPortfolioInfo = async (userId: number, accessToken: string) => {
+      try {
+        console.log('포트폴리오 API 호출:', `/api/v1/portfolios/users/${userId}`)
+        
+        const response = await fetch(`/api/v1/portfolios/users/${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        console.log('포트폴리오 API 응답 상태:', response.status)
+
+        if (response.ok) {
+          const result = await response.json()
+          console.log('포트폴리오 API 응답 데이터:', result)
+          setPortfolioInfo(result.data)
+        } else {
+          console.error('포트폴리오 정보를 불러오는데 실패했습니다. (상태 코드:', response.status, ')')
+          // 포트폴리오 정보가 없어도 에러로 처리하지 않음
+        }
+      } catch (err) {
+        console.error('포트폴리오 API 호출 오류:', err)
+        // 포트폴리오 정보가 없어도 에러로 처리하지 않음
       }
     }
 
@@ -458,6 +498,106 @@ export default function MyPage() {
             </div>
           </div>
         </div>
+
+        {/* 포트폴리오 현황 카드 */}
+        {portfolioInfo && (
+          <div style={{
+            background: 'white',
+            borderRadius: 12,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            padding: 32,
+            marginBottom: 24
+          }}>
+            <h2 style={{ 
+              margin: '0 0 24px 0', 
+              fontSize: 20, 
+              fontWeight: '600', 
+              color: '#1f2937' 
+            }}>
+              포트폴리오 현황
+            </h2>
+            
+            {/* 총 자산과 수익률 */}
+            <div style={{
+              background: '#f8fafc',
+              borderRadius: 8,
+              padding: 20,
+              marginBottom: 20,
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>총 자산</span>
+                <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1f2937' }}>
+                  {portfolioInfo.totalAsset.toLocaleString()}원
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>수익률</span>
+                <span style={{ 
+                  fontSize: 18, 
+                  fontWeight: '600', 
+                  color: portfolioInfo.returnRate >= 0 ? '#dc2626' : '#2563eb'
+                }}>
+                  {portfolioInfo.returnRate >= 0 ? '+' : ''}{portfolioInfo.returnRate.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+
+            {/* 자산 구성 */}
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '12px 0',
+                borderBottom: '1px solid #f1f5f9'
+              }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>현금 잔액</span>
+                <span style={{ fontSize: 16, fontWeight: '500', color: '#059669' }}>
+                  {portfolioInfo.balance.toLocaleString()}원
+                </span>
+              </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '12px 0',
+                borderBottom: '1px solid #f1f5f9'
+              }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>보유 주식 총액</span>
+                <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                  {portfolioInfo.stockAsset.toLocaleString()}원
+                </span>
+              </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '12px 0',
+                borderBottom: '1px solid #f1f5f9'
+              }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>보유 종목 수</span>
+                <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                  {portfolioInfo.holdCount}개
+                </span>
+              </div>
+              
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                padding: '12px 0'
+              }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>총 보유 주식 수량</span>
+                <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                  {portfolioInfo.totalQuantity.toLocaleString()}주
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 주문 관리 */}
         <div style={{
