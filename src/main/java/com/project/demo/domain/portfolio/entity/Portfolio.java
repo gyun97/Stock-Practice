@@ -28,19 +28,23 @@ public class Portfolio extends TimeStamped {
     private long balance; // 가용 자산(잔액)
 
     @Column(nullable = false)
+    private int stockAsset; // 보유 주식 총액
+
+    @Column(nullable = false)
     private long totalAsset; // 총 자산(가용 금액(balance) + 보유 주식 총액(stockAsset))
-
-    @Column(nullable = false)
-    private int totalQuantity; // 보유 주식 수량
-
-    @Column(nullable = false)
-    private double returnRate;
 
     @Column(nullable = false)
     private int holdCount; // 보유 종목 수
 
     @Column(nullable = false)
-    private int stockAsset; // 보유 주식 총액
+    private int totalQuantity; // 보유 주식 수량
+
+    @Column(nullable = false)
+    private double returnRate; // 수익률
+
+
+
+
 
     // 단방향
     @OneToOne(fetch = FetchType.LAZY)
