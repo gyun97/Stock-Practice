@@ -5,6 +5,8 @@ import com.project.demo.common.exception.user.InValidNewPasswordException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
 import com.project.demo.common.oauth2.SocialType;
+import com.project.demo.domain.portfolio.entity.Portfolio;
+import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.user.dto.request.LoginRequest;
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
 import com.project.demo.domain.user.dto.request.SignUpRequest;
@@ -35,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final JwtUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
+    private final PortfolioRepository portfolioRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${ADMIN_TOKEN}")
@@ -85,6 +88,19 @@ public class UserServiceImpl implements UserService {
 
         // 공통 토큰 발급 로직
         TokensResponse tokens = issueTokens(savedUser);
+
+        // 가입 유저의 초기 포토폴리오 생성
+        Portfolio newPortfolio = Portfolio.builder()
+                .balance(10000000)
+                .totalAsset(10000000)
+                .totalQuantity(0)
+                .avgReturnRate(0)
+                .holdCount(0)
+                .stockAsset(0)
+                .user(savedUser)
+                .build();
+
+        portfolioRepository.save(newPortfolio);
 
         return LoginResponse.builder()
                 .accessToken(tokens.getAccessToken())

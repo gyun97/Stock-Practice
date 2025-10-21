@@ -6,6 +6,7 @@ import com.project.demo.common.exception.order.ExecutedOrderException;
 import com.project.demo.common.exception.order.NotEnoughMoneyException;
 import com.project.demo.common.exception.order.NotEnoughStockException;
 import com.project.demo.common.exception.order.NotFoundOrderException;
+import com.project.demo.common.exception.portfolio.NotFoundPortfolioException;
 import com.project.demo.common.exception.stock.NotFoundStockException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.domain.execution.entity.Execution;
@@ -14,6 +15,8 @@ import com.project.demo.domain.order.dto.response.OrderResponse;
 import com.project.demo.domain.order.entity.Order;
 import com.project.demo.domain.order.enums.OrderType;
 import com.project.demo.domain.order.repository.OrderRepository;
+import com.project.demo.domain.portfolio.entity.Portfolio;
+import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.stock.dto.response.StockData;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.stock.repository.StockRepository;
@@ -43,6 +46,7 @@ public class OrderServiceImpl implements OrderService{
     private final UserStockRepository userStockRepository;
     private final StockRepository stockRepository;
     private final ExecutionRepository executionRepository;
+    private final PortfolioRepository portfolioRepository;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
 
@@ -84,6 +88,8 @@ public class OrderServiceImpl implements OrderService{
 
         orderRepository.save(newOrder);
 
+        stock.getOrders().add(newOrder);
+
         // 주문 체결
         executeBuy(newOrder, user, stock, stockPrice, quantity, totalPrice);
 
@@ -109,12 +115,16 @@ public class OrderServiceImpl implements OrderService{
 
         executionRepository.save(execution);
 
+        // 해당 유저의 포토폴리오 가져오기
+        Portfolio portfolio = portfolioRepository.findByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
+
         // 기존 보유 주식(UserStock) 확인
         Optional<UserStock> optionalUserStock = userStockRepository.findByUserAndStock(user, stock);
+        UserStock userStock;
 
         if (optionalUserStock.isPresent()) { // 만약 해당 종목의 주식을 이전에 이미 구매했다면
-            // 해당 종목의 평균 단가 갱신
-            UserStock userStock = optionalUserStock.get();
+            userStock = optionalUserStock.get();
 
             int currentQuantity = userStock.getTotalQuantity();
             int currentAvgPrice = userStock.getAvgPrice();
@@ -122,21 +132,33 @@ public class OrderServiceImpl implements OrderService{
             int newTotalQuantity = currentQuantity + quantity;
             int newAvgPrice = (currentAvgPrice * currentQuantity + price * quantity) / newTotalQuantity;
 
-            userStock.updateAveragePrice(newAvgPrice); // 평균 구매 갱신
-            userStock.updateQuantity(newTotalQuantity);
+            userStock.updateAveragePrice(newAvgPrice); // 해당 종목의 평균 단가 갱신
+            userStock.updateQuantity(newTotalQuantity); // 수량 변화
 
         } else {
             // 신규 보유 주식 생성
-            UserStock userStock = UserStock.builder()
+            userStock = UserStock.builder()
                     .user(user)
                     .stock(stock)
                     .avgPrice(price)
                     .totalQuantity(quantity)
                     .totalAsset(price * quantity)
                     .avgReturnRate(0.0)
+                    .portfolio(portfolio)
+                    .usrName(user.getName())
+                    .stockName(stock.getName())
                     .build();
+
             userStockRepository.save(userStock);
+
+            stock.getUserStocks().add(userStock);
+            user.getUserStocks().add(userStock);
         }
+
+        portfolio.getUserStocks().add(userStock);
+
+        // 매수 후 포토폴리오에 반영
+        updatePortfolioAfterBuy(portfolio, price, quantity);
     }
 
     /*
@@ -181,6 +203,8 @@ public class OrderServiceImpl implements OrderService{
 
         orderRepository.save(newOrder);
 
+        stock.getOrders().add(newOrder);
+
         // 주문 체결
         executeSell(newOrder, user, stock, stockPrice, quantity, totalPrice);
 
@@ -208,18 +232,87 @@ public class OrderServiceImpl implements OrderService{
 
         int remainingQuantity = userStock.getTotalQuantity() - quantity;
 
-        // 차익 계산
+        // 수익 계산
         int avgPrice = userStock.getAvgPrice();
         int profit = (price - avgPrice) * quantity;
         double returnRate = ((double) profit / (avgPrice * quantity)) * 100; // 수익률 계산
 
         log.info("[매도체결] {} 매도 수익: {}원 (수익률: {}%)", stock.getName(), profit, returnRate);
 
+        Portfolio portfolio = portfolioRepository.findByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
+
         if (remainingQuantity > 0) { // 아직 남은 주식이 있다면
             userStock.updateQuantity(remainingQuantity); // 수량 업데이트
         } else { // 모든 주식을 다 팔았다면
-            userStockRepository.delete(userStock); // 보유 주식에서 삭제
+            // 보유 주식에서 삭제
+            userStockRepository.delete(userStock);
+            user.getUserStocks().remove(userStock);
+            stock.getUserStocks().remove(userStock);
+            portfolio.getUserStocks().remove(userStock);
         }
+
+        // 주식 매도 -> 포트폴리오 갱신
+        updatePortfolioAfterSell(portfolio, price, quantity);
+
+    }
+
+    @Transactional
+    private void updatePortfolioAfterBuy(Portfolio portfolio, int buyPrice, int quantity) {
+
+        // 매수 후 보유 주식 평가액 증가
+        int increaseStockValue = buyPrice * quantity;
+        portfolio.increaseStockAsset(increaseStockValue);
+
+        // 잔액(현금) 감소
+        portfolio.decreaseBalance(increaseStockValue);
+
+        // 총 보유 수량 증가
+        portfolio.increaseTotalQuantity(quantity);
+
+        // 총 자산 재계산
+        portfolio.recalculateTotalAsset();
+
+        // 수익률 업데이트
+        portfolio.updateReturnRate();
+
+        // 보유 종목 수 업데이트
+        portfolio.updateHoldCount();
+
+//        portfolioRepository.save(portfolio);
+
+    }
+
+    /*
+    주식 매도로 인한 포토폴리오 업데이트
+     */
+    @Transactional
+    private void updatePortfolioAfterSell(Portfolio portfolio, int sellPrice, int quantity) {
+
+        // 매도 후 보유 주식 평가액 감소
+        int decreasedStockValue = sellPrice * quantity;
+        portfolio.decreaseStockAsset(decreasedStockValue);
+
+        // 잔액(현금) 증가
+        portfolio.increaseBalance(decreasedStockValue);
+
+        // 총 보유 수량 감소
+        portfolio.decreaseTotalQuantity(quantity);
+
+        // 총 자산 재계산
+        portfolio.recalculateTotalAsset();
+
+        // 수익률 업데이트
+        portfolio.updateReturnRate();
+
+        portfolio.updateHoldCount();
+
+//        // 모든 수량 매도 시 holdCount 감소
+//        if (soldAll) {
+//            portfolio.decreaseHoldCount();
+//        }
+
+//        portfolioRepository.save(portfolio);
     }
 
     /*
@@ -290,7 +383,7 @@ public class OrderServiceImpl implements OrderService{
     /*
     예약 주문 자동 체결 스케줄러
      */
-    @Scheduled(fixedDelay = 5000) // 5초마다 반복
+    @Scheduled(fixedDelay = 1000) // 1초마다 반복
     @Transactional
     public void executeReservedOrders() {
         List<Order> reservedOrders = orderRepository.findAllByIsReservedTrueAndIsExecutedFalse();
