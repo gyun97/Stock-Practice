@@ -71,6 +71,18 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }
 
+    /**
+     * 로그아웃 API
+     * @param authUser
+     * @return [로그아웃 성공 문구]
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout(@AuthenticationPrincipal AuthUser authUser) {
+        // 리프레시 토큰 삭제
+        userService.logout(authUser.getUserId());
+        log.info("로그아웃 성공!");
+        return ResponseEntity.ok(ApiResponse.requestSuccess("로그아웃되었습니다."));
+    }
 
     /**
      * 회원 탈퇴 API(SOft Delete)
@@ -85,7 +97,6 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
     }
-
 
     /**
      * 비밀번호 변경 API
