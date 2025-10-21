@@ -36,13 +36,10 @@ public class Stock extends TimeStamped {
 
     private Long volume; // 누적 거래량
 
-//    @Column(nullable = false)
-//    private int price;
-
-    @OneToMany(mappedBy = "stock", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "stock")
     private List<Order> orders;
 
-    @OneToMany(mappedBy = "stock", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "stock")
     private List<UserStock> userStocks;
 
 

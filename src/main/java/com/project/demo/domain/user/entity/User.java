@@ -64,10 +64,10 @@ public class User extends TimeStamped {
 //
 //    private int holdCount; // 보유 종목 수
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user")
     private List<Order> orders;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user")
     private List<UserStock> userStocks;
 
 
