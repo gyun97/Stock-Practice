@@ -180,7 +180,7 @@ public class OrderServiceImpl implements OrderService{
                 .orElseThrow(NotEnoughStockException::new);
 
         if (userStock.getTotalQuantity() < quantity) {
-            throw new NotEnoughStockException(); // 보유량보다 매수량이 많으면 예외
+            throw new NotEnoughStockException(); // 보유량보다 매도량이 많으면 예외
         }
 
         // 주식 현재가
@@ -278,9 +278,6 @@ public class OrderServiceImpl implements OrderService{
 
         // 보유 종목 수 업데이트
         portfolio.updateHoldCount();
-
-//        portfolioRepository.save(portfolio);
-
     }
 
     /*
@@ -306,13 +303,6 @@ public class OrderServiceImpl implements OrderService{
         portfolio.updateReturnRate();
 
         portfolio.updateHoldCount();
-
-//        // 모든 수량 매도 시 holdCount 감소
-//        if (soldAll) {
-//            portfolio.decreaseHoldCount();
-//        }
-
-//        portfolioRepository.save(portfolio);
     }
 
     /*
