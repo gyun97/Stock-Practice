@@ -1,6 +1,8 @@
 package com.project.demo.common.oauth2;
 
 import com.project.demo.common.oauth2.dto.CustomOAuth2User;
+import com.project.demo.domain.portfolio.entity.Portfolio;
+import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +13,7 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.Map;
@@ -21,10 +24,12 @@ import java.util.Map;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
+    private final PortfolioRepository portfolioRepository;
     
     private static final String NAVER = "naver";
     private static final String KAKAO = "kakao";
     private static final String GOOGLE = "google";
+
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -53,6 +58,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // 유저 등록 or 로그인
         User createdUser = getUser(extractAttributes, socialType);
 
+        getOrSavePortfolio(createdUser);
+
         return new CustomOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
                 attributes,
@@ -60,8 +67,27 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 createdUser.getEmail(),
                 createdUser.getName()
         );
+
+
     }
-    
+
+    @Transactional
+    private void getOrSavePortfolio(User createdUser) {
+        Portfolio portfolio = portfolioRepository.findByUser(createdUser)
+                .orElseGet(() -> Portfolio.builder()
+                        .balance(10000000)
+                        .totalAsset(10000000)
+                        .totalQuantity(0)
+                        .avgReturnRate(0)
+                        .holdCount(0)
+                        .stockAsset(0)
+                        .user(createdUser)
+                        .build());
+
+        portfolioRepository.save(portfolio);
+    }
+
+    @Transactional
     private User getUser(OAuthAttributes attributes, SocialType socialType) {
         User findUser = userRepository.findBySocialTypeAndSocialId(socialType,
                 attributes.getOauth2UserInfo().getId()).orElse(null);

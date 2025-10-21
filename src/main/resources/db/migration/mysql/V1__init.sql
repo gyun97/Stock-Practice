@@ -66,10 +66,13 @@ CREATE TABLE `portfolios` (
     `port_id` BIGINT NOT NULL AUTO_INCREMENT,
     `user_id` BIGINT NOT NULL,
     `total_asset` DOUBLE NOT NULL,
-    `avg_return_rate` DOUBLE NOT NULL,
+    `total_quantity` BIGINT NOT NULL,
+    `return_rate` DOUBLE NOT NULL,
+    `balance` BIGINT NOT NULL,
+    `hold_count` INT Not NULL,
+    `stock_asset` BIGINT NOT NULL,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
-    `total_quantity` BIGINT NOT NULL,
     PRIMARY KEY (`port_id`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`)
 );
@@ -78,7 +81,11 @@ CREATE TABLE `portfolios` (
 CREATE TABLE `user_stocks` (
     `user_stock_id` BIGINT NOT NULL AUTO_INCREMENT,
     `stock_id` BIGINT NOT NULL,
+    `stock_name` VARCHAR(100) NOT NULL,
     `user_id` BIGINT NOT NULL,
+    `user_name` VARCHAR(100) NOT NULL,
+    `port_id` BIGINT NOT NULL,
+
     `total_asset` INT NOT NULL,
     `avg_return_rate` DOUBLE NOT NULL,
     `avg_price` INT NOT NULL,

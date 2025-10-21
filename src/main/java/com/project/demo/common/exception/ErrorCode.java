@@ -33,7 +33,10 @@ public enum ErrorCode {
 
 
     // 주식 관련 에러 코드
-    STOCK_NOT_FOUND(HttpStatus.BAD_REQUEST, "STOCK-001", "해당 주식을 찾을 수 없습니다");
+    STOCK_NOT_FOUND(HttpStatus.BAD_REQUEST, "STOCK-001", "해당 주식을 찾을 수 없습니다"),
+
+    // 포토폴리오 관련 에러 코드
+    PORTFOLIO_NOT_FOUND(HttpStatus.BAD_REQUEST, "PORT-001", "해당 유저의 포토폴리오를 찾을 수 없습니다");
 
 
 

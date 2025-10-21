@@ -6,6 +6,7 @@ import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.order.entity.Order;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.enums.UserRole;
+import com.project.demo.domain.userstock.entity.UserStock;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -35,7 +36,7 @@ public class User extends TimeStamped {
     private String name;
 
     @Column(nullable = false)
-    private long balance; // 잔액
+    private long balance; // 가용 자산(잔액)
 
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false; // 탈퇴 여부
@@ -55,8 +56,20 @@ public class User extends TimeStamped {
 
     private String profileImage;
 
+//    private long stockAsset; // 보유 주식 총액
+//
+//    private long totalAsset; // 총자산(balance + stockAsset)
+//
+//    private int stockCount; // 보유 주식량
+//
+//    private int holdCount; // 보유 종목 수
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Order> orders;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserStock> userStocks;
+
 
     @Builder
     public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted, SocialType socialType, String socialId, String profileImage) {
