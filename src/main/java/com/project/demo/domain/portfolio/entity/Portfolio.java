@@ -17,8 +17,6 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Portfolio extends TimeStamped {
 
-    private static final int PRINCIPAL = 10000000; // 초기 원금
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "port_id")
@@ -39,11 +37,8 @@ public class Portfolio extends TimeStamped {
     @Column(nullable = false)
     private int totalQuantity; // 보유 주식 수량
 
-    @Column(nullable = false)
-    private double returnRate; // 수익률
-
-
-
+//    @Column(nullable = false)
+//    private double returnRate; // 수익률
 
 
     // 단방향
@@ -56,13 +51,13 @@ public class Portfolio extends TimeStamped {
 
 
     @Builder
-    public Portfolio(Long id, long balance, long totalAsset, int totalQuantity, int stockAsset, double avgReturnRate, int holdCount, User user) {
+    public Portfolio(Long id, long balance, long totalAsset, int totalQuantity, int stockAsset, int holdCount, User user) {
         this.id = id;
         this.balance = balance;
         this.totalAsset = totalAsset;
         this.totalQuantity = totalQuantity;
         this.stockAsset = stockAsset;
-        this.returnRate = avgReturnRate;
+//        this.returnRate = avgReturnRate;
         this.holdCount = holdCount;
         this.user = user;
     }
@@ -116,10 +111,11 @@ public class Portfolio extends TimeStamped {
         this.totalAsset = this.balance + this.stockAsset;
     }
 
+
     /*
     수익률 변화 반영
      */
-    public void updateReturnRate() {
-        this.returnRate = ((double) (this.totalAsset - PRINCIPAL) / PRINCIPAL) * 100;
-    }
+//    public void updateReturnRate() {
+//        this.returnRate = ((double) (this.totalAsset - PRINCIPAL) / PRINCIPAL) * 100;
+//    }
 }

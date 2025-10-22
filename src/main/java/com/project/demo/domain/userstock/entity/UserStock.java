@@ -21,11 +21,11 @@ public class UserStock extends TimeStamped {
     @Column(name = "user_stock_id")
     private Long id;
 
-    @Column(nullable = false)
-    private long totalAsset; // 총 자산
+//    @Column(nullable = false)
+//    private long totalAsset; // 총 자산
 
-    @Column(nullable = false)
-    private double avgReturnRate; // 평균 수익률
+//    @Column(nullable = false)
+//    private double avgReturnRate; // 평균 수익률
 
     @Column(nullable = false)
     private int avgPrice; // 평균 구매 단가
@@ -38,6 +38,9 @@ public class UserStock extends TimeStamped {
 
     @Column(nullable = false)
     private String stockName;
+
+    @Column(nullable = false)
+    private String ticker;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -53,16 +56,17 @@ public class UserStock extends TimeStamped {
 
 
     @Builder
-    public UserStock(Long id, long totalAsset, double avgReturnRate, int avgPrice, int totalQuantity, User user, Stock stock, Portfolio portfolio, String usrName, String stockName) {
+    public UserStock(Long id, long totalAsset, String ticker, double avgReturnRate, int avgPrice, int totalQuantity, User user, Stock stock, Portfolio portfolio, String userName, String stockName) {
         this.id = id;
-        this.totalAsset = totalAsset;
-        this.avgReturnRate = avgReturnRate;
+//        this.totalAsset = totalAsset;
+//        this.avgReturnRate = avgReturnRate;
+        this.ticker = ticker;
         this.avgPrice = avgPrice;
         this.totalQuantity = totalQuantity;
         this.user = user;
         this.stock = stock;
         this.portfolio = portfolio;
-        this.userName = usrName;
+        this.userName = userName;
         this.stockName = stockName;
     }
 

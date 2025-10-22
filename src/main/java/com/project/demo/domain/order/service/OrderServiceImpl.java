@@ -142,10 +142,11 @@ public class OrderServiceImpl implements OrderService{
                     .stock(stock)
                     .avgPrice(price)
                     .totalQuantity(quantity)
+                    .ticker(stock.getTicker())
                     .totalAsset(price * quantity)
                     .avgReturnRate(0.0)
                     .portfolio(portfolio)
-                    .usrName(user.getName())
+                    .userName(user.getName())
                     .stockName(stock.getName())
                     .build();
 
@@ -274,7 +275,7 @@ public class OrderServiceImpl implements OrderService{
         portfolio.recalculateTotalAsset();
 
         // 수익률 업데이트
-        portfolio.updateReturnRate();
+//        portfolio.updateReturnRate();
 
         // 보유 종목 수 업데이트
         portfolio.updateHoldCount();
@@ -300,7 +301,7 @@ public class OrderServiceImpl implements OrderService{
         portfolio.recalculateTotalAsset();
 
         // 수익률 업데이트
-        portfolio.updateReturnRate();
+//        portfolio.updateReturnRate();
 
         portfolio.updateHoldCount();
     }

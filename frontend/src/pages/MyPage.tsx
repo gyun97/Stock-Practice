@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { createStompClient } from '../lib/socket'
 
 type UserInfo = {
   userId: number
@@ -30,6 +31,60 @@ export default function MyPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [deleteMessage, setDeleteMessage] = useState('')
+  
+  // WebSocket 연결을 위한 ref
+  const stompRef = useRef<any>(null)
+
+  // 포트폴리오 수익률 실시간 업데이트 핸들러
+  const onPortfolioUpdate = (payload: any, raw: string) => {
+    console.log('포트폴리오 업데이트:', { payload, raw })
+    
+    try {
+      // JSON 형태의 데이터인지 확인
+      if (typeof raw === 'string' && raw.startsWith('{')) {
+        const portfolioData = JSON.parse(raw)
+        console.log('포트폴리오 JSON 데이터:', portfolioData)
+        
+        setPortfolioInfo(prev => {
+          if (prev) {
+            return {
+              ...prev,
+              returnRate: portfolioData.returnRate || prev.returnRate,
+              stockAsset: portfolioData.stockAsset || prev.stockAsset,
+              totalAsset: portfolioData.totalAsset || prev.totalAsset,
+              balance: portfolioData.balance || prev.balance
+            }
+          }
+          return prev
+        })
+      } else if (typeof payload === 'number') {
+        // 기존 숫자 형태의 수익률만 업데이트
+        setPortfolioInfo(prev => {
+          if (prev) {
+            return {
+              ...prev,
+              returnRate: payload
+            }
+          }
+          return prev
+        })
+      }
+    } catch (error) {
+      console.error('포트폴리오 업데이트 파싱 오류:', error)
+      // 파싱 실패 시 기존 로직으로 폴백
+      if (typeof payload === 'number') {
+        setPortfolioInfo(prev => {
+          if (prev) {
+            return {
+              ...prev,
+              returnRate: payload
+            }
+          }
+          return prev
+        })
+      }
+    }
+  }
 
   useEffect(() => {
     const checkServerStatus = async () => {
@@ -135,6 +190,46 @@ export default function MyPage() {
 
     fetchUserInfo()
   }, [])
+
+  // WebSocket 연결 설정 (포트폴리오 수익률 실시간 업데이트)
+  useEffect(() => {
+    if (userInfo) {
+      console.log('마이페이지 WebSocket 연결 시작')
+      const client = createStompClient(onPortfolioUpdate)
+      
+      // 포트폴리오 업데이트 토픽 구독
+      client.onConnect = () => {
+        client.subscribe('/topic/portfolio/updates', (msg) => {
+          const raw = msg.body
+          console.log('포트폴리오 WebSocket 메시지 수신:', raw)
+          
+          try {
+            // JSON 형태인지 확인
+            if (raw.startsWith('{')) {
+              const portfolioData = JSON.parse(raw)
+              onPortfolioUpdate(portfolioData, raw)
+            } else {
+              // 숫자 형태인 경우
+              const returnRate = parseFloat(raw)
+              onPortfolioUpdate(returnRate, raw)
+            }
+          } catch (error) {
+            console.error('포트폴리오 업데이트 파싱 오류:', error)
+            // 파싱 실패 시 원본 데이터로 시도
+            onPortfolioUpdate(raw, raw)
+          }
+        })
+      }
+      
+      client.activate()
+      stompRef.current = client
+      
+      return () => {
+        console.log('마이페이지 WebSocket 연결 해제')
+        client.deactivate()
+      }
+    }
+  }, [userInfo])
 
   const openPwModal = () => {
     setPwMessage('')
@@ -476,24 +571,11 @@ export default function MyPage() {
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center',
-              padding: '12px 0',
-              borderBottom: '1px solid #f1f5f9'
+              padding: '12px 0'
             }}>
               <span style={{ fontSize: 14, color: '#6b7280' }}>이메일</span>
               <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
                 {userInfo?.email}
-              </span>
-            </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '12px 0'
-            }}>
-              <span style={{ fontSize: 14, color: '#6b7280' }}>보유 자금</span>
-              <span style={{ fontSize: 18, fontWeight: '600', color: '#059669' }}>
-                {userInfo?.balance?.toLocaleString()}원
               </span>
             </div>
           </div>
@@ -528,7 +610,7 @@ export default function MyPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <span style={{ fontSize: 14, color: '#6b7280' }}>총 자산</span>
                 <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1f2937' }}>
-                  {portfolioInfo.totalAsset.toLocaleString()}원
+                  {(portfolioInfo.totalAsset || 0).toLocaleString()}원
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -536,9 +618,9 @@ export default function MyPage() {
                 <span style={{ 
                   fontSize: 18, 
                   fontWeight: '600', 
-                  color: portfolioInfo.returnRate >= 0 ? '#dc2626' : '#2563eb'
+                  color: (portfolioInfo.returnRate || 0) >= 0 ? '#dc2626' : '#2563eb'
                 }}>
-                  {portfolioInfo.returnRate >= 0 ? '+' : ''}{portfolioInfo.returnRate.toFixed(2)}%
+                  {(portfolioInfo.returnRate || 0) >= 0 ? '+' : ''}{(portfolioInfo.returnRate || 0).toFixed(2)}%
                 </span>
               </div>
             </div>
@@ -554,7 +636,7 @@ export default function MyPage() {
               }}>
                 <span style={{ fontSize: 14, color: '#6b7280' }}>현금 잔액</span>
                 <span style={{ fontSize: 16, fontWeight: '500', color: '#059669' }}>
-                  {portfolioInfo.balance.toLocaleString()}원
+                  {(portfolioInfo.balance || 0).toLocaleString()}원
                 </span>
               </div>
               
@@ -567,7 +649,7 @@ export default function MyPage() {
               }}>
                 <span style={{ fontSize: 14, color: '#6b7280' }}>보유 주식 총액</span>
                 <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                  {portfolioInfo.stockAsset.toLocaleString()}원
+                  {(portfolioInfo.stockAsset || 0).toLocaleString()}원
                 </span>
               </div>
               
@@ -580,7 +662,7 @@ export default function MyPage() {
               }}>
                 <span style={{ fontSize: 14, color: '#6b7280' }}>보유 종목 수</span>
                 <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                  {portfolioInfo.holdCount}개
+                  {portfolioInfo.holdCount || 0}개
                 </span>
               </div>
               
@@ -592,7 +674,7 @@ export default function MyPage() {
               }}>
                 <span style={{ fontSize: 14, color: '#6b7280' }}>총 보유 주식 수량</span>
                 <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                  {portfolioInfo.totalQuantity.toLocaleString()}주
+                  {(portfolioInfo.totalQuantity || 0).toLocaleString()}주
                 </span>
               </div>
             </div>
