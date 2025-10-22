@@ -15,6 +15,7 @@ public class RedisConfig {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         container.addMessageListener(subscriber, new ChannelTopic("stock:updates")); // 구독할 채널 등록
+        container.addMessageListener(subscriber, new ChannelTopic("portfolio:updates")); // 구독할 채널 등록
         return container;
     }
 }

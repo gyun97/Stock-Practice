@@ -94,7 +94,7 @@ public class UserServiceImpl implements UserService {
                 .balance(10000000)
                 .totalAsset(10000000)
                 .totalQuantity(0)
-                .avgReturnRate(0)
+//                .avgReturnRate(0)
                 .holdCount(0)
                 .stockAsset(0)
                 .user(savedUser)
