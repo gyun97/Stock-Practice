@@ -12,5 +12,10 @@ public interface StockService {
     public List<StockResponse> getMinuteCandles(String ticker, String date, String time);
 
     public List<CandleResponse> getPeriodStockInfo(String ticker, String period);
+    
+    /**
+     * 티커로 현재 주가 조회
+     */
+    int getCurrentPrice(String ticker);
 
 }

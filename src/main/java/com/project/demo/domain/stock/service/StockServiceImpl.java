@@ -163,4 +163,27 @@ public class StockServiceImpl implements StockService {
                 })
                 .block();
     }
+    
+    @Override
+    public int getCurrentPrice(String ticker) {
+        try {
+            String key = "stock:data:" + ticker;
+            String json = redisTemplate.opsForValue().get(key);
+            
+            if (json == null) {
+                log.warn("Redis에서 주가 데이터를 찾을 수 없음 - 티커: {}", ticker);
+                return 0;
+            }
+            
+            JsonNode data = objectMapper.readTree(json);
+            int price = data.get("price").asInt();
+            
+            log.debug("현재 주가 조회 - 티커: {}, 가격: {}", ticker, price);
+            return price;
+            
+        } catch (Exception e) {
+            log.error("현재 주가 조회 실패 - 티커: {}, 오류: {}", ticker, e.getMessage());
+            return 0;
+        }
+    }
 }

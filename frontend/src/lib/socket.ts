@@ -8,6 +8,9 @@ export function createStompClient(onMessage: StompMessageHandler) {
     webSocketFactory: () => new SockJS('/ws'),
     reconnectDelay: 3000,
     debug: (str) => console.log(str),
+    connectHeaders: {
+      Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+    }
   })
   client.onConnect = () => {
     const handle = (msg: IMessage) => {

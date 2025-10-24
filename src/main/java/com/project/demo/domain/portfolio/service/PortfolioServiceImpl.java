@@ -3,11 +3,14 @@ package com.project.demo.domain.portfolio.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.exception.portfolio.NotFoundPortfolioException;
+import com.project.demo.common.websocket.WebSocketSessionManager;
 import com.project.demo.domain.portfolio.dto.response.PortfolioResponse;
 import com.project.demo.domain.portfolio.entity.Portfolio;
 import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.stock.dto.response.StockData;
+import com.project.demo.domain.userstock.dto.response.UserStockResponse;
 import com.project.demo.domain.userstock.entity.UserStock;
+import com.project.demo.domain.userstock.service.UserStockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -28,6 +31,8 @@ public class PortfolioServiceImpl implements PortfolioService{
     private final PortfolioRepository portfolioRepository;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final UserStockService userStockService;
+    private final WebSocketSessionManager sessionManager;
 
     private static final int PRINCIPAL = 10000000; // 초기 원금
 
@@ -73,18 +78,18 @@ public class PortfolioServiceImpl implements PortfolioService{
 
         // 포트폴리오 정보를 JSON으로 구성하여 실시간 업데이트
         Map<String, Object> portfolioUpdate = new HashMap<>();
+        portfolioUpdate.put("userId", portfolio.getUser().getId());
         portfolioUpdate.put("returnRate", returnRate);
         portfolioUpdate.put("stockAsset", stockAsset);  // 보유 주식 총액
         portfolioUpdate.put("totalAsset", totalCurrentAsset);  // 총 자산 (현금 + 주식)
         portfolioUpdate.put("balance", portfolio.getBalance());  // 현금 잔액
 
         try {
-            String portfolioJson = objectMapper.writeValueAsString(portfolioUpdate);
-            redisTemplate.convertAndSend("portfolio:updates", portfolioJson);
+            // WebSocket 세션 관리자를 통해 직접 전송
+            sessionManager.sendPortfolioUpdate(portfolio.getUser().getId(), portfolioUpdate);
+            log.info("포트폴리오 WebSocket 전송 - 사용자 ID: {}, 데이터: {}", portfolio.getUser().getId(), portfolioUpdate);
         } catch (Exception e) {
-            log.error("포트폴리오 업데이트 JSON 변환 오류", e);
-            // JSON 변환 실패 시 수익률만 전송
-            redisTemplate.convertAndSend("portfolio:updates", String.valueOf(returnRate));
+            log.error("포트폴리오 WebSocket 전송 오류", e);
         }
     }
 
@@ -117,6 +122,19 @@ public class PortfolioServiceImpl implements PortfolioService{
             for (Portfolio portfolio : allPortfolios) {
                 try {
                     calculateReturnRate(portfolio);
+                    
+                    // 보유 주식 정보도 함께 업데이트
+                    Long userId = portfolio.getUser().getId();
+                    List<UserStockResponse> userStocks = userStockService.getUserStocksByUserId(userId);
+                    
+                    // WebSocket 세션 관리자를 통해 직접 전송
+                    Map<String, Object> userStockUpdate = new HashMap<>();
+                    userStockUpdate.put("userId", userId);
+                    userStockUpdate.put("userStocks", userStocks);
+                    
+                    sessionManager.sendUserStockUpdate(userId, userStockUpdate);
+                    log.info("보유 주식 WebSocket 전송 - 사용자 ID: {}, 개수: {}", userId, userStocks.size());
+                    
                 } catch (Exception e) {
                     log.warn("포트폴리오 수익률 계산 실패 (사용자 ID: {}): {}", 
                             portfolio.getUser().getId(), e.getMessage());

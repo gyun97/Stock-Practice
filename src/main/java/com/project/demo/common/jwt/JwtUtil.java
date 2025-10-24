@@ -206,6 +206,28 @@ public class JwtUtil {
     }
 
     /*
+    토큰에서 사용자 ID 추출
+     */
+    public Long getUserIdFromToken(String token) {
+        try {
+            if (token != null && token.startsWith(BEARER_PREFIX)) {
+                token = token.substring(BEARER_PREFIX.length());
+            }
+            
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            return Long.parseLong(claims.getSubject());
+        } catch (Exception e) {
+            log.error("토큰에서 사용자 ID 추출 실패", e);
+            throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+        }
+    }
+
+    /*
     토큰에서 Claim(데이터) 추출
      */
     public Claims extractClaims(String token) {
