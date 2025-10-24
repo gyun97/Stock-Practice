@@ -21,14 +21,11 @@ public class UserStock extends TimeStamped {
     @Column(name = "user_stock_id")
     private Long id;
 
-//    @Column(nullable = false)
-//    private long totalAsset; // 총 자산
-
-//    @Column(nullable = false)
-//    private double avgReturnRate; // 평균 수익률
-
     @Column(nullable = false)
     private int avgPrice; // 평균 구매 단가
+
+    @Column(nullable = false)
+    private long purchaseAmount; // 총 구매액
 
     @Column(nullable = false)
     private int totalQuantity; // 해당 종목 총 보유 수량
@@ -56,10 +53,8 @@ public class UserStock extends TimeStamped {
 
 
     @Builder
-    public UserStock(Long id, long totalAsset, String ticker, double avgReturnRate, int avgPrice, int totalQuantity, User user, Stock stock, Portfolio portfolio, String userName, String stockName) {
+    public UserStock(Long id, String ticker,int avgPrice, int totalQuantity, User user, Stock stock, Portfolio portfolio, String userName, String stockName) {
         this.id = id;
-//        this.totalAsset = totalAsset;
-//        this.avgReturnRate = avgReturnRate;
         this.ticker = ticker;
         this.avgPrice = avgPrice;
         this.totalQuantity = totalQuantity;
@@ -68,6 +63,24 @@ public class UserStock extends TimeStamped {
         this.portfolio = portfolio;
         this.userName = userName;
         this.stockName = stockName;
+    }
+
+//    public double getAvgPrice() {
+//        return totalQuantity == 0 ? 0 : (double) purchaseAmount / totalQuantity;
+//    }
+
+    /*
+    매수 시 총 구매액 증가
+     */
+    public void increasePurchaseAmount(long amount) {
+        this.purchaseAmount += amount;
+    }
+
+    /*
+    매도 시 총 구매액 감소
+     */
+    public void decreasePurchaseAmount(int sellQuantity) {
+        this.purchaseAmount -= (long) sellQuantity * this.avgPrice;
     }
 
     /*

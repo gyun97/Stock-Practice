@@ -133,6 +133,7 @@ public class OrderServiceImpl implements OrderService{
             int newAvgPrice = (currentAvgPrice * currentQuantity + price * quantity) / newTotalQuantity;
 
             userStock.updateAveragePrice(newAvgPrice); // 해당 종목의 평균 단가 갱신
+            long purchaseAmount = (long) price * quantity;
             userStock.updateQuantity(newTotalQuantity); // 수량 변화
 
         } else {
@@ -143,8 +144,8 @@ public class OrderServiceImpl implements OrderService{
                     .avgPrice(price)
                     .totalQuantity(quantity)
                     .ticker(stock.getTicker())
-                    .totalAsset(price * quantity)
-                    .avgReturnRate(0.0)
+//                    .totalAsset(price * quantity)
+//                    .avgReturnRate(0.0)
                     .portfolio(portfolio)
                     .userName(user.getName())
                     .stockName(stock.getName())
@@ -155,6 +156,8 @@ public class OrderServiceImpl implements OrderService{
             stock.getUserStocks().add(userStock);
             user.getUserStocks().add(userStock);
         }
+
+        userStock.increasePurchaseAmount((long) price * quantity); // 해당 종목 총 구매액 갱신
 
         portfolio.getUserStocks().add(userStock);
 
@@ -245,6 +248,7 @@ public class OrderServiceImpl implements OrderService{
 
         if (remainingQuantity > 0) { // 아직 남은 주식이 있다면
             userStock.updateQuantity(remainingQuantity); // 수량 업데이트
+            userStock.decreasePurchaseAmount(quantity); // 매입원가 업데이트
         } else { // 모든 주식을 다 팔았다면
             // 보유 주식에서 삭제
             userStockRepository.delete(userStock);
