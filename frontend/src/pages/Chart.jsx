@@ -5,9 +5,11 @@ import { createStompClient } from '../lib/socket'
 export default function Chart() {
   const { ticker = '' } = useParams()
   const [candleData, setCandleData] = useState([])
-  const [selectedPeriod, setSelectedPeriod] = useState('MIN')
+  const [selectedPeriod, setSelectedPeriod] = useState('D')
+  const [chartType, setChartType] = useState('candle') // 'line' | 'candle'
   const [loading, setLoading] = useState(false)
   const [companyName, setCompanyName] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
   const [currentStockId, setCurrentStockId] = useState(null)
   const [currentPrice, setCurrentPrice] = useState(null)
   const [orderTab, setOrderTab] = useState('market') // 'market' | 'reserve'
@@ -27,7 +29,6 @@ export default function Chart() {
   }, [ticker])
 
   const periods = [
-    { key: 'MIN', label: '분' },
     { key: 'D', label: '일' },
     { key: 'W', label: '주' },
     { key: 'M', label: '월' },
@@ -48,6 +49,7 @@ export default function Chart() {
           if (stock) {
             if (stock.companyName) {
               setCompanyName(stock.companyName)
+              setLogoUrl(`/logos/${stock.companyName}.png`)
             }
             if (stock.stockId || stock.id) {
               setCurrentStockId(stock.stockId ?? stock.id)
@@ -104,13 +106,58 @@ export default function Chart() {
       volume: volumeValue || 0,
       tradeTime: tradeTime
     })
-  }, [])
+
+    // 실시간 시세 정보만 업데이트 (차트 실시간 업데이트 제거)
+  }, [selectedPeriod, candleData])
 
   // 숫자 변환 유틸리티 함수
   function toNum(v) {
     if (v == null) return undefined
     const n = Number(String(v).replace(/[^0-9.-]/g, ''))
     return Number.isFinite(n) ? n : undefined
+  }
+
+  // 마우스 이벤트 핸들러
+  const handleMouseMove = (event) => {
+    const canvas = canvasRef.current
+    if (!canvas || !candleData.length) return
+
+    const rect = canvas.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    const y = event.clientY - rect.top
+
+    setMousePosition({ x: event.clientX, y: event.clientY })
+
+    // 차트 영역 내에서만 처리
+    const marginLeft = 60
+    const marginRight = 20
+    const marginTop = 20
+    const marginBottom = 60
+    const chartWidth = canvas.width - marginLeft - marginRight
+    const chartHeight = canvas.height - marginTop - marginBottom
+
+    if (x >= marginLeft && x <= canvas.width - marginRight && 
+        y >= marginTop && y <= canvas.height - marginBottom) {
+      
+      // 가장 가까운 데이터 포인트 찾기
+      const dataIndex = Math.round(((x - marginLeft) / chartWidth) * (candleData.length - 1))
+      const clampedIndex = Math.max(0, Math.min(dataIndex, candleData.length - 1))
+      
+      if (candleData[clampedIndex]) {
+        setHoveredData({
+          index: clampedIndex,
+          data: candleData[clampedIndex],
+          x: x,
+          y: y
+        })
+      }
+    } else {
+      setHoveredData(null)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setHoveredData(null)
   }
 
   // 데이터 로드 함수
@@ -122,13 +169,8 @@ export default function Chart() {
       console.log(`데이터 로드 시작: ${ticker}, period: ${period}`)
 
       let response
-      if (period === 'MIN') {
-        // 분 단위 데이터는 다른 API 사용
-        response = await fetch(`/api/v1/stocks/${ticker}`)
-      } else {
-        // 기간별 데이터는 기존 API 사용
-        response = await fetch(`/api/v1/stocks/${ticker}/period?period=${period}`)
-      }
+      // 모든 기간별 데이터는 기존 API 사용
+      response = await fetch(`/api/v1/stocks/${ticker}/period?period=${period}`)
 
       console.log('응답 상태:', response.status)
 
@@ -143,21 +185,18 @@ export default function Chart() {
       console.log('파싱된 캔들 데이터:', data.slice(0, 3))
 
       if (data.length > 0) {
-        // 분 단위는 시간순 정렬, 나머지는 날짜순 정렬
-        const sortedData = period === 'MIN'
-          ? [...data].sort((a, b) => {
-              // 분 단위는 date+time으로 정렬
-              const aDateTime = a.date + (a.time || '000000')
-              const bDateTime = b.date + (b.time || '000000')
-              return aDateTime.localeCompare(bDateTime)
-            })
-          : [...data].sort((a, b) => a.date.localeCompare(b.date))
+        // 모든 데이터는 날짜순 정렬
+        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date))
 
         console.log('정렬된 데이터:', sortedData.slice(0, 3))
 
         // 정렬된 데이터로 상태 업데이트 및 차트 그리기
         setCandleData(sortedData)
-        drawChart(sortedData, period)
+        if (chartType === 'candle') {
+          drawCandleChart(sortedData, period)
+        } else {
+          drawChart(sortedData, period)
+        }
       } else {
         setCandleData([])
       }
@@ -222,7 +261,8 @@ export default function Chart() {
     } finally { setPlacing(false) }
   }
 
-  const [myOrders, setMyOrders] = useState([])
+  const [hoveredData, setHoveredData] = useState(null)
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const loadMyOrders = async () => {
     const token = getToken()
     if (!token) return
@@ -255,6 +295,195 @@ export default function Chart() {
     } catch (e) {
       setOrderErr('네트워크 오류가 발생했습니다.')
     } finally { setPlacing(false) }
+  }
+
+  // 캔들 차트 그리기 함수
+  const drawCandleChart = (data, period = 'D') => {
+    const canvas = canvasRef.current
+    if (!canvas || data.length === 0) return
+
+    const ctx = canvas.getContext('2d')
+    const width = canvas.width
+    const height = canvas.height
+
+    // 캔버스 초기화
+    ctx.clearRect(0, 0, width, height)
+
+    // 좌표계 설정
+    const marginLeft = 60
+    const marginRight = 20
+    const marginTop = 20
+    const marginBottom = 60
+    const chartWidth = width - marginLeft - marginRight
+    const chartHeight = height - marginTop - marginBottom
+
+    // 데이터 범위 계산
+    const prices = data.map(d => [d.open, d.high, d.low, d.close]).flat()
+    const volumes = data.map(d => d.volume)
+    const maxPrice = Math.max(...prices)
+    const maxVolume = Math.max(...volumes)
+    const minPrice = Math.min(...prices)
+
+    // 두 개의 분리된 차트 영역
+    const priceChartHeight = chartHeight * 0.5  // 상단 50%
+    const volumeChartHeight = chartHeight * 0.5  // 하단 50%
+    const gapBetweenCharts = 20  // 차트 간 간격
+
+    const priceRange = maxPrice - minPrice
+
+    // 캔들 너비 계산
+    const candleWidth = Math.max(2, chartWidth / data.length * 0.8)
+
+    // 캔들 차트 그리기 (상단)
+    data.forEach((item, index) => {
+      const x = marginLeft + (index / (data.length - 1)) * chartWidth
+      
+      // OHLC 좌표 계산
+      const openY = marginTop + priceChartHeight - ((item.open - minPrice) / priceRange) * priceChartHeight
+      const highY = marginTop + priceChartHeight - ((item.high - minPrice) / priceRange) * priceChartHeight
+      const lowY = marginTop + priceChartHeight - ((item.low - minPrice) / priceRange) * priceChartHeight
+      const closeY = marginTop + priceChartHeight - ((item.close - minPrice) / priceRange) * priceChartHeight
+
+      // 상승/하락 색상 결정
+      const isUp = item.close >= item.open
+      const candleColor = isUp ? '#e74c3c' : '#3498db'  // 빨간색(상승) / 파란색(하락)
+      const wickColor = isUp ? '#c0392b' : '#2980b9'    // 심지 색상
+
+      // 심지 그리기 (위아래 선)
+      ctx.strokeStyle = wickColor
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(x, highY)
+      ctx.lineTo(x, lowY)
+      ctx.stroke()
+
+      // 캔들 몸통 그리기
+      const bodyTop = Math.min(openY, closeY)
+      const bodyHeight = Math.abs(closeY - openY)
+      
+      if (bodyHeight < 1) {
+        // 도지(Doji) - 몸통이 없는 경우
+        ctx.strokeStyle = candleColor
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.moveTo(x - candleWidth/2, openY)
+        ctx.lineTo(x + candleWidth/2, openY)
+        ctx.stroke()
+      } else {
+        // 일반 캔들
+        ctx.fillStyle = candleColor
+        ctx.fillRect(x - candleWidth/2, bodyTop, candleWidth, bodyHeight)
+        
+        // 캔들 테두리
+        ctx.strokeStyle = candleColor
+        ctx.lineWidth = 1
+        ctx.strokeRect(x - candleWidth/2, bodyTop, candleWidth, bodyHeight)
+      }
+    })
+
+    // 주가 Y축 라벨
+    ctx.fillStyle = '#666'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'right'
+
+    for (let i = 0; i <= 4; i++) {
+      const value = maxPrice - (i / 4) * (maxPrice - minPrice)
+      const y = marginTop + priceChartHeight - (i / 4) * priceChartHeight + 4
+      ctx.fillText(Math.round(value).toLocaleString(), marginLeft - 10, y)
+    }
+
+    // 주가 제목
+    ctx.fillStyle = '#333'
+    ctx.font = 'bold 12px Arial'
+    ctx.textAlign = 'left'
+    ctx.fillText('주가 (캔들)', marginLeft, marginTop - 5)
+
+    // 거래량 막대 그래프 그리기 (하단) - 전일 대비 변화 반영
+    const volumeStartY = marginTop + priceChartHeight + gapBetweenCharts
+    const barWidth = chartWidth / data.length * 0.8
+
+    data.forEach((item, index) => {
+      const x = marginLeft + (index / (data.length - 1)) * chartWidth - barWidth / 2
+      const barHeight = (item.volume / maxVolume) * volumeChartHeight
+      const y = volumeStartY + volumeChartHeight - barHeight
+
+      // 전일 대비 거래량 변화에 따른 색상 결정
+      let barColor = '#ff6b6b' // 기본 색상 (빨간색)
+      
+      if (index > 0) {
+        const prevVolume = data[index - 1].volume
+        const currentVolume = item.volume
+        
+        if (currentVolume > prevVolume) {
+          // 거래량 증가 - 빨간색 (상승)
+          barColor = '#e74c3c'
+        } else if (currentVolume < prevVolume) {
+          // 거래량 감소 - 파란색 (하락)
+          barColor = '#3498db'
+        } else {
+          // 거래량 동일 - 회색
+          barColor = '#95a5a6'
+        }
+      }
+
+      ctx.fillStyle = barColor
+      ctx.fillRect(x, y, barWidth, barHeight)
+
+      // 거래량 수치 표시 (일부 날짜에만)
+      if (index % Math.ceil(data.length / 8) === 0) {
+        ctx.fillStyle = '#666'
+        ctx.font = '10px Arial'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'bottom'
+        const volumeInMillion = Math.round(item.volume / 1000000)
+        ctx.fillText(`${volumeInMillion}M`, x + barWidth / 2, y - 2)
+      }
+    })
+
+    // 거래량 Y축 라벨
+    ctx.fillStyle = '#666'
+    ctx.font = '10px Arial'
+    ctx.textAlign = 'right'
+
+    for (let i = 0; i <= 4; i++) {
+      const value = maxVolume - (i / 4) * maxVolume
+      const y = volumeStartY + volumeChartHeight - (i / 4) * volumeChartHeight + 4
+      ctx.fillText(Math.round(value).toLocaleString(), marginLeft - 10, y)
+    }
+
+    // 거래량 제목
+    ctx.fillStyle = '#333'
+    ctx.font = 'bold 12px Arial'
+    ctx.textAlign = 'left'
+    ctx.fillText('거래량', marginLeft, volumeStartY - 5)
+
+    // X축 라벨 (일부 날짜/시간만)
+    ctx.fillStyle = '#666'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'center'
+    const labelCount = Math.min(data.length, 10)
+    for (let i = 0; i < labelCount; i++) {
+      const index = Math.floor((i / labelCount) * data.length)
+      const x = marginLeft + (index / (data.length - 1)) * chartWidth
+      const y = volumeStartY + volumeChartHeight + 20
+
+      let labelText
+      // 기간별 날짜 표시 형식
+      const dateStr = data[index].date
+      const year = dateStr.substring(0, 4)
+      const month = dateStr.substring(4, 6)
+      const day = dateStr.substring(6, 8)
+      
+      if (period === 'M' || period === 'Y') {
+        // 월 단위, 년 단위는 연도 포함
+        labelText = `${year}-${month}`
+      } else {
+        // 일 단위, 주 단위는 월-일만
+        labelText = `${month}-${day}`
+      }
+
+      ctx.fillText(labelText, x, y)
+    }
   }
 
   // 분리된 차트 그리기 (주가 라인 + 거래량 막대)
@@ -346,8 +575,25 @@ export default function Chart() {
       const barHeight = (item.volume / maxVolume) * volumeChartHeight
       const y = volumeStartY + volumeChartHeight - barHeight
 
-      // 막대 그래프 그리기 - 빨간색으로 통일
-      const barColor = '#ff6b6b'
+      // 전일 대비 거래량 변화에 따른 색상 결정
+      let barColor = '#ff6b6b' // 기본 색상 (빨간색)
+      
+      if (index > 0) {
+        const prevVolume = data[index - 1].volume
+        const currentVolume = item.volume
+        
+        if (currentVolume > prevVolume) {
+          // 거래량 증가 - 빨간색 (상승)
+          barColor = '#e74c3c'
+        } else if (currentVolume < prevVolume) {
+          // 거래량 감소 - 파란색 (하락)
+          barColor = '#3498db'
+        } else {
+          // 거래량 동일 - 회색
+          barColor = '#95a5a6'
+        }
+      }
+
       ctx.fillStyle = barColor
       ctx.fillRect(x, y, barWidth, barHeight)
 
@@ -390,19 +636,18 @@ export default function Chart() {
       const y = volumeStartY + volumeChartHeight + 20
 
       let labelText
-      if (period === 'MIN') {
-        // 분 단위는 시간 표시
-        const timeStr = data[index].time || '000000'
-        const hour = timeStr.substring(0, 2)
-        const minute = timeStr.substring(2, 4)
-        labelText = `${hour}:${minute}`
+      // 기간별 날짜 표시 형식
+      const dateStr = data[index].date
+      const year = dateStr.substring(0, 4)
+      const month = dateStr.substring(4, 6)
+      const day = dateStr.substring(6, 8)
+      
+      if (period === 'M' || period === 'Y') {
+        // 월 단위, 년 단위는 연도 포함
+        labelText = `${year}-${month}`
       } else {
-        // 기간별은 날짜 표시
-        const dateStr = data[index].date
-        const year = dateStr.substring(0, 4)
-        const month = dateStr.substring(4, 6)
-        const day = dateStr.substring(6, 8)
-        labelText = `${year}-${month}-${day}`
+        // 일 단위, 주 단위는 월-일만
+        labelText = `${month}-${day}`
       }
 
       ctx.fillText(labelText, x, y)
@@ -430,35 +675,187 @@ export default function Chart() {
     loadMyOrders()
   }, [ticker, selectedPeriod])
 
+  // 차트 타입 변경 시 차트 다시 그리기
+  useEffect(() => {
+    if (candleData.length > 0) {
+      if (chartType === 'candle') {
+        drawCandleChart(candleData, selectedPeriod)
+      } else {
+        drawChart(candleData, selectedPeriod)
+      }
+    }
+  }, [chartType])
+
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto', padding: 16 }}>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Link to="/" style={{ textDecoration: 'none', color: '#666' }}>← 목록</Link>
-          <h1 style={{ margin: 0, fontSize: 24 }}>{companyName || ticker}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {logoUrl && (
+              <img 
+                src={logoUrl} 
+                alt={companyName} 
+                style={{ 
+                  width: 32, 
+                  height: 32, 
+                  objectFit: 'contain',
+                  borderRadius: 4
+                }} 
+                onError={(e) => {
+                  e.target.style.display = 'none'
+                }}
+              />
+            )}
+            <h1 style={{ margin: 0, fontSize: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {companyName || ticker}
+              {ticker && (
+                <span style={{ 
+                  fontSize: 14, 
+                  color: '#9ca3af', 
+                  fontWeight: 'normal',
+                  marginLeft: 4
+                }}>
+                  {ticker}
+                </span>
+              )}
+            </h1>
+          </div>
         </div>
+      </div>
 
-        {/* 기간 선택 버튼 - 더 왼쪽으로 이동 */}
-        <div style={{ display: 'flex', gap: 8, marginRight: 200 }}>
+      {/* 실시간 시세 정보와 버튼들을 같은 라인에 배치 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        {/* 실시간 시세 정보 */}
+        {currentPrice && (
+          <div style={{
+            background: 'white',
+            borderRadius: 8,
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            maxWidth: 1200
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {/* 현재가 */}
+              <div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>현재가</div>
+                <div style={{
+                  fontSize: 24,
+                  fontWeight: 'bold',
+                  color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
+                }}>
+                  {currentPrice.price.toLocaleString()}원
+                </div>
+              </div>
+
+              {/* 등락률 */}
+              <div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>등락률</div>
+                <div style={{
+                  fontSize: 18,
+                  fontWeight: 'bold',
+                  color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
+                }}>
+                  {currentPrice.changeAmount >= 0 ? '+' : ''}{currentPrice.changeAmount.toLocaleString()}원
+                  <span style={{ fontSize: 14, marginLeft: 8 }}>
+                    ({currentPrice.changeRate >= 0 ? '+' : ''}{currentPrice.changeRate.toFixed(2)}%)
+                  </span>
+                </div>
+              </div>
+
+              {/* 거래량 */}
+              <div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>거래량</div>
+                <div style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>
+                  {Math.round(currentPrice.volume / 1000000)}M
+                </div>
+              </div>
+            </div>
+
+            {/* 체결시간 */}
+            <div style={{ textAlign: 'right', marginLeft: 24 }}>
+              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>체결시간</div>
+              <div style={{ fontSize: 14, color: '#333' }}>
+                {currentPrice.tradeTime || '실시간'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 기간 선택 버튼과 차트 타입 선택 버튼을 함께 배치 */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* 기간 선택 버튼 */}
           {periods.map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setSelectedPeriod(key)}
               style={{
                 padding: '8px 16px',
-                border: '1px solid #ddd',
+                border: 'none',
                 borderRadius: 4,
-                background: selectedPeriod === key ? '#2962FF' : 'white',
-                color: selectedPeriod === key ? 'white' : '#333',
+                background: selectedPeriod === key ? '#e5e7eb' : 'white',
+                color: selectedPeriod === key ? '#374151' : '#333',
                 cursor: 'pointer',
                 fontSize: 14,
                 fontWeight: selectedPeriod === key ? 'bold' : 'normal',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}
             >
               {label}
             </button>
           ))}
+          
+          {/* 차트 타입 토글 */}
+          <div style={{ 
+            display: 'flex', 
+            background: '#f3f4f6', 
+            borderRadius: 6, 
+            padding: 2,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <button
+              onClick={() => setChartType('candle')}
+              style={{
+                padding: '8px 12px',
+                border: 'none',
+                borderRadius: 4,
+                background: chartType === 'candle' ? '#e5e7eb' : 'transparent',
+                color: chartType === 'candle' ? '#374151' : '#6b7280',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: chartType === 'candle' ? 'bold' : 'normal',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span style={{ fontSize: 16 }}>🕯️</span>
+              캔들
+            </button>
+            <button
+              onClick={() => setChartType('line')}
+              style={{
+                padding: '8px 12px',
+                border: 'none',
+                borderRadius: 4,
+                background: chartType === 'line' ? '#e5e7eb' : 'transparent',
+                color: chartType === 'line' ? '#374151' : '#6b7280',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: chartType === 'line' ? 'bold' : 'normal',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span style={{ fontSize: 16 }}>📈</span>
+              라인
+            </button>
+          </div>
         </div>
       </div>
 
@@ -469,66 +866,6 @@ export default function Chart() {
         </div>
       )}
 
-      {/* 실시간 시세 정보 */}
-      {currentPrice && (
-        <div style={{
-          background: '#f8f9fa',
-          border: '1px solid #e9ecef',
-          borderRadius: 8,
-          padding: '16px 20px',
-          marginBottom: 16,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          maxWidth: 1200
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            {/* 현재가 */}
-            <div>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>현재가</div>
-              <div style={{
-                fontSize: 24,
-                fontWeight: 'bold',
-                color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
-              }}>
-                {currentPrice.price.toLocaleString()}원
-              </div>
-            </div>
-
-            {/* 등락률 */}
-            <div>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>등락률</div>
-              <div style={{
-                fontSize: 18,
-                fontWeight: 'bold',
-                color: currentPrice.changeAmount >= 0 ? '#e74c3c' : '#3498db'
-              }}>
-                {currentPrice.changeAmount >= 0 ? '+' : ''}{currentPrice.changeAmount.toLocaleString()}원
-                <span style={{ fontSize: 14, marginLeft: 8 }}>
-                  ({currentPrice.changeAmount >= 0 ? '+' : ''}{currentPrice.changeRate.toFixed(2)}%)
-                </span>
-              </div>
-            </div>
-
-            {/* 거래량 */}
-            <div>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>거래량</div>
-              <div style={{ fontSize: 16, fontWeight: 'bold', color: '#333' }}>
-                {Math.round(currentPrice.volume / 1000000)}M
-              </div>
-            </div>
-          </div>
-
-          {/* 체결시간 */}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>체결시간</div>
-            <div style={{ fontSize: 14, color: '#333' }}>
-              {currentPrice.tradeTime || '실시간'}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 차트 + 우측 주문패널 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
         <div>
@@ -536,15 +873,71 @@ export default function Chart() {
             ref={canvasRef}
             width={1200}
             height={800}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={handleMouseLeave}
             style={{
               border: '1px solid #ddd',
               borderRadius: 8,
               marginBottom: 20,
               background: 'white',
               width: '100%',
-              maxWidth: 1200
+              maxWidth: 1200,
+              cursor: 'crosshair'
             }}
           />
+          
+          {/* 실시간 데이터 테이블 */}
+          <div style={{ marginTop: 20, border: '1px solid #e5e7eb', borderRadius: 8, background: '#ffffff', overflow: 'hidden' }}>
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>날짜/시간</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>시가</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>고가</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>저가</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>종가</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>거래량</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candleData.slice().reverse().map((data, index) => (
+                    <tr key={index} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '8px 12px', color: '#6b7280', fontSize: 11 }}>
+                        {selectedPeriod === 'D' || selectedPeriod === 'W' || selectedPeriod === 'M' || selectedPeriod === 'Y' ? 
+                          data.date ? 
+                            `${data.date.substring(0, 4)}-${data.date.substring(4, 6)}-${data.date.substring(6, 8)}` :
+                            `데이터 ${index + 1}` :
+                          data.timeStr ? 
+                            data.timeStr.length === 6 ? 
+                              `${data.timeStr.substring(0, 2)}:${data.timeStr.substring(2, 4)}` :
+                              data.timeStr.length === 4 ? 
+                                `${data.timeStr.substring(0, 2)}:${data.timeStr.substring(2, 4)}` :
+                                data.timeStr :
+                            `시간 ${index + 1}`
+                        }
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500 }}>
+                        {data.open?.toLocaleString() || '-'}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500, color: '#dc2626' }}>
+                        {data.high?.toLocaleString() || '-'}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500, color: '#2563eb' }}>
+                        {data.low?.toLocaleString() || '-'}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 500 }}>
+                        {data.close?.toLocaleString() || '-'}
+                      </td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', color: '#6b7280' }}>
+                        {data.volume ? Math.round(data.volume / 1000000 * 100) / 100 + 'M' : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#ffffff', padding: 16, position: 'sticky', top: 16 }}>
@@ -597,29 +990,51 @@ export default function Chart() {
             </div>
           )}
 
-          {/* 예약 주문 목록 */}
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>나의 예약 주문</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {myOrders
-                .filter(o => o.isReserved && !o.isExecuted && (!currentStockId || o.stockId === currentStockId))
-                .map(o => (
-                  <div key={o.orderId} style={{ border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
-                    <div style={{ fontSize: 13, color: '#374151' }}>
-                      <div>주문번호 #{o.orderId}</div>
-                      <div>유형: {o.orderType === 'BUY' ? '예약 매수' : '예약 매도'}</div>
-                      <div>수량: {o.quantity}주 / 예약가: {o.price.toLocaleString()}원</div>
-                    </div>
-                    <button disabled={placing} onClick={() => cancelReservation(o.orderId)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #9ca3af', background: 'white', color: '#111827', cursor: placing?'not-allowed':'pointer', fontWeight: 600 }}>취소</button>
-                  </div>
-                ))}
-              {myOrders.filter(o => o.isReserved && !o.isExecuted && (!currentStockId || o.stockId === currentStockId)).length === 0 && (
-                <div style={{ fontSize: 12, color: '#6b7280' }}>표시할 예약 주문이 없습니다.</div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
+
+      {/* 툴팁 */}
+      {hoveredData && (
+        <div
+          style={{
+            position: 'fixed',
+            left: mousePosition.x + 10,
+            top: mousePosition.y - 10,
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: 6,
+            fontSize: 12,
+            zIndex: 1000,
+            pointerEvents: 'none',
+            minWidth: 200
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: 4 }}>
+            {selectedPeriod === 'D' || selectedPeriod === 'W' || selectedPeriod === 'M' || selectedPeriod === 'Y' ? 
+              hoveredData.data.date ? 
+                `${hoveredData.data.date.substring(0, 4)}-${hoveredData.data.date.substring(4, 6)}-${hoveredData.data.date.substring(6, 8)}` :
+                `데이터 ${hoveredData.index + 1}` :
+              `데이터 ${hoveredData.index + 1}`
+            }
+          </div>
+          
+          {chartType === 'candle' ? (
+            <div style={{ fontSize: 11 }}>
+              <div>시가: {hoveredData.data.open?.toLocaleString()}원</div>
+              <div>고가: {hoveredData.data.high?.toLocaleString()}원</div>
+              <div>저가: {hoveredData.data.low?.toLocaleString()}원</div>
+              <div>종가: {hoveredData.data.close?.toLocaleString()}원</div>
+              <div>거래량: {Math.round((hoveredData.data.volume || 0) / 1000000)}M</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11 }}>
+              <div>종가: {hoveredData.data.close?.toLocaleString()}원</div>
+              <div>거래량: {Math.round((hoveredData.data.volume || 0) / 1000000)}M</div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
