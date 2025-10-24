@@ -25,7 +25,7 @@ public class UserStock extends TimeStamped {
     private int avgPrice; // 평균 구매 단가
 
     @Column(nullable = false)
-    private long purchaseAmount; // 총 구매액
+    private long purchaseAmount; // 매입단가
 
     @Column(nullable = false)
     private int totalQuantity; // 해당 종목 총 보유 수량
