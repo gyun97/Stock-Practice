@@ -2,6 +2,7 @@ package com.project.demo.domain.stock.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.demo.common.kis.KisApiAccessTokenService;
 import com.project.demo.common.util.DateUtil;
 import com.project.demo.domain.stock.dto.response.CandleResponse;
 import com.project.demo.domain.stock.dto.response.StockResponse;
@@ -26,6 +27,7 @@ import java.util.*;
 public class StockServiceImpl implements StockService {
 
     private final StockRepository stockRepository;
+    private final KisApiAccessTokenService kisApiAccessTokenService;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final WebClient webClient;
@@ -39,11 +41,17 @@ public class StockServiceImpl implements StockService {
     @Value("${REAL_BASE_URL}")
     private String baseUrl;
 
+    /*
+    한국투자증권의 Access Token 가져오기
+     */
     public String getAccessToken() {
-        return redisTemplate.opsForValue().get("kis:access_token");
+        return kisApiAccessTokenService.getAccessToken();
+//        return redisTemplate.opsForValue().get("kis:access_token");
     }
 
-    // 전체 주식 30개 거래량 순으로 정보 반환
+    /*
+    전체 주식 30개 거래량 순으로 정보 반환
+     */
     @Override
     public List<StockResponse> showAllStock() {
         List<StockResponse> result = new ArrayList<>();
@@ -69,7 +77,9 @@ public class StockServiceImpl implements StockService {
         return result;
     }
 
-    // 당일 분봉 수집
+    /*
+    당일 분봉 수집
+     */
     public List<StockResponse> getMinuteCandles(String ticker, String date, String time) {
         String url = "uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice";
 
@@ -107,22 +117,24 @@ public class StockServiceImpl implements StockService {
                 .block();
     }
 
-    // 기간별 해당 종목 주가, 거래량 조회(연/월/주/일)
+    /*
+    기간별 해당 종목 주가, 거래량 조회(연/월/주/일)
+     */
     public List<CandleResponse> getPeriodStockInfo(String ticker, String period) {
         String endDate = DateUtil.today(); // 오늘 날짜
         String tmpStartDate = "";
         switch (period) {
             case "D": // 일
-                tmpStartDate = DateUtil.daysAgo(30); // 30일 전(약 한달치)
+                tmpStartDate = DateUtil.daysAgo(100); // 90일 전(약 3달치)
                 break;
             case "M": // 달
-                tmpStartDate = DateUtil.monthsAgo(12); // 12달 전(1년치)
+                tmpStartDate = DateUtil.monthsAgo(100); // 36달 전(3년치)
                 break;
             case "Y": // 연
-                tmpStartDate = DateUtil.yearsAgo(10); // 10년 전(10년치)
+                tmpStartDate = DateUtil.yearsAgo(100); // 20년 전(20년치)
                 break;
             case "W": // 주
-                tmpStartDate = DateUtil.weeksAgo(24); // 24주 전(약 6개 치)
+                tmpStartDate = DateUtil.weeksAgo(100); // 24주 전(약 6개월 치)
                 break;
         }
         String startDate = tmpStartDate;
@@ -163,7 +175,10 @@ public class StockServiceImpl implements StockService {
                 })
                 .block();
     }
-    
+
+    /*
+    Redis에서 실시간 체결가 가져오기
+     */
     @Override
     public int getCurrentPrice(String ticker) {
         try {
