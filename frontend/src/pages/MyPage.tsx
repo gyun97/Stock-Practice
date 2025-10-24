@@ -823,7 +823,7 @@ export default function MyPage() {
                         fontWeight: '600', 
                         color: '#374151',
                         whiteSpace: 'nowrap'
-                      }}>현재가</th>
+                      }}>총 구매액</th>
                       <th style={{ 
                         padding: '12px 8px', 
                         textAlign: 'right', 
@@ -881,7 +881,7 @@ export default function MyPage() {
                           textAlign: 'right',
                           whiteSpace: 'nowrap'
                         }}>
-                          {stock.currentPrice.toLocaleString()}원
+                          {(stock.avgPrice * stock.totalQuantity).toLocaleString()}원
                         </td>
                         <td style={{ 
                           padding: '12px 8px', 
