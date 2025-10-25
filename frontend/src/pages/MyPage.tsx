@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { createStompClient } from '../lib/socket'
+import { tokenManager } from '../lib/tokenManager'
 
 type UserInfo = {
   userId: number
@@ -46,6 +47,98 @@ export default function MyPage() {
   
   // WebSocket 연결을 위한 ref
   const stompRef = useRef<any>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // 총 수익 계산 함수
+  const calculateTotalProfit = () => {
+    if (!userStocks.length) return 0
+    return userStocks.reduce((total, stock) => total + stock.profitLoss, 0)
+  }
+
+  // 도넛 그래프 그리기 함수
+  const drawDonutChart = () => {
+    const canvas = canvasRef.current
+    if (!canvas || !userStocks.length) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // 캔버스 크기 설정
+    canvas.width = 300
+    canvas.height = 300
+
+    const centerX = canvas.width / 2
+    const centerY = canvas.height / 2
+    const radius = 100
+    const innerRadius = 60
+
+    // 전체 주식 자산 계산
+    const totalStockAsset = userStocks.reduce((sum, stock) => sum + stock.currentAsset, 0)
+    
+    if (totalStockAsset === 0) return
+
+    // 색상 팔레트
+    const colors = [
+      '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+      '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+    ]
+
+    let currentAngle = -Math.PI / 2 // 시작 각도 (12시 방향)
+
+    // 각 주식별 비중 계산 및 그리기
+    userStocks.forEach((stock, index) => {
+      const percentage = (stock.currentAsset / totalStockAsset) * 100
+      
+      // 비중이 1% 미만이면 건너뛰기
+      if (percentage < 1) return
+
+      const sliceAngle = (stock.currentAsset / totalStockAsset) * 2 * Math.PI
+      
+      // 호 그리기
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle)
+      ctx.arc(centerX, centerY, innerRadius, currentAngle + sliceAngle, currentAngle, true)
+      ctx.closePath()
+      
+      ctx.fillStyle = colors[index % colors.length]
+      ctx.fill()
+      
+      // 텍스트 라벨 그리기 (비중이 3% 이상인 경우만)
+      if (percentage >= 3) {
+        const labelAngle = currentAngle + sliceAngle / 2
+        const labelRadius = (radius + innerRadius) / 2
+        const labelX = centerX + Math.cos(labelAngle) * labelRadius
+        const labelY = centerY + Math.sin(labelAngle) * labelRadius
+        
+        ctx.fillStyle = 'white'
+        ctx.font = 'bold 10px Arial'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        
+        // 회사 이름 표시 (간단한 이름으로 축약)
+        const shortName = stock.companyName.length > 4 ? 
+          stock.companyName.substring(0, 4) : stock.companyName
+        ctx.fillText(shortName, labelX, labelY - 5)
+        
+        // 비중 표시
+        ctx.font = 'bold 8px Arial'
+        ctx.fillText(`${percentage.toFixed(1)}%`, labelX, labelY + 8)
+      }
+      
+      currentAngle += sliceAngle
+    })
+
+    // 중앙에 총 자산 표시
+    ctx.fillStyle = '#374151'
+    ctx.font = 'bold 16px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('총 주식 자산', centerX, centerY - 10)
+    
+    ctx.fillStyle = '#6B7280'
+    ctx.font = '14px Arial'
+    ctx.fillText(`${totalStockAsset.toLocaleString()}원`, centerX, centerY + 10)
+  }
 
   // 포트폴리오 수익률 실시간 업데이트 핸들러
   const onPortfolioUpdate = (payload: any, raw: string) => {
@@ -160,12 +253,7 @@ export default function MyPage() {
         console.log('마이페이지 API 호출:', `/api/v1/users/${parsedUserInfo.userId}`)
         console.log('Access Token:', accessToken ? '존재함' : '없음')
         
-        const response = await fetch(`/api/v1/users/${parsedUserInfo.userId}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await tokenManager.authenticatedFetch(`/api/v1/users/${parsedUserInfo.userId}`)
 
         console.log('API 응답 상태:', response.status)
         console.log('API 응답 OK:', response.ok)
@@ -176,8 +264,8 @@ export default function MyPage() {
           setUserInfo(result.data)
           
           // 포트폴리오 정보도 함께 가져오기
-          await fetchPortfolioInfo(parsedUserInfo.userId, accessToken)
-          await fetchUserStocks(parsedUserInfo.userId, accessToken)
+          await fetchPortfolioInfo(parsedUserInfo.userId)
+          await fetchUserStocks(parsedUserInfo.userId)
         } else if (response.status === 401) {
           setError('로그인이 만료되었습니다. 다시 로그인해주세요.')
           localStorage.removeItem('userInfo')
@@ -202,16 +290,11 @@ export default function MyPage() {
       }
     }
 
-    const fetchPortfolioInfo = async (userId: number, accessToken: string) => {
+    const fetchPortfolioInfo = async (userId: number) => {
       try {
         console.log('포트폴리오 API 호출:', `/api/v1/portfolios/users/${userId}`)
         
-        const response = await fetch(`/api/v1/portfolios/users/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await tokenManager.authenticatedFetch(`/api/v1/portfolios/users/${userId}`)
 
         console.log('포트폴리오 API 응답 상태:', response.status)
 
@@ -229,16 +312,11 @@ export default function MyPage() {
       }
     }
 
-    const fetchUserStocks = async (userId: number, accessToken: string) => {
+    const fetchUserStocks = async (userId: number) => {
       try {
-        console.log('보유 주식 API 호출:', `/api/v1/userstocks/users/${userId}`)
+        console.log('보유 주식 API 호출:', `/api/v1/userstocks`)
         
-        const response = await fetch(`/api/v1/userstocks/users/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await tokenManager.authenticatedFetch(`/api/v1/userstocks`)
 
         console.log('보유 주식 API 응답 상태:', response.status)
 
@@ -259,6 +337,16 @@ export default function MyPage() {
     fetchUserInfo()
   }, [])
 
+  // 도넛 그래프 그리기 (userStocks 변경 시)
+  useEffect(() => {
+    if (userStocks.length > 0) {
+      // DOM이 업데이트된 후 그래프 그리기
+      setTimeout(() => {
+        drawDonutChart()
+      }, 100)
+    }
+  }, [userStocks])
+
   // WebSocket 연결 설정 (포트폴리오 수익률 실시간 업데이트)
   useEffect(() => {
     if (userInfo) {
@@ -268,7 +356,7 @@ export default function MyPage() {
       // 포트폴리오 업데이트 토픽 구독
       client.onConnect = () => {
         // 사용자별 포트폴리오 업데이트 구독
-        const userId = userInfo.userId || userInfo.id
+        const userId = userInfo.userId
         console.log('WebSocket 구독할 사용자 ID:', userId)
         client.subscribe(`/topic/portfolio/updates/${userId}`, (msg) => {
           const raw = msg.body
@@ -700,7 +788,19 @@ export default function MyPage() {
                   {(portfolioInfo.totalAsset || 0).toLocaleString()}원
                 </span>
               </div>
+              {/* 총 수익 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>총 수익</span>
+                <span style={{ 
+                  fontSize: 18, 
+                  fontWeight: '600', 
+                  color: calculateTotalProfit() >= 0 ? '#dc2626' : '#2563eb'
+                }}>
+                  {calculateTotalProfit() >= 0 ? '+' : ''}{calculateTotalProfit().toLocaleString()}원
+                </span>
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
                 <span style={{ fontSize: 14, color: '#6b7280' }}>수익률</span>
                 <span style={{ 
                   fontSize: 18, 
@@ -788,6 +888,26 @@ export default function MyPage() {
               보유 주식 현황
             </h2>
             
+            {/* 주식 비중 도넛 그래프 */}
+            {userStocks.length > 0 && (
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                marginBottom: 20,
+                padding: '20px 0',
+                borderBottom: '1px solid #e5e7eb'
+              }}>
+                <canvas 
+                  ref={canvasRef}
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 8,
+                    background: 'white'
+                  }}
+                />
+              </div>
+            )}
+            
             {userStocks.length > 0 ? (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ 
@@ -796,16 +916,14 @@ export default function MyPage() {
                   whiteSpace: 'nowrap'
                 }}>
                   <thead>
-                    <tr style={{ 
-                      background: '#f8fafc',
-                      borderBottom: '2px solid #e5e7eb'
-                    }}>
+                    <tr style={{ background: '#f8fafc' }}>
                       <th style={{ 
                         padding: '12px 8px', 
                         textAlign: 'left', 
                         fontSize: 14, 
                         fontWeight: '600', 
                         color: '#374151',
+                        borderBottom: '2px solid #e5e7eb',
                         whiteSpace: 'nowrap'
                       }}>종목명</th>
                       <th style={{ 
@@ -814,6 +932,7 @@ export default function MyPage() {
                         fontSize: 14, 
                         fontWeight: '600', 
                         color: '#374151',
+                        borderBottom: '2px solid #e5e7eb',
                         whiteSpace: 'nowrap'
                       }}>보유수량</th>
                       <th style={{ 
@@ -822,6 +941,7 @@ export default function MyPage() {
                         fontSize: 14, 
                         fontWeight: '600', 
                         color: '#374151',
+                        borderBottom: '2px solid #e5e7eb',
                         whiteSpace: 'nowrap'
                       }}>총 구매액</th>
                       <th style={{ 
@@ -830,6 +950,7 @@ export default function MyPage() {
                         fontSize: 14, 
                         fontWeight: '600', 
                         color: '#374151',
+                        borderBottom: '2px solid #e5e7eb',
                         whiteSpace: 'nowrap'
                       }}>현재자산</th>
                       <th style={{ 
@@ -838,6 +959,7 @@ export default function MyPage() {
                         fontSize: 14, 
                         fontWeight: '600', 
                         color: '#374151',
+                        borderBottom: '2px solid #e5e7eb',
                         whiteSpace: 'nowrap'
                       }}>손익</th>
                       <th style={{ 
@@ -846,6 +968,7 @@ export default function MyPage() {
                         fontSize: 14, 
                         fontWeight: '600', 
                         color: '#374151',
+                        borderBottom: '2px solid #e5e7eb',
                         whiteSpace: 'nowrap'
                       }}>수익률</th>
                     </tr>
@@ -853,8 +976,7 @@ export default function MyPage() {
                   <tbody>
                     {userStocks.map((stock, index) => (
                       <tr key={`${stock.ticker}-${index}`} style={{ 
-                        borderBottom: '1px solid #f3f4f6',
-                        '&:hover': { background: '#f9fafb' }
+                        borderBottom: '1px solid #f3f4f6'
                       }}>
                         <td style={{ 
                           padding: '12px 8px', 
@@ -862,56 +984,44 @@ export default function MyPage() {
                           color: '#1f2937',
                           fontWeight: '500',
                           whiteSpace: 'nowrap'
-                        }}>
-                          {stock.companyName}
-                        </td>
+                        }}>{stock.companyName}</td>
                         <td style={{ 
                           padding: '12px 8px', 
+                          textAlign: 'right', 
                           fontSize: 14, 
-                          color: '#1f2937',
-                          textAlign: 'right',
+                          color: '#374151',
                           whiteSpace: 'nowrap'
-                        }}>
-                          {stock.totalQuantity.toLocaleString()}주
-                        </td>
+                        }}>{stock.totalQuantity.toLocaleString()}주</td>
                         <td style={{ 
                           padding: '12px 8px', 
+                          textAlign: 'right', 
                           fontSize: 14, 
-                          color: '#1f2937',
-                          textAlign: 'right',
+                          color: '#374151',
                           whiteSpace: 'nowrap'
-                        }}>
-                          {(stock.avgPrice * stock.totalQuantity).toLocaleString()}원
-                        </td>
+                        }}>{(stock.avgPrice * stock.totalQuantity).toLocaleString()}원</td>
                         <td style={{ 
                           padding: '12px 8px', 
+                          textAlign: 'right', 
                           fontSize: 14, 
-                          color: '#1f2937',
-                          textAlign: 'right',
+                          color: '#374151',
                           whiteSpace: 'nowrap'
-                        }}>
-                          {stock.currentAsset.toLocaleString()}원
-                        </td>
+                        }}>{stock.currentAsset.toLocaleString()}원</td>
                         <td style={{ 
                           padding: '12px 8px', 
+                          textAlign: 'right', 
                           fontSize: 14, 
-                          color: stock.profitLoss >= 0 ? '#dc2626' : '#059669',
-                          textAlign: 'right',
-                          fontWeight: '500',
+                          fontWeight: '600',
+                          color: stock.profitLoss >= 0 ? '#dc2626' : '#2563eb',
                           whiteSpace: 'nowrap'
-                        }}>
-                          {stock.profitLoss >= 0 ? '+' : ''}{stock.profitLoss.toLocaleString()}원
-                        </td>
+                        }}>{stock.profitLoss >= 0 ? '+' : ''}{stock.profitLoss.toLocaleString()}원</td>
                         <td style={{ 
                           padding: '12px 8px', 
+                          textAlign: 'right', 
                           fontSize: 14, 
-                          color: stock.returnRate >= 0 ? '#dc2626' : '#059669',
-                          textAlign: 'right',
-                          fontWeight: '500',
+                          fontWeight: '600',
+                          color: stock.returnRate >= 0 ? '#dc2626' : '#2563eb',
                           whiteSpace: 'nowrap'
-                        }}>
-                          {stock.returnRate >= 0 ? '+' : ''}{stock.returnRate.toFixed(2)}%
-                        </td>
+                        }}>{stock.returnRate >= 0 ? '+' : ''}{stock.returnRate.toFixed(2)}%</td>
                       </tr>
                     ))}
                   </tbody>

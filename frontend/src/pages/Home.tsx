@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { createStompClient } from '../lib/socket'
+import { tokenManager } from '../lib/tokenManager'
 
 type Row = {
   ticker: string
@@ -73,31 +74,21 @@ export default function Home() {
   // 로그아웃 함수
   const handleLogout = async () => {
     console.log('메인 페이지 로그아웃 함수가 호출되었습니다!')
-    const accessToken = localStorage.getItem('accessToken')
     
     try {
       // 백엔드 로그아웃 API 호출
-      if (accessToken) {
-        console.log('로그아웃 API 호출 시작')
-        await fetch('/api/v1/users/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        console.log('로그아웃 API 호출 완료')
-      }
+      console.log('로그아웃 API 호출 시작')
+      await tokenManager.authenticatedFetch('/api/v1/users/logout', {
+        method: 'POST'
+      })
+      console.log('로그아웃 API 호출 완료')
     } catch (error) {
       console.error('로그아웃 API 호출 실패:', error)
       // API 호출 실패해도 로컬 로그아웃은 진행
     } finally {
       // 로컬 스토리지 정리
       console.log('로컬 스토리지 정리 시작')
-      localStorage.removeItem('userInfo')
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
-      localStorage.removeItem('loginMethod')
+      tokenManager.clearTokens()
       setUserInfo(null)
       console.log('메인 페이지 로그아웃 완료')
     }
