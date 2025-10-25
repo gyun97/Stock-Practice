@@ -29,21 +29,6 @@ public class StockController {
         return ResponseEntity.ok(ApiResponse.requestSuccess(stockService.showAllStock()));
     }
 
-//    @GetMapping("/{ticker}")
-//    public ResponseEntity<ApiResponse<List<CandleResponse>>> getMinuteCandles(
-//            @PathVariable String ticker,
-//            @RequestParam(required = false) String date,
-//            @RequestParam(required = false) String time) {
-//
-//        // 기본값: 현재 일자
-//        if (date == null) date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-//
-//        // 기본값: 현재 시각 (HHmmss)
-//        if (time == null) time = LocalTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
-//
-//        List<CandleResponse> minuteCandles = stockService.getMinuteCandles(ticker, date, time);
-//        return ResponseEntity.ok(ApiResponse.requestSuccess(minuteCandles));
-//    }
 
     @GetMapping("/{ticker}/period")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getPeriodStockInfo(

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { tokenManager } from '../lib/tokenManager'
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -55,11 +56,9 @@ export default function Login() {
         // 응답에서 토큰 추출 및 저장
         const accessToken = data?.accessToken ?? result?.accessToken
         const refreshToken = data?.refreshToken ?? result?.refreshToken
+        
         if (accessToken) {
-          localStorage.setItem('accessToken', accessToken)
-        }
-        if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken)
+          tokenManager.setTokens(accessToken, refreshToken)
         }
 
         // JWT에서 사용자 정보 복원하여 저장

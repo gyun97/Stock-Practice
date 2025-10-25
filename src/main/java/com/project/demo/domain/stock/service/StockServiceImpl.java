@@ -9,6 +9,7 @@ import com.project.demo.domain.stock.dto.response.StockResponse;
 import com.project.demo.domain.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RDeque;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -121,6 +123,7 @@ public class StockServiceImpl implements StockService {
     기간별 해당 종목 주가, 거래량 조회(연/월/주/일)
      */
     public List<CandleResponse> getPeriodStockInfo(String ticker, String period) {
+
         String endDate = DateUtil.today(); // 오늘 날짜
         String tmpStartDate = "";
         switch (period) {
@@ -175,6 +178,7 @@ public class StockServiceImpl implements StockService {
                 })
                 .block();
     }
+
 
     /*
     Redis에서 실시간 체결가 가져오기
