@@ -27,8 +27,9 @@ export default function Home() {
     if (token) {
       console.log('OAuth 토큰 받음:', token)
       
-      // 토큰을 localStorage에 저장
-      localStorage.setItem('accessToken', token)
+      // 토큰을 메모리에 저장 (localStorage에서 기존 토큰 제거)
+      localStorage.removeItem('accessToken')
+      tokenManager.setTokens(token)
       
       // 사용자 정보를 토큰에서 추출 (JWT 디코딩)
       try {

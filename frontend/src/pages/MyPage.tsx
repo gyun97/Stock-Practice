@@ -242,16 +242,10 @@ export default function MyPage() {
         }
 
         const parsedUserInfo = JSON.parse(storedUserInfo)
-        const accessToken = localStorage.getItem('accessToken')
+        const accessToken = tokenManager.getAccessToken()
         
-        if (!accessToken) {
-          setError('로그인이 필요합니다.')
-          setLoading(false)
-          return
-        }
-
         console.log('마이페이지 API 호출:', `/api/v1/users/${parsedUserInfo.userId}`)
-        console.log('Access Token:', accessToken ? '존재함' : '없음')
+        console.log('Access Token:', accessToken ? '존재함' : '없음 (자동 재발급 시도)')
         
         const response = await tokenManager.authenticatedFetch(`/api/v1/users/${parsedUserInfo.userId}`)
 
@@ -267,10 +261,12 @@ export default function MyPage() {
           await fetchPortfolioInfo(parsedUserInfo.userId)
           await fetchUserStocks(parsedUserInfo.userId)
         } else if (response.status === 401) {
+          // 토큰 갱신이 실패한 경우만 401이 됨
           setError('로그인이 만료되었습니다. 다시 로그인해주세요.')
-          localStorage.removeItem('userInfo')
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
+          tokenManager.clearTokens()
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 2000)
         } else if (response.status === 0 || !response.ok) {
           setError('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.')
         } else {
@@ -280,7 +276,17 @@ export default function MyPage() {
         }
       } catch (err) {
         console.error('마이페이지 API 호출 오류:', err)
-        if (err instanceof TypeError && err.message.includes('fetch')) {
+        console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
+        console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
+        
+        // 토큰 갱신 실패 에러 처리
+        if (err instanceof Error && err.message.includes('토큰 갱신')) {
+          setError('로그인이 만료되었습니다. 다시 로그인해주세요.')
+          tokenManager.clearTokens()
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 2000)
+        } else if (err instanceof TypeError && err.message.includes('fetch')) {
           setError('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.')
         } else {
           setError(`네트워크 오류가 발생했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`)

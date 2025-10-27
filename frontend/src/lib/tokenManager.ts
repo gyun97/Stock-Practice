@@ -2,6 +2,7 @@
 export class TokenManager {
   private static instance: TokenManager
   private refreshPromise: Promise<string> | null = null
+  private accessToken: string | null = null // 메모리에 토큰 저장
 
   private constructor() {}
 
@@ -11,31 +12,39 @@ export class TokenManager {
     }
     return TokenManager.instance
   }
+  
+  // 전역 인터셉터를 우회하기 위한 원본 fetch 가져오기
+  private getOriginalFetch() {
+    // 동적 import로 원본 fetch 가져오기
+    return (window as any).__originalFetch || fetch
+  }
 
   // Access Token 가져오기
   public getAccessToken(): string | null {
-    return localStorage.getItem('accessToken')
+    return this.accessToken
   }
 
-  // Refresh Token 가져오기
+  // Refresh Token 가져오기 (쿠키에서 - httpOnly이므로 직접 접근 불가, null 반환)
+  // 실제로는 credentials: 'include'로 백엔드 API 호출 시 자동으로 쿠키가 전송됨
   public getRefreshToken(): string | null {
-    return localStorage.getItem('refreshToken')
+    // httpOnly 쿠키는 JavaScript에서 접근할 수 없으므로 null 반환
+    // 쿠키는 fetch 요청 시 credentials: 'include'로 자동 전송됨
+    return null
   }
 
   // 토큰 저장
   public setTokens(accessToken: string, refreshToken?: string): void {
-    localStorage.setItem('accessToken', accessToken)
-    if (refreshToken) {
-      localStorage.setItem('refreshToken', refreshToken)
-    }
+    this.accessToken = accessToken
+    // Refresh Token은 httpOnly 쿠키로 관리되므로 메모리에 저장하지 않음
   }
 
   // 토큰 삭제
   public clearTokens(): void {
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
+    this.accessToken = null
     localStorage.removeItem('userInfo')
     localStorage.removeItem('loginMethod')
+    // 참고: httpOnly 쿠키는 JavaScript에서 삭제할 수 없으므로 
+    // 백엔드의 /api/v1/users/logout API를 호출해서 삭제해야 합니다.
   }
 
   // 토큰 만료 확인
@@ -86,24 +95,29 @@ export class TokenManager {
   }
 
   private async performTokenRefresh(): Promise<string> {
-    const refreshToken = this.getRefreshToken()
-    
-    if (!refreshToken) {
-      throw new Error('Refresh token not found')
-    }
-
+    // httpOnly 쿠키는 자동으로 전송되므로 별도 체크 불필요
+    console.log('🔄 토큰 재발급 시작 - /api/v1/users/reissue 호출')
     try {
-      const response = await fetch('/api/v1/users/reissue', {
+      // 토큰 재발급 API는 전역 인터셉터를 우회하기 위해 원본 fetch를 직접 사용
+      const response = await this.getOriginalFetch()('/api/v1/users/reissue', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // 쿠키 포함
+        credentials: 'include', // 쿠키 자동 전송
       })
 
+      console.log('토큰 재발급 응답 상태:', response.status)
+      
       if (response.ok) {
         const result = await response.json()
-        const newAccessToken = result.data || result.accessToken
+        console.log('토큰 재발급 응답 데이터:', result)
+        let newAccessToken = result.data || result.accessToken
+        
+        // "Bearer " prefix 제거 (백엔드에서 이미 포함시켜서 보내므로)
+        if (newAccessToken && newAccessToken.startsWith('Bearer ')) {
+          newAccessToken = newAccessToken.substring(7) // "Bearer " 제거
+        }
         
         if (newAccessToken) {
           this.setTokens(newAccessToken)
@@ -114,17 +128,15 @@ export class TokenManager {
         }
       } else if (response.status === 401) {
         // Refresh Token도 만료된 경우
-        console.log('Refresh Token도 만료됨, 로그아웃 처리')
-        this.clearTokens()
-        window.location.href = '/login'
+        console.log('Refresh Token도 만료됨')
         throw new Error('Refresh token expired')
       } else {
+        const errorText = await response.text()
+        console.error('토큰 갱신 실패:', response.status, errorText)
         throw new Error(`토큰 갱신 실패: ${response.status}`)
       }
     } catch (error) {
-      console.error('토큰 갱신 오류:', error)
-      this.clearTokens()
-      window.location.href = '/login'
+      console.error('❌ 토큰 갱신 오류:', error)
       throw error
     }
   }
@@ -175,7 +187,8 @@ export class TokenManager {
         })
       } catch (error) {
         console.error('토큰 갱신 실패:', error)
-        return response // 원본 응답 반환
+        // 토큰 갱신 실패 시 에러 메시지와 함께 응답 반환 (자동 로그아웃 방지)
+        throw new Error('토큰 갱신에 실패했습니다')
       }
     }
 

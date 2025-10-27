@@ -65,6 +65,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                         () -> refreshTokenRepository.save(new RefreshToken(user.getId(), refreshToken)) // 없으면 새로 저장
                 );
 
+        // 리프레시 토큰을 쿠키에 저장 (로컬 개발: false, 프로덕션: true)
+        jwtUtil.addRefreshTokenToCookie(refreshToken, response, false, null);
+
         // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
         String redirectUrl = frontEnd + "?token=" + accessToken;
         log.info("리다이렉트 URL: {}", redirectUrl);

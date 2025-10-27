@@ -51,7 +51,7 @@ public class UserController {
         LoginResponse response = userService.signUp(signUpRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
-        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, true, null); // 응답 쿠키에 Refresh Token 저장
+        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, false, null); // 응답 쿠키에 Refresh Token 저장 (로컬 개발: false, 프로덕션: true)
 
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }
@@ -66,7 +66,7 @@ public class UserController {
         LoginResponse response = userService.login(loginRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
-        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, true, null); // // 응답 쿠키에 Refresh Token 저장
+        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, false, null); // 응답 쿠키에 Refresh Token 저장 (로컬 개발: false, 프로덕션: true)
 
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }
@@ -93,7 +93,7 @@ public class UserController {
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long userId, HttpServletResponse httpServletResponse) {
         String response = userService.deleteUser(userId);
-        jwtUtil.clearRefreshTokenCookie(httpServletResponse, true, null);
+        jwtUtil.clearRefreshTokenCookie(httpServletResponse, false, null);
 
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
     }

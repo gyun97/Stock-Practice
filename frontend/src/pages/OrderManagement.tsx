@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { tokenManager } from '../lib/tokenManager'
 
 type Order = {
   orderId: number
@@ -37,7 +38,7 @@ export default function OrderManagement() {
 
   const fetchOrders = async () => {
     try {
-      const accessToken = localStorage.getItem('accessToken')
+      const accessToken = tokenManager.getAccessToken()
       if (!accessToken) {
         setError('로그인이 필요합니다.')
         setLoading(false)
@@ -91,7 +92,7 @@ export default function OrderManagement() {
       setCancelLoading(orderId)
       setMessage('')
 
-      const accessToken = localStorage.getItem('accessToken')
+      const accessToken = tokenManager.getAccessToken()
       if (!accessToken) {
         setMessage('로그인이 필요합니다.')
         return

@@ -311,6 +311,9 @@ public class UserServiceImpl implements UserService {
         RefreshToken existingToken = refreshTokenRepository.findById(userId)
                 .orElseThrow(NotFoundTokenException::new);
 
+        if (!existingToken.getValue().equals(refreshToken)) {
+            throw new InvalidTokenException();
+        }
     }
 
     /*
