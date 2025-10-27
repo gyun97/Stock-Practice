@@ -4,12 +4,17 @@ import SockJS from 'sockjs-client'
 export type StompMessageHandler = (data: any, raw: string) => void
 
 export function createStompClient(onMessage: StompMessageHandler) {
+  // 토큰 가져오기
+  const token = localStorage.getItem('accessToken')
+  // 이미 "Bearer "로 시작하면 그대로 사용, 아니면 추가
+  const authHeader = token?.startsWith('Bearer ') ? token : `Bearer ${token}`
+  
   const client = new Client({
     webSocketFactory: () => new SockJS('/ws'),
     reconnectDelay: 3000,
     debug: (str) => console.log(str),
     connectHeaders: {
-      Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+      Authorization: authHeader
     }
   })
   client.onConnect = () => {

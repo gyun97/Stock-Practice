@@ -38,4 +38,15 @@ public class StockController {
         return ResponseEntity.ok(ApiResponse.requestSuccess(response));
     }
 
+    @GetMapping("/{ticker}/period/range")
+    public ResponseEntity<ApiResponse<List<CandleResponse>>> getPeriodStockInfoByRange(
+            @PathVariable String ticker, 
+            @RequestParam(required = true) String period,
+            @RequestParam(required = true) String startDate,
+            @RequestParam(required = true) String endDate) {
+
+        List<CandleResponse> response = stockService.getPeriodStockInfoByRange(ticker, period, startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
+    }
+
 }
