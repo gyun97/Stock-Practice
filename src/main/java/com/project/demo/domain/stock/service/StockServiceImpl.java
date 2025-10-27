@@ -48,7 +48,6 @@ public class StockServiceImpl implements StockService {
      */
     public String getAccessToken() {
         return kisApiAccessTokenService.getAccessToken();
-//        return redisTemplate.opsForValue().get("kis:access_token");
     }
 
     /*
@@ -124,23 +123,25 @@ public class StockServiceImpl implements StockService {
      */
     public List<CandleResponse> getPeriodStockInfo(String ticker, String period) {
 
-        String endDate = DateUtil.today(); // 오늘 날짜
-        String tmpStartDate = "";
+        final String endDate = DateUtil.today(); // 오늘 날짜
+        final String startDate;
         switch (period) {
             case "D": // 일
-                tmpStartDate = DateUtil.daysAgo(100); // 90일 전(약 3달치)
+                startDate = DateUtil.daysAgo(100); // 90일 전(약 3달치)
                 break;
             case "M": // 달
-                tmpStartDate = DateUtil.monthsAgo(100); // 36달 전(3년치)
+                startDate = DateUtil.monthsAgo(100); // 36달 전(3년치)
                 break;
             case "Y": // 연
-                tmpStartDate = DateUtil.yearsAgo(100); // 20년 전(20년치)
+                startDate = DateUtil.yearsAgo(100); // 20년 전(20년치)
                 break;
             case "W": // 주
-                tmpStartDate = DateUtil.weeksAgo(100); // 24주 전(약 6개월 치)
+                startDate = DateUtil.weeksAgo(100); // 24주 전(약 6개월 치)
+                break;
+            default:
+                startDate = DateUtil.daysAgo(100);
                 break;
         }
-        String startDate = tmpStartDate;
 
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -179,6 +180,44 @@ public class StockServiceImpl implements StockService {
                 .block();
     }
 
+    @Override
+    public List<CandleResponse> getPeriodStockInfoByRange(String ticker, String period, String startDate, String endDate) {
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice")
+                        .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                        .queryParam("FID_INPUT_ISCD", ticker)
+                        .queryParam("FID_INPUT_DATE_1", startDate)
+                        .queryParam("FID_INPUT_DATE_2", endDate)
+                        .queryParam("FID_PERIOD_DIV_CODE", period) // D/W/M/Y
+                        .queryParam("FID_ORG_ADJ_PRC", "0")
+                        .build())
+                .header("authorization", "Bearer " + getAccessToken())
+                .header("appkey", appKey)
+                .header("appsecret", appSecret)
+                .header("tr_id", "FHKST03010100")
+                .header("custtype", "P")
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .map(json -> {
+                    List<CandleResponse> candles = new ArrayList<>();
+                    if (json.has("output2")) {
+                        for (JsonNode node : json.get("output2")) {
+                            CandleResponse candle = CandleResponse.builder()
+                                    .date(node.get("stck_bsop_date").asText())
+                                    .open(node.get("stck_oprc").asInt())
+                                    .high(node.get("stck_hgpr").asInt())
+                                    .low(node.get("stck_lwpr").asInt())
+                                    .close(node.get("stck_clpr").asInt())
+                                    .volume(node.get("acml_vol").asLong())
+                                    .build();
+                            candles.add(candle);
+                        }
+                    }
+                    return candles;
+                })
+                .block();
+    }
 
     /*
     Redis에서 실시간 체결가 가져오기

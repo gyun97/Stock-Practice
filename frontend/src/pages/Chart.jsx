@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { createStompClient } from '../lib/socket'
-import { createChart } from 'lightweight-charts'
+import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts'
 
 export default function Chart() {
   const { ticker = '' } = useParams()
@@ -20,17 +20,52 @@ export default function Chart() {
   const [orderMsg, setOrderMsg] = useState('')
   const [orderErr, setOrderErr] = useState('')
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, data: null })
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMoreData, setHasMoreData] = useState(true)
   const chartContainerRef = useRef(null)
   const chartRef = useRef(null)
   const candlestickSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
   const stompRef = useRef(null)
   const tickerRef = useRef(ticker)
+  const candleDataRef = useRef(candleData)
+  const selectedPeriodRef = useRef(selectedPeriod)
+  const hasMoreDataRef = useRef(hasMoreData)
+  const isLoadingMoreRef = useRef(isLoadingMore)
 
   // ticker 변경 시 ref 업데이트
   useEffect(() => {
     tickerRef.current = ticker
   }, [ticker])
+
+  // candleData 변경 시 ref 업데이트
+  useEffect(() => {
+    candleDataRef.current = candleData
+  }, [candleData])
+
+  // selectedPeriod 변경 시 ref 업데이트
+  useEffect(() => {
+    selectedPeriodRef.current = selectedPeriod
+  }, [selectedPeriod])
+
+  // hasMoreData 변경 시 ref 업데이트
+  useEffect(() => {
+    hasMoreDataRef.current = hasMoreData
+  }, [hasMoreData])
+
+  // isLoadingMore 변경 시 ref 업데이트
+  useEffect(() => {
+    isLoadingMoreRef.current = isLoadingMore
+  }, [isLoadingMore])
+
+  // 로그인 상태 확인
+  const checkLoginStatus = () => {
+    const token = localStorage.getItem('accessToken')
+    setIsLoggedIn(!!token)
+  }
+
+
 
   const periods = [
     { key: 'D', label: '일' },
@@ -167,7 +202,7 @@ export default function Chart() {
     })
 
     // 캔들스틱 시리즈 추가
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#e74c3c',
       downColor: '#3498db',
       borderDownColor: '#2980b9',
@@ -182,7 +217,7 @@ export default function Chart() {
     })
 
     // 볼륨 시리즈 추가 (별도 패널)
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#26a69a',
       priceFormat: {
         type: 'volume',
@@ -231,30 +266,169 @@ export default function Chart() {
         }
       })
 
+      // 스크롤 이벤트 리스너 추가 (무한 스크롤)
+      const cleanupScroll = chart.timeScale().subscribeVisibleLogicalRangeChange(async (logicalRange) => {
+        console.log('스크롤 이벤트 발생:', logicalRange)
+        
+        // 최신 상태 참조
+        const currentCandleData = candleDataRef.current
+        const currentHasMoreData = hasMoreDataRef.current
+        const currentIsLoadingMore = isLoadingMoreRef.current
+        const currentTicker = tickerRef.current
+        const currentPeriod = selectedPeriodRef.current
+        
+        if (currentCandleData.length === 0) {
+          console.log('candleData가 없어서 스크롤 처리 건너뜀')
+          return
+        }
+        
+        if (logicalRange && logicalRange.from !== null) {
+          // 차트의 왼쪽 끝에 도달했을 때 추가 데이터 로드
+          const threshold = 10 // 왼쪽 끝에서 10개 데이터 지점 전에 로드 시작
+          
+          console.log('스크롤 조건 확인:', {
+            from: logicalRange.from,
+            threshold,
+            hasMoreData: currentHasMoreData,
+            isLoadingMore: currentIsLoadingMore,
+            조건만족: logicalRange.from <= threshold && currentHasMoreData && !currentIsLoadingMore
+          })
+          
+          if (logicalRange.from <= threshold && currentHasMoreData && !currentIsLoadingMore) {
+            console.log('차트 왼쪽 끝 도달, 추가 데이터 로드 시작')
+            
+            // 직접 데이터 로드 로직 실행
+            setIsLoadingMore(true)
+            try {
+              const sortedData = [...currentCandleData].sort((a, b) => a.date.localeCompare(b.date))
+              const oldestDate = sortedData[0].date
+              
+              console.log(`추가 데이터 로드 시작: ${currentTicker}, endDate: ${oldestDate}`)
+              
+              const year = oldestDate.substring(0, 4)
+              const month = oldestDate.substring(4, 6)
+              const day = oldestDate.substring(6, 8)
+              const dateObj = new Date(`${year}-${month}-${day}`)
+              dateObj.setDate(dateObj.getDate() - 100)
+              const startDateStr = dateObj.toISOString().split('T')[0].replace(/-/g, '')
+              const endDateStr = (parseInt(oldestDate) - 1).toString()
+
+              const response = await fetch(`/api/v1/stocks/${currentTicker}/period/range?period=${currentPeriod}&startDate=${startDateStr}&endDate=${endDateStr}`)
+              
+              if (!response.ok) {
+                throw new Error(`추가 데이터 로드 실패: ${response.status}`)
+              }
+
+              const result = await response.json()
+              const newData = result.data || []
+              console.log('API 응답 데이터:', newData.length, '개')
+              
+              if (newData.length === 0) {
+                console.log('더 이상 데이터가 없음')
+                setHasMoreData(false)
+                return
+              }
+
+              const sortedNewData = [...newData].sort((a, b) => a.date.localeCompare(b.date))
+              const combinedData = [...sortedNewData, ...currentCandleData]
+              const uniqueData = combinedData.filter((item, index, self) => 
+                index === self.findIndex(t => t.date === item.date)
+              ).sort((a, b) => a.date.localeCompare(b.date))
+
+              console.log('데이터 병합 완료:', { 
+                기존데이터: currentCandleData.length, 
+                새데이터: newData.length, 
+                병합후: uniqueData.length 
+              })
+
+              setCandleData(uniqueData)
+
+              // 차트에 새 데이터 추가
+              if (candlestickSeriesRef.current && volumeSeriesRef.current) {
+                const chartData = uniqueData.map(item => ({
+                  time: formatDate(item.date),
+                  open: item.open,
+                  high: item.high,
+                  low: item.low,
+                  close: item.close,
+                }))
+
+                const volumeData = uniqueData.map((item, index) => {
+                  let color = '#26a69a'
+                  
+                  if (index > 0) {
+                    const prevVolume = uniqueData[index - 1].volume
+                    const currentVolume = item.volume
+                    
+                    if (currentVolume > prevVolume) {
+                      color = '#e74c3c'
+                    } else if (currentVolume < prevVolume) {
+                      color = '#3498db'
+                    }
+                  }
+                  
+                  return {
+                    time: formatDate(item.date),
+                    value: item.volume,
+                    color: color
+                  }
+                })
+
+                console.log('차트에 새 데이터 설정:', chartData.length, '개')
+                
+                const currentRange = chartRef.current?.timeScale()?.getVisibleLogicalRange()
+                
+                candlestickSeriesRef.current.setData(chartData)
+                volumeSeriesRef.current.setData(volumeData)
+                
+                // 화면 범위 복원
+                if (currentRange && chartRef.current) {
+                  setTimeout(() => {
+                    const newFrom = currentRange.from + newData.length
+                    const newTo = currentRange.to + newData.length
+                    chartRef.current.timeScale().setVisibleLogicalRange({
+                      from: newFrom,
+                      to: newTo
+                    })
+                  }, 50)
+                }
+              }
+
+              console.log(`추가 데이터 로드 완료: ${newData.length}개 추가`)
+            } catch (error) {
+              console.error('추가 데이터 로드 실패:', error)
+            } finally {
+              setIsLoadingMore(false)
+            }
+          }
+        }
+      })
+
       console.log('차트 초기화 완료')
 
-    // 차트 크기 조정
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        })
+      // 차트 크기 조정
+      const handleResize = () => {
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({
+            width: chartContainerRef.current.clientWidth,
+          })
+        }
       }
-    }
 
-    window.addEventListener('resize', handleResize)
+      window.addEventListener('resize', handleResize)
 
-    return () => {
-      console.log('차트 정리 시작')
-      window.removeEventListener('resize', handleResize)
-      if (chartRef.current) {
-        chartRef.current.remove()
-        chartRef.current = null
-        candlestickSeriesRef.current = null
-        volumeSeriesRef.current = null
+      return () => {
+        console.log('차트 정리 시작')
+        window.removeEventListener('resize', handleResize)
+        if (cleanupScroll) cleanupScroll()
+        if (chartRef.current) {
+          chartRef.current.remove()
+          chartRef.current = null
+          candlestickSeriesRef.current = null
+          volumeSeriesRef.current = null
+        }
+        console.log('차트 정리 완료')
       }
-      console.log('차트 정리 완료')
-    }
   }
 
   // 데이터 로드 함수
@@ -281,6 +455,13 @@ export default function Chart() {
       const data = result.data || []
       console.log('파싱된 캔들 데이터:', data.slice(0, 3))
 
+      if (data.length === 0) {
+        console.log('데이터가 없음')
+        setCandleData([])
+        setHasMoreData(false)
+        return
+      }
+
       if (data.length > 0) {
         // 모든 데이터는 날짜순 정렬
         const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date))
@@ -289,6 +470,10 @@ export default function Chart() {
 
         // 정렬된 데이터로 상태 업데이트
         setCandleData(sortedData)
+        
+        // 항상 더 많은 데이터를 로드할 수 있다고 가정 (초기 로드 시에만)
+        // 실제로 데이터가 없으면 스크롤 리스너에서 hasMoreData를 false로 설정
+        setHasMoreData(true)
 
         // lightweight-charts에 데이터 설정
         if (candlestickSeriesRef.current && volumeSeriesRef.current) {
@@ -302,11 +487,27 @@ export default function Chart() {
             close: item.close,
           }))
 
-          const volumeData = sortedData.map(item => ({
-            time: formatDate(item.date), // 날짜 형식 변환
-            value: item.volume,
-            color: item.close >= item.open ? '#e74c3c' : '#3498db', // 상승: 빨강, 하락: 파랑
-          }))
+          const volumeData = sortedData.map((item, index) => {
+            // 전날 거래량과 비교하여 색상 결정
+            let color = '#26a69a' // 기본 색상 (회색)
+            
+            if (index > 0) {
+              const prevVolume = sortedData[index - 1].volume
+              const currentVolume = item.volume
+              
+              if (currentVolume > prevVolume) {
+                color = '#e74c3c' // 전날 대비 거래량 증가 (빨강)
+              } else if (currentVolume < prevVolume) {
+                color = '#3498db' // 전날 대비 거래량 감소 (파랑)
+              }
+            }
+            
+            return {
+              time: formatDate(item.date),
+              value: item.volume,
+              color: color
+            }
+          })
 
           console.log('캔들 데이터:', chartData.slice(0, 3))
           console.log('볼륨 데이터:', volumeData.slice(0, 3))
@@ -408,6 +609,11 @@ export default function Chart() {
     }
   }, [onTick])
 
+  // 로그인 상태 확인
+  useEffect(() => {
+    checkLoginStatus()
+  }, [])
+
   // 차트 초기화
   useEffect(() => {
     console.log('차트 초기화 useEffect 실행')
@@ -415,15 +621,35 @@ export default function Chart() {
     return cleanup
   }, [])
 
-  // 차트가 초기화된 후 데이터 로드
+    // 차트가 초기화된 후 데이터 로드
   useEffect(() => {
+    console.log('데이터 로드 useEffect 실행:', {
+      chartRef: !!chartRef.current,
+      candlestickSeriesRef: !!candlestickSeriesRef.current,
+      volumeSeriesRef: !!volumeSeriesRef.current,
+      selectedPeriod,
+      ticker
+    })
+    
     if (chartRef.current && candlestickSeriesRef.current && volumeSeriesRef.current && ticker) {
       console.log('차트 준비 완료, 데이터 로드 시작')
-      loadData(selectedPeriod)
+      // 차트 초기화 완료 후 약간의 지연을 두고 데이터 로드
+      setTimeout(() => {
+        loadData(selectedPeriod)
+      }, 100)
+    } else {
+      console.log('차트 준비 미완료로 데이터 로드 건너뜀')
     }
-  }, [chartRef.current, candlestickSeriesRef.current, volumeSeriesRef.current, selectedPeriod, ticker])
+  }, [selectedPeriod, ticker])
 
   // 기간 변경 시 데이터 다시 로드
+  // 기간 변경 시 무한 스크롤 상태 초기화
+  useEffect(() => {
+    console.log('기간 변경됨:', selectedPeriod)
+    setHasMoreData(true)
+    setIsLoadingMore(false)
+  }, [selectedPeriod])
+
   useEffect(() => {
     console.log('Chart 페이지 마운트, ticker:', ticker)
     loadCompanyInfo()
@@ -559,6 +785,13 @@ export default function Chart() {
         </div>
       )}
 
+      {/* 추가 데이터 로딩 상태 */}
+      {isLoadingMore && (
+        <div style={{ textAlign: 'center', padding: 20, color: '#666', fontSize: 14 }}>
+          과거 데이터를 불러오는 중...
+        </div>
+      )}
+
       {/* 차트 + 우측 주문패널 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, alignItems: 'start' }}>
         <div>
@@ -677,55 +910,79 @@ export default function Chart() {
         </div>
 
         <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#ffffff', padding: 16, position: 'sticky', top: 16 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button onClick={() => setOrderTab('market')} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: '1px solid #d1d5db', background: orderTab==='market' ? '#2962FF' : 'white', color: orderTab==='market' ? 'white' : '#111827', fontWeight: 600 }}>즉시 주문</button>
-            <button onClick={() => setOrderTab('reserve')} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: '1px solid #d1d5db', background: orderTab==='reserve' ? '#2962FF' : 'white', color: orderTab==='reserve' ? 'white' : '#111827', fontWeight: 600 }}>예약 주문</button>
-          </div>
-
-          {orderMsg && (
-            <div style={{ marginBottom: 10, padding: 10, borderRadius: 6, background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', fontSize: 13 }}>{orderMsg}</div>
-          )}
-          {orderErr && (
-            <div style={{ marginBottom: 10, padding: 10, borderRadius: 6, background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', fontSize: 13 }}>{orderErr}</div>
-          )}
-
-          {orderTab === 'market' ? (
-            <div>
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>수량</div>
-                <input value={qty} onChange={e => setQty(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)} inputMode="numeric" pattern="[0-9]*" placeholder="주문 수량" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
-                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  {[1,5,10,50,100].map(n => (
-                    <button key={n} onClick={() => setQty(n)} style={{ flex: 1, padding: '6px 0', border: '1px solid #e5e7eb', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 12 }}>{n}주</button>
-                  ))}
-                </div>
+          {!isLoggedIn ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ fontSize: 16, color: '#666', marginBottom: 16 }}>
+                🔒 로그인한 사용자만 주문이 가능합니다
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button disabled={placing} onClick={() => placeMarket('buy')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #16a34a', background: '#16a34a', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '즉시 매수'}</button>
-                <button disabled={placing} onClick={() => placeMarket('sell')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #dc2626', background: '#dc2626', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '즉시 매도'}</button>
-              </div>
+              <Link 
+                to="/login" 
+                style={{ 
+                  display: 'inline-block',
+                  padding: '12px 24px', 
+                  background: '#2962FF', 
+                  color: 'white', 
+                  textDecoration: 'none', 
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  fontSize: 14
+                }}
+              >
+                로그인하기
+              </Link>
             </div>
           ) : (
-            <div>
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>수량</div>
-                <input value={reserveQty} onChange={e => setReserveQty(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)} inputMode="numeric" pattern="[0-9]*" placeholder="주문 수량" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+            <>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <button onClick={() => setOrderTab('market')} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: '1px solid #d1d5db', background: orderTab==='market' ? '#2962FF' : 'white', color: orderTab==='market' ? 'white' : '#111827', fontWeight: 600 }}>즉시 주문</button>
+                <button onClick={() => setOrderTab('reserve')} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: '1px solid #d1d5db', background: orderTab==='reserve' ? '#2962FF' : 'white', color: orderTab==='reserve' ? 'white' : '#111827', fontWeight: 600 }}>예약 주문</button>
               </div>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>예약 가격(원)</div>
-                <input value={reservePrice} onChange={e => setReservePrice(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" pattern="[0-9]*" placeholder="예: 95000" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button disabled={placing} onClick={() => placeReserve('buy')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #16a34a', background: '#16a34a', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '예약 매수'}</button>
-                <button disabled={placing} onClick={() => placeReserve('sell')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #dc2626', background: '#dc2626', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '예약 매도'}</button>
-              </div>
-              <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
-                - 예약 매수: 목표가 이하로 하락 시 체결
-                <br />- 예약 매도: 목표가 이상으로 상승 시 체결
-              </div>
-            </div>
-          )}
 
+              {orderMsg && (
+                <div style={{ marginBottom: 10, padding: 10, borderRadius: 6, background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', fontSize: 13 }}>{orderMsg}</div>
+              )}
+              {orderErr && (
+                <div style={{ marginBottom: 10, padding: 10, borderRadius: 6, background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', fontSize: 13 }}>{orderErr}</div>
+              )}
+
+              {orderTab === 'market' ? (
+                <div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>수량</div>
+                    <input value={qty} onChange={e => setQty(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)} inputMode="numeric" pattern="[0-9]*" placeholder="주문 수량" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                      {[1,5,10,50,100].map(n => (
+                        <button key={n} onClick={() => setQty(n)} style={{ flex: 1, padding: '6px 0', border: '1px solid #e5e7eb', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 12 }}>{n}주</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <button disabled={placing} onClick={() => placeMarket('buy')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #16a34a', background: '#16a34a', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '즉시 매수'}</button>
+                    <button disabled={placing} onClick={() => placeMarket('sell')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #dc2626', background: '#dc2626', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '즉시 매도'}</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>수량</div>
+                    <input value={reserveQty} onChange={e => setReserveQty(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)} inputMode="numeric" pattern="[0-9]*" placeholder="주문 수량" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>예약 가격(원)</div>
+                    <input value={reservePrice} onChange={e => setReservePrice(e.target.value.replace(/[^0-9]/g, ''))} inputMode="numeric" pattern="[0-9]*" placeholder="예: 95000" style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14 }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <button disabled={placing} onClick={() => placeReserve('buy')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #16a34a', background: '#16a34a', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '예약 매수'}</button>
+                    <button disabled={placing} onClick={() => placeReserve('sell')} style={{ padding: '10px 12px', borderRadius: 6, border: '1px solid #dc2626', background: '#dc2626', color: 'white', fontWeight: 600, cursor: placing?'not-allowed':'pointer' }}>{placing ? '처리중...' : '예약 매도'}</button>
+                  </div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#6b7280' }}>
+                    - 예약 매수: 목표가 이하로 하락 시 체결
+                    <br />- 예약 매도: 목표가 이상으로 상승 시 체결
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
