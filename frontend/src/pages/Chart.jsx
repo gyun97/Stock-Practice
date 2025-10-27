@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { createStompClient } from '../lib/socket'
 import { createChart, CandlestickSeries, HistogramSeries } from 'lightweight-charts'
+import { tokenManager } from '../lib/tokenManager'
 
 export default function Chart() {
   const { ticker = '' } = useParams()
@@ -61,7 +62,7 @@ export default function Chart() {
 
   // 로그인 상태 확인
   const checkLoginStatus = () => {
-    const token = localStorage.getItem('accessToken')
+    const token = tokenManager.getAccessToken()
     setIsLoggedIn(!!token)
   }
 
@@ -541,7 +542,7 @@ export default function Chart() {
     }
   }
 
-  const getToken = () => localStorage.getItem('accessToken')
+  const getToken = () => tokenManager.getAccessToken()
   const ensureLogin = () => {
     const t = getToken()
     if (!t) {
@@ -560,7 +561,7 @@ export default function Chart() {
       const url = type === 'buy'
         ? `/api/v1/orders/buying/${ticker}?quantity=${qty}`
         : `/api/v1/orders/selling/${ticker}?quantity=${qty}`
-      const res = await fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` } })
+      const res = await tokenManager.authenticatedFetch(url, { method: 'POST' })
       const json = await res.json().catch(() => null)
       if (res.ok) {
         setOrderMsg(json?.data ?? '주문이 접수되었습니다.')
@@ -583,7 +584,7 @@ export default function Chart() {
     try {
       const path = type === 'buy' ? 'reserve-buying' : 'reserve-selling'
       const url = `/api/v1/orders/${path}/${ticker}?quantity=${q}&targetPrice=${p}`
-      const res = await fetch(url, { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` } })
+      const res = await tokenManager.authenticatedFetch(url, { method: 'POST' })
       const json = await res.json().catch(() => null)
       if (res.ok) {
         setOrderMsg(json?.data ?? '예약 주문이 등록되었습니다.')

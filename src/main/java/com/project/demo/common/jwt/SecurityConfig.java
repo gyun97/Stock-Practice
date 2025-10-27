@@ -55,6 +55,7 @@ public class SecurityConfig {
                                 .requestMatchers(
                                         "/api/v1/users/login",
                                         "/api/v1/users/sign-up",
+                                        "/api/v1/users/reissue",  // 토큰 재발급 API (쿠키 기반 인증)
                                         "/oauth2/authorization/**",  // OAuth2 인증 경로
                                         "/login/oauth2/code/**",     // OAuth2 콜백 경로
                                         "/actuator/prometheus",

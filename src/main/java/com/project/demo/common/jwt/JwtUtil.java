@@ -2,7 +2,6 @@ package com.project.demo.common.jwt;
 
 
 import com.project.demo.common.exception.auth.ExpiredTokenException;
-import com.project.demo.domain.user.repository.RefreshTokenRepository;
 import com.project.demo.domain.user.enums.UserRole;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -12,12 +11,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.http.ResponseCookie;
-
 
 import java.rmi.ServerException;
 import java.security.Key;
@@ -33,7 +30,9 @@ public class JwtUtil {
 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final long ACCESS_TOKEN_TIME = 60 * 60 * 1000L; // 60분
+//    private static final long ACCESS_TOKEN_TIME = 1000L; // 1초(리프레쉬 토큰으로 인한 엑세스 토큰 재발급 시험)
     private static final long REFRESH_TOKEN_TIME = 14 * 24 * 60 * 60 * 1000L; // 14일
+//    private static final long REFRESH_TOKEN_TIME = 1000L; // 14일
     private static final String REFRESH_COOKIE_NAME = "refreshToken";
 
     private final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.HS256;

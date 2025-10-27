@@ -1,11 +1,12 @@
 import { Client, IMessage } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
+import { tokenManager } from './tokenManager'
 
 export type StompMessageHandler = (data: any, raw: string) => void
 
 export function createStompClient(onMessage: StompMessageHandler) {
   // 토큰 가져오기
-  const token = localStorage.getItem('accessToken')
+  const token = tokenManager.getAccessToken()
   // 이미 "Bearer "로 시작하면 그대로 사용, 아니면 추가
   const authHeader = token?.startsWith('Bearer ') ? token : `Bearer ${token}`
   

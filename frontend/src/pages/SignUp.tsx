@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { tokenManager } from '../lib/tokenManager'
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -92,11 +93,11 @@ export default function SignUp() {
 
                   const data = result?.data ?? result
                   const accessToken = data?.accessToken ?? result?.accessToken
-                  const refreshToken = data?.refreshToken ?? result?.refreshToken
 
                   if (accessToken) {
-                    localStorage.setItem('accessToken', accessToken)
-                    if (refreshToken) localStorage.setItem('refreshToken', refreshToken)
+                    // localStorage에 남아있는 기존 토큰 제거
+                    localStorage.removeItem('accessToken')
+                    tokenManager.setTokens(accessToken)
 
                     // JWT에서 사용자 정보 복원
                     const payload = decodeJwtPayload(accessToken)
