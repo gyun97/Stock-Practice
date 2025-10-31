@@ -24,6 +24,7 @@ import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.user.repository.UserRepository;
 import com.project.demo.domain.userstock.entity.UserStock;
 import com.project.demo.domain.userstock.repository.UserStockRepository;
+import com.project.demo.common.websocket.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -31,7 +32,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -49,6 +52,7 @@ public class OrderServiceImpl implements OrderService{
     private final PortfolioRepository portfolioRepository;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final WebSocketSessionManager sessionManager;
 
     /*
     주식 즉시 매수
@@ -278,9 +282,6 @@ public class OrderServiceImpl implements OrderService{
         // 총 자산 재계산
         portfolio.recalculateTotalAsset();
 
-        // 수익률 업데이트
-//        portfolio.updateReturnRate();
-
         // 보유 종목 수 업데이트
         portfolio.updateHoldCount();
     }
@@ -392,6 +393,17 @@ public class OrderServiceImpl implements OrderService{
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted(); // 체결 완료로 갱신
                 log.info("[예약매수체결] {}: {}원", order.getStock().getName(), currentPrice);
+                
+                // 주문 체결 알림 전송
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "BUY");
+                notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)", 
+                    order.getStock().getName(), currentPrice));
+                notification.put("stockName", order.getStock().getName());
+                notification.put("stockTicker", order.getStock().getTicker());
+                notification.put("executionPrice", currentPrice);
+                notification.put("quantity", order.getQuantity());
+                sessionManager.sendOrderNotification(order.getUser().getId(), notification);
             }
 
             // 예약 매도 조건: 현재가 >= 예약가
@@ -400,6 +412,17 @@ public class OrderServiceImpl implements OrderService{
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted();
                 log.info("[예약매도체결] {}: {}원", order.getStock().getName(), currentPrice);
+                
+                // 주문 체결 알림 전송
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "SELL");
+                notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)", 
+                    order.getStock().getName(), currentPrice));
+                notification.put("stockName", order.getStock().getName());
+                notification.put("stockTicker", order.getStock().getTicker());
+                notification.put("executionPrice", currentPrice);
+                notification.put("quantity", order.getQuantity());
+                sessionManager.sendOrderNotification(order.getUser().getId(), notification);
             }
         }
     }
