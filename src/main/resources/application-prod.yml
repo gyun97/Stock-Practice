@@ -1,0 +1,14 @@
+# 프로덕션 환경 설정
+# HTTPS를 사용하는 환경에서 사용
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY}
+  
+# 쿠키 보안 설정
+cookie:
+  secure: true  # HTTPS에서는 true로 설정
+  domain: ${COOKIE_DOMAIN}  # 실제 도메인 설정 (예: .example.com)
+
+# 나머지 설정은 application.yml 참조
+

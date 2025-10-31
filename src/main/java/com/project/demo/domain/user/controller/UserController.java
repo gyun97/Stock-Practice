@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -29,17 +30,12 @@ public class UserController {
     private final JwtUtil jwtUtil;
     private final UserServiceImpl refreshTokenService;
     private final UserService userService;
-
-    /*
-        JWT 발급 테스트 메서드
-     */
-//    @PostMapping("/issue")
-//    public String issueToken() {
-//        String accessToken = jwtUtil.createAccessToken(1L, "fdasf", UserRole.ROLE_USER, "123");
-//        String refreshToken = jwtUtil.createRefreshToken(1L);
-//
-//        return accessToken + "\n" + refreshToken;
-//    }
+    
+    @Value("${cookie.secure}")
+    private boolean cookieSecure;
+    
+    @Value("${cookie.domain}")
+    private String cookieDomain;
 
     /**
      * 회원가입 API
@@ -51,7 +47,7 @@ public class UserController {
         LoginResponse response = userService.signUp(signUpRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
-        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, false, null); // 응답 쿠키에 Refresh Token 저장 (로컬 개발: false, 프로덕션: true)
+        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain); // 응답 쿠키에 Refresh Token 저장
 
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }
@@ -66,7 +62,7 @@ public class UserController {
         LoginResponse response = userService.login(loginRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
-        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, false, null); // 응답 쿠키에 Refresh Token 저장 (로컬 개발: false, 프로덕션: true)
+        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain); // 응답 쿠키에 Refresh Token 저장
 
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }
@@ -93,7 +89,7 @@ public class UserController {
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<String>> deleteUser(@PathVariable Long userId, HttpServletResponse httpServletResponse) {
         String response = userService.deleteUser(userId);
-        jwtUtil.clearRefreshTokenCookie(httpServletResponse, false, null);
+        jwtUtil.clearRefreshTokenCookie(httpServletResponse, cookieSecure, cookieDomain);
 
         return ResponseEntity.ok(ApiResponse.requestSuccess(response)); // 200 코드
     }

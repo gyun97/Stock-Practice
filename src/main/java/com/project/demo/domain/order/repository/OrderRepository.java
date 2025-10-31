@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
+     @Query("SELECT o FROM Order o JOIN FETCH o.stock JOIN FETCH o.user WHERE o.isReserved = true AND o.isExecuted = false")
     List<Order> findAllByIsReservedTrueAndIsExecutedFalse();
 
     List<Order> findByUserId(Long userId);
@@ -18,12 +19,4 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.isReserved = true")
     List<Order> findReservationOrdersByUser(@Param("userId") Long userId);
-
-//     특정 종목의 나의 일반 주문 내역 조회
-//    @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.stock.ticker = :ticker AND o.isReserved = false")
-//    List<Order> findNormalOrdersByUserAndStock(@Param("userId") Long userId, @Param("ticker") String ticker);
-
-    // 특정 종목의 나의 예약 주문 내역 조회
-//    @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.stock.ticker = :ticker AND o.isReserved = true")
-//    List<Order> findReservationOrdersByUserAndStock(@Param("userId") Long userId, @Param("ticker") String ticker);
 }

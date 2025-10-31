@@ -44,6 +44,7 @@ export default function MyPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [deleteMessage, setDeleteMessage] = useState('')
+  const [notifications, setNotifications] = useState<Array<{id: number, message: string, type: string, timestamp: Date}>>([])
   
   // WebSocket 연결을 위한 ref
   const stompRef = useRef<any>(null)
@@ -353,6 +354,13 @@ export default function MyPage() {
     }
   }, [userStocks])
 
+  // 브라우저 알림 권한 요청
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
   // WebSocket 연결 설정 (포트폴리오 수익률 실시간 업데이트)
   useEffect(() => {
     if (userInfo) {
@@ -398,6 +406,38 @@ export default function MyPage() {
             setUserStocks(userStockData.userStocks)
           } catch (error) {
             console.error('보유 주식 업데이트 파싱 오류:', error)
+          }
+        })
+        
+        // 주문 알림 구독
+        client.subscribe(`/topic/order/notifications/${userId}`, (msg) => {
+          const raw = msg.body
+          console.log('주문 알림 WebSocket 메시지 수신:', raw)
+          
+          try {
+            const notificationData = JSON.parse(raw)
+            console.log('주문 알림 데이터:', notificationData)
+            
+            // 알림 추가
+            setNotifications(prev => {
+              const newNotification = {
+                id: Date.now(),
+                message: notificationData.message || '',
+                type: notificationData.type || '',
+                timestamp: new Date()
+              }
+              return [newNotification, ...prev].slice(0, 10) // 최대 10개 유지
+            })
+            
+            // 브라우저 알림 (사용자가 페이지에 있을 때)
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('주문 체결 알림', {
+                body: notificationData.message,
+                icon: '/favicon.ico'
+              })
+            }
+          } catch (error) {
+            console.error('주문 알림 파싱 오류:', error)
           }
         })
       }
@@ -716,6 +756,72 @@ export default function MyPage() {
             ← 메인으로 돌아가기
           </Link>
         </div>
+
+        {/* 주문 알림 표시 */}
+        {notifications.length > 0 && (
+          <div style={{
+            background: 'white',
+            borderRadius: 12,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            padding: 16,
+            marginBottom: 24,
+            maxHeight: 200,
+            overflowY: 'auto'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: 12 
+            }}>
+              <h3 style={{ 
+                margin: 0, 
+                fontSize: 16, 
+                fontWeight: '600', 
+                color: '#1f2937' 
+              }}>
+                📢 주문 체결 알림
+              </h3>
+              <button
+                onClick={() => setNotifications([])}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#6b7280',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  padding: '4px 8px'
+                }}
+              >
+                전체 삭제
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {notifications.map((notification, index) => (
+                <div
+                  key={notification.id}
+                  style={{
+                    padding: 12,
+                    background: notification.type === 'BUY' ? '#eff6ff' : '#fef3c7',
+                    borderRadius: 8,
+                    borderLeft: `4px solid ${notification.type === 'BUY' ? '#3b82f6' : '#f59e0b'}`
+                  }}
+                >
+                  <div style={{ fontSize: 14, color: '#1f2937' }}>
+                    {notification.message}
+                  </div>
+                  <div style={{ 
+                    fontSize: 12, 
+                    color: '#6b7280', 
+                    marginTop: 4 
+                  }}>
+                    {new Date(notification.timestamp).toLocaleString('ko-KR')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 사용자 정보 카드 */}
         <div style={{

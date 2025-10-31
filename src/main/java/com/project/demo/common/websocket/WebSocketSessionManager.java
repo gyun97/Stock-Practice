@@ -68,6 +68,20 @@ public class WebSocketSessionManager {
     }
 
     /**
+     * 특정 사용자에게 주문 체결 알림 전송
+     */
+    public void sendOrderNotification(Long userId, Object notification) {
+        if (messagingTemplate != null) {
+            String destination = "/topic/order/notifications/" + userId;
+            log.info("주문 알림 전송 시도 - 사용자 ID: {}, 목적지: {}, 알림 내용: {}", userId, destination, notification);
+            messagingTemplate.convertAndSend(destination, notification);
+            log.info("주문 알림 전송 완료 - 사용자 ID: {}, 목적지: {}", userId, destination);
+        } else {
+            log.warn("MessagingTemplate이 설정되지 않음 - 주문 알림 전송 실패 - 사용자 ID: {}", userId);
+        }
+    }
+
+    /**
      * 모든 연결된 사용자에게 데이터 전송
      */
     public void broadcastToAllUsers(Object data) {

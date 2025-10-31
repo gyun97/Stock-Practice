@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import MyPage from './pages/MyPage'
 import OrderManagement from './pages/OrderManagement'
+import GlobalNotification from './components/GlobalNotification'
 import { tokenManager } from './lib/tokenManager'
 
 // 전역 fetch 인터셉터 - 401 응답 시 자동 토큰 재발급
@@ -65,8 +66,11 @@ const router = createBrowserRouter([
   { path: '/order-management', element: <OrderManagement /> },
 ])
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')!
+
+createRoot(rootElement).render(
   <StrictMode>
+    <GlobalNotification />
     <RouterProvider router={router} />
   </StrictMode>
 )
