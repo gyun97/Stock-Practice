@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -37,10 +38,10 @@ public class Stock extends TimeStamped {
     private Long volume; // 누적 거래량
 
     @OneToMany(mappedBy = "stock")
-    private List<Order> orders;
+    private List<Order> orders = new ArrayList<>();
 
     @OneToMany(mappedBy = "stock")
-    private List<UserStock> userStocks;
+    private List<UserStock> userStocks = new ArrayList<>();
 
 
     @Builder

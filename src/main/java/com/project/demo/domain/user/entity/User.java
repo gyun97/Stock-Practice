@@ -4,6 +4,7 @@ import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.order.entity.Order;
+import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.enums.UserRole;
 import com.project.demo.domain.userstock.entity.UserStock;
@@ -16,6 +17,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -56,20 +58,11 @@ public class User extends TimeStamped {
 
     private String profileImage;
 
-//    private long stockAsset; // 보유 주식 총액
-//
-//    private long totalAsset; // 총자산(balance + stockAsset)
-//
-//    private int stockCount; // 보유 주식량
-//
-//    private int holdCount; // 보유 종목 수
-
     @OneToMany(mappedBy = "user")
     private List<Order> orders;
 
     @OneToMany(mappedBy = "user")
-    private List<UserStock> userStocks;
-
+    private List<UserStock> userStocks = new ArrayList<>();
 
     @Builder
     public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted, SocialType socialType, String socialId, String profileImage) {

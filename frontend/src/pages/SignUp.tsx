@@ -266,7 +266,7 @@ export default function SignUp() {
               color: '#374151',
               marginBottom: 6
             }}>
-              이름
+              닉네임
             </label>
             <input
               type="text"
@@ -282,7 +282,7 @@ export default function SignUp() {
                 fontSize: 14,
                 boxSizing: 'border-box'
               }}
-              placeholder="이름을 입력하세요"
+              placeholder="닉네임을 입력하세요"
             />
           </div>
 

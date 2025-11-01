@@ -121,7 +121,9 @@ public class ConnectWebSocketClient extends WebSocketClient {
             String json = objectMapper.writeValueAsString(out);
 
             redisTemplate.opsForValue().set("stock:data:" + ticker, json); // Redis에 실시간 해당 종목 데이터 저장
-            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
+            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume); // 거래량 많은 순으로 정렬 redis 저장
+            redisTemplate.opsForZSet().add("stock:rank:price", ticker, price); // 가격 높은 순으로 정렬 redis 저장
+            redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate); // 등락률 높은 순으로 정렬 redis 저장
             redisTemplate.convertAndSend("stock:updates", json); // 백엔드가 KIS에서 받은 데이터를 RedisSubscriber에 발송
 
             log.info("Redis 저장 & Pub/Sub 발행(WS) → {}", json);

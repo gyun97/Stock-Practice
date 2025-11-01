@@ -2,24 +2,29 @@ package com.project.demo.domain.stock.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.kis.KisApiAccessTokenService;
 import com.project.demo.common.util.DateUtil;
 import com.project.demo.domain.stock.dto.response.CandleResponse;
 import com.project.demo.domain.stock.dto.response.StockResponse;
+import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.stock.repository.StockRepository;
+import com.project.demo.domain.user.entity.User;
+import com.project.demo.domain.user.repository.UserRepository;
+import com.project.demo.domain.userstock.repository.UserStockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RDeque;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -29,6 +34,7 @@ import java.util.*;
 public class StockServiceImpl implements StockService {
 
     private final StockRepository stockRepository;
+    private final UserRepository userRepository;
     private final KisApiAccessTokenService kisApiAccessTokenService;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -51,18 +57,18 @@ public class StockServiceImpl implements StockService {
     }
 
     /*
-    전체 주식 30개 거래량 순으로 정보 반환
+    전체 주식 정보 반환 (거래량 순)
      */
     @Override
     public List<StockResponse> showAllStock() {
         List<StockResponse> result = new ArrayList<>();
 
-        // 거래량 내림차순 Top30
-        Set<String> volumeTop30 = redisTemplate.opsForZSet()
-                .reverseRange("stock:rank:volume", 0, 29);
+        // 거래량 내림차순 전체 종목
+        Set<String> allStocks = redisTemplate.opsForZSet()
+                .reverseRange("stock:rank:volume", 0, -1);
 
-        if (volumeTop30 != null) {
-            for (String code : volumeTop30) {
+        if (allStocks != null) {
+            for (String code : allStocks) {
                 String json = redisTemplate.opsForValue().get("stock:data:" + code);
                 if (json != null && !json.isBlank()) {
                     try {
@@ -180,6 +186,9 @@ public class StockServiceImpl implements StockService {
                 .block();
     }
 
+    /*
+
+     */
     @Override
     public List<CandleResponse> getPeriodStockInfoByRange(String ticker, String period, String startDate, String endDate) {
         return webClient.get()
