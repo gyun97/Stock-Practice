@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,8 +29,9 @@ public class UserStockServiceImpl implements UserStockService {
         log.info("사용자 보유 주식 조회 - 사용자 ID: {}", userId);
         
         List<UserStock> userStocks = userStockRepository.findByUserId(userId);
+
         log.info("조회된 보유 주식 수: {}", userStocks.size());
-        
+
         return userStocks.stream()
                 .map(userStock -> {
                     try {

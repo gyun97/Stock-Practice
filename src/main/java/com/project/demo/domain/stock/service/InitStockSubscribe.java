@@ -248,8 +248,10 @@ public class InitStockSubscribe {
 
             redisTemplate.opsForValue().set(key, json); // Redis에 주가 정보 저장
 
-            // 거래량 순 정렬용 ZSET 업데이트
-            redisTemplate.opsForZSet().add("stock:rank:volume", trKey, volume);
+            // 정렬용 ZSET 업데이트
+            redisTemplate.opsForZSet().add("stock:rank:volume", trKey, volume); // 거래량 많은 순으로 정렬 redis 저장
+            redisTemplate.opsForZSet().add("stock:rank:price", trKey, price); // 가격 높은 순으로 정렬 redis 저장
+            redisTemplate.opsForZSet().add("stock:rank:changeRate", trKey, changeRate); // 등락률 높은 순으로 정렬 redis 저장
 
             redisTemplate.convertAndSend("stock:updates", json); // 백엔드가 KIS에서 받은 데이터를 RedisSubscriber에 발송
 

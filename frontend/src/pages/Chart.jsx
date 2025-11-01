@@ -710,7 +710,7 @@ export default function Chart() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               {/* 현재가 */}
               <div>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>현재가</div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4, marginLeft: '16px' }}>현재가</div>
                 <div style={{
                   fontSize: 24,
                   fontWeight: 'bold',
@@ -722,7 +722,7 @@ export default function Chart() {
 
               {/* 등락률 */}
               <div>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>등락률</div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 4, marginLeft: '16px' }}>등락률</div>
                 <div style={{
                   fontSize: 18,
                   fontWeight: 'bold',

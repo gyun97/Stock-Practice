@@ -41,6 +41,10 @@ export default function MyPage() {
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', checkNewPassword: '' })
   const [pwSubmitting, setPwSubmitting] = useState(false)
   const [pwMessage, setPwMessage] = useState('')
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editForm, setEditForm] = useState({ newEmail: '', newName: '' })
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editMessage, setEditMessage] = useState('')
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [deleteMessage, setDeleteMessage] = useState('')
@@ -462,6 +466,85 @@ export default function MyPage() {
     if (!pwSubmitting) setPwModalOpen(false)
   }
 
+  const openEditModal = () => {
+    if (userInfo) {
+      setEditMessage('')
+      setEditForm({ newEmail: userInfo.email, newName: userInfo.name })
+      setEditModalOpen(true)
+    }
+  }
+
+  const closeEditModal = () => {
+    if (!editSubmitting) setEditModalOpen(false)
+  }
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setEditForm(prev => ({ ...prev, [name]: value }))
+  }
+
+  const submitUserInfoUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setEditMessage('')
+
+    if (!editForm.newEmail || !editForm.newName) {
+      setEditMessage('모든 항목을 입력해 주세요.')
+      return
+    }
+
+    if (!userInfo) {
+      setEditMessage('로그인이 필요합니다.')
+      return
+    }
+
+    try {
+      setEditSubmitting(true)
+      const res = await tokenManager.authenticatedFetch(`/api/v1/users/${userInfo.userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          newEmail: editForm.newEmail,
+          newName: editForm.newName
+        })
+      })
+
+      if (res.ok) {
+        const result = await res.json()
+        const updatedUser = result.data
+        // 사용자 정보 업데이트
+        setUserInfo(prev => prev ? {
+          ...prev,
+          email: updatedUser.email,
+          name: updatedUser.name
+        } : null)
+        // localStorage도 업데이트
+        const storedUserInfo = localStorage.getItem('userInfo')
+        if (storedUserInfo) {
+          const parsed = JSON.parse(storedUserInfo)
+          parsed.email = updatedUser.email
+          parsed.name = updatedUser.name
+          localStorage.setItem('userInfo', JSON.stringify(parsed))
+        }
+        
+        setEditMessage('정보가 수정되었습니다.')
+        setTimeout(() => {
+          setEditModalOpen(false)
+          setEditMessage('')
+        }, 1000)
+      } else {
+        const text = await res.text()
+        setEditMessage(text || `정보 수정 실패 (상태 코드: ${res.status})`)
+      }
+    } catch (err) {
+      console.error('정보 수정 오류:', err)
+      setEditMessage('네트워크 오류가 발생했습니다.')
+    } finally {
+      setEditSubmitting(false)
+    }
+  }
+
   const openDeleteModal = () => {
     setDeleteMessage('')
     setDeleteModalOpen(true)
@@ -848,7 +931,7 @@ export default function MyPage() {
               padding: '12px 0',
               borderBottom: '1px solid #f1f5f9'
             }}>
-              <span style={{ fontSize: 14, color: '#6b7280' }}>이름</span>
+              <span style={{ fontSize: 14, color: '#6b7280' }}>닉네임</span>
               <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
                 {userInfo?.name}
               </span>
@@ -1152,53 +1235,6 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* 주문 관리 */}
-        <div style={{
-          background: 'white',
-          borderRadius: 12,
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          padding: 24,
-          marginBottom: 24
-        }}>
-          <h3 style={{ 
-            margin: '0 0 16px 0', 
-            fontSize: 16, 
-            fontWeight: '600', 
-            color: '#1f2937' 
-          }}>
-            주문 관리
-          </h3>
-          
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link
-              to="/order-management"
-              style={{
-                padding: '12px 24px',
-                border: '1px solid #2962FF',
-                borderRadius: 6,
-                background: 'white',
-                color: '#2962FF',
-                fontSize: 14,
-                fontWeight: '500',
-                textDecoration: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'inline-block'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#eff6ff'
-                e.currentTarget.style.borderColor = '#1d4ed8'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.borderColor = '#2962FF'
-              }}
-            >
-              📋 주문 내역 조회 및 취소
-            </Link>
-          </div>
-        </div>
-
         {/* 액션 버튼들 */}
         <div style={{
           background: 'white',
@@ -1243,6 +1279,31 @@ export default function MyPage() {
               비밀번호 변경
             </button>
             )}
+            
+            <button
+              onClick={openEditModal}
+              style={{
+                padding: '12px 24px',
+                border: '1px solid #2962FF',
+                borderRadius: 6,
+                background: 'white',
+                color: '#2962FF',
+                fontSize: 14,
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = '#eff6ff'
+                e.currentTarget.style.borderColor = '#1d4ed8'
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'white'
+                e.currentTarget.style.borderColor = '#2962FF'
+              }}
+            >
+              내 정보 수정
+            </button>
             
             <button
               onClick={openDeleteModal}
@@ -1341,6 +1402,73 @@ export default function MyPage() {
                 <button type="submit" disabled={pwSubmitting} style={{
                   padding: '10px 16px', border: 'none', borderRadius: 8, background: pwSubmitting ? '#9ca3af' : '#2962FF', color: 'white', cursor: pwSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
                 }}>{pwSubmitting ? '변경 중...' : '변경하기'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 내 정보 수정 모달 */}
+      {editModalOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>내 정보 수정</h3>
+              <button onClick={closeEditModal} disabled={editSubmitting} style={{
+                border: 'none', background: 'transparent', fontSize: 18, cursor: editSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
+              }}>✕</button>
+            </div>
+
+            {editMessage && (
+              <div style={{
+                padding: 12, background: editMessage.includes('수정되었습니다') ? '#d1fae5' : '#fef2f2', 
+                border: `1px solid ${editMessage.includes('수정되었습니다') ? '#34d399' : '#fecaca'}`,
+                borderRadius: 8, color: editMessage.includes('수정되었습니다') ? '#065f46' : '#dc2626', fontSize: 13, marginBottom: 12
+              }}>
+                {editMessage}
+              </div>
+            )}
+
+            <form onSubmit={submitUserInfoUpdate}>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>이메일</label>
+                  <input
+                    type="email"
+                    name="newEmail"
+                    value={editForm.newEmail}
+                    onChange={handleEditChange}
+                    style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                    placeholder="이메일"
+                    required
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>닉네임</label>
+                  <input
+                    type="text"
+                    name="newName"
+                    value={editForm.newName}
+                    onChange={handleEditChange}
+                    style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                    placeholder="닉네임"
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+                <button type="button" onClick={closeEditModal} disabled={editSubmitting} style={{
+                  padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: editSubmitting ? 'not-allowed' : 'pointer'
+                }}>취소</button>
+                <button type="submit" disabled={editSubmitting} style={{
+                  padding: '10px 16px', border: 'none', borderRadius: 8, background: editSubmitting ? '#9ca3af' : '#2962FF', color: 'white', cursor: editSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
+                }}>{editSubmitting ? '수정 중...' : '수정하기'}</button>
               </div>
             </form>
           </div>
