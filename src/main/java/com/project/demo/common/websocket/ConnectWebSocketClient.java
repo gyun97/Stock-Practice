@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -22,15 +23,17 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
     private final StockRepository stockRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private String iv;
     private String key;
 
-    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository) throws Exception {
+    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository, SimpMessagingTemplate messagingTemplate) throws Exception {
         super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
         this.stockRepository = stockRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     /**
@@ -121,10 +124,13 @@ public class ConnectWebSocketClient extends WebSocketClient {
             String json = objectMapper.writeValueAsString(out);
 
             redisTemplate.opsForValue().set("stock:data:" + ticker, json); // Redis에 실시간 해당 종목 데이터 저장
-            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
-            redisTemplate.convertAndSend("stock:updates", json); // 백엔드가 KIS에서 받은 데이터를 RedisSubscriber에 발송
+            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume); // 거래량 많은 순으로 정렬 redis 저장
+            redisTemplate.opsForZSet().add("stock:rank:price", ticker, price); // 가격 높은 순으로 정렬 redis 저장
+            redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate); // 등락률 높은 순으로 정렬 redis 저장
+            // STOMP로 직접 전송 (Redis Pub/Sub 제거)
+            messagingTemplate.convertAndSend("/topic/stocks", json);
 
-            log.info("Redis 저장 & Pub/Sub 발행(WS) → {}", json);
+            log.info("Redis 저장 & STOMP 직접 전송(WS) → {}", json);
         }
     }
 

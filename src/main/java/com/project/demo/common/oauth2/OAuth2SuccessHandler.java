@@ -30,6 +30,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Value("${FRONTEND_URL}")
     private String frontEnd;
+    
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
+    
+    @Value("${cookie.domain:null}")
+    private String cookieDomain;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -64,6 +70,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                         rt -> rt.updateValue(refreshToken), // 이미 존재하면 업데이트
                         () -> refreshTokenRepository.save(new RefreshToken(user.getId(), refreshToken)) // 없으면 새로 저장
                 );
+
+        // 리프레시 토큰을 쿠키에 저장
+        jwtUtil.addRefreshTokenToCookie(refreshToken, response, cookieSecure, cookieDomain);
 
         // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
         String redirectUrl = frontEnd + "?token=" + accessToken;

@@ -55,6 +55,7 @@ public class SecurityConfig {
                                 .requestMatchers(
                                         "/api/v1/users/login",
                                         "/api/v1/users/sign-up",
+                                        "/api/v1/users/reissue",  // 토큰 재발급 API (쿠키 기반 인증)
                                         "/oauth2/authorization/**",  // OAuth2 인증 경로
                                         "/login/oauth2/code/**",     // OAuth2 콜백 경로
                                         "/actuator/prometheus",
@@ -62,6 +63,7 @@ public class SecurityConfig {
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",
                                         "/api/v1/stocks/**",
+                                        "/api/v1/portfolios/ranking",  // 랭킹 API는 공개
                                         "/signup/**",
                                         // WebSocket 관련 경로 추가
                                         "/ws/**",           // WebSocket 연결 경로

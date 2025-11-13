@@ -25,7 +25,11 @@ public interface OrderService {
 
     public OrderResponse cancelReservation(Long orderId);
 
-    public List<OrderResponse> getMyOrders(Long userId);
+    public List<OrderResponse> getMyAllOrders(Long userId);
+
+    public List<OrderResponse> getNormalOrders(Long userId);
+
+    public List<OrderResponse> getReservationOrders(Long userId);
 
 
 

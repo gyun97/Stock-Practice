@@ -24,7 +24,9 @@ public interface UserService {
 
     public LoginResponse login(LoginRequest loginRequest);
 
-    public String deleteUser(Long userId, String inputPassword);
+    public void logout(Long userId);
+
+    public String deleteUser(Long userId);
 
     public String updatePassword(AuthUser authUser, PasswordUpdateRequest passwordUpdateRequest);
 

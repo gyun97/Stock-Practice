@@ -5,6 +5,8 @@ import com.project.demo.domain.order.enums.OrderType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 @AllArgsConstructor
 @Getter
 public class OrderResponse {
@@ -12,24 +14,28 @@ public class OrderResponse {
     private Long orderId;
     private Long userId;
     private Long stockId;
+    private String stockName;
     private int price;
     private int quantity;
     private int totalPrice;
     private OrderType orderType;
     private boolean isReserved;  // 예약 주문 여부
     private boolean isExecuted;  // 체결 완료 여부
+    private LocalDateTime createdAt;
 
     public static OrderResponse of(Order order) {
         return new OrderResponse(
                 order.getId(),
                 order.getUser().getId(),
                 order.getStock().getId(),
+                order.getStock().getName(),
                 order.getPrice(),
                 order.getQuantity(),
                 order.getTotalPrice(),
                 order.getType(),
                 order.isReserved(),
-                order.isExecuted()
+                order.isExecuted(),
+                order.getCreatedAt()
         );
     }
 

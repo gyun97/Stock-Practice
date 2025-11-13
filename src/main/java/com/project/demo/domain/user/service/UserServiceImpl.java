@@ -5,6 +5,8 @@ import com.project.demo.common.exception.user.InValidNewPasswordException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.common.jwt.JwtUtil;
 import com.project.demo.common.oauth2.SocialType;
+import com.project.demo.domain.portfolio.entity.Portfolio;
+import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.user.dto.request.LoginRequest;
 import com.project.demo.domain.user.dto.request.PasswordUpdateRequest;
 import com.project.demo.domain.user.dto.request.SignUpRequest;
@@ -35,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final JwtUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
+    private final PortfolioRepository portfolioRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${ADMIN_TOKEN}")
@@ -86,9 +89,23 @@ public class UserServiceImpl implements UserService {
         // 공통 토큰 발급 로직
         TokensResponse tokens = issueTokens(savedUser);
 
+        // 가입 유저의 초기 포토폴리오 생성
+        Portfolio newPortfolio = Portfolio.builder()
+                .balance(10000000)
+                .totalAsset(10000000)
+                .totalQuantity(0)
+//                .avgReturnRate(0)
+                .holdCount(0)
+                .stockAsset(0)
+                .user(savedUser)
+                .build();
+
+        portfolioRepository.save(newPortfolio);
+
         return LoginResponse.builder()
                 .accessToken(tokens.getAccessToken())
                 .refreshToken(tokens.getRefreshToken())
+                .userId(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .build(); // Access Token, Refresh Token, 사용자 정보 반환
@@ -124,22 +141,27 @@ public class UserServiceImpl implements UserService {
         return LoginResponse.builder()
                 .accessToken(tokens.getAccessToken())
                 .refreshToken(tokens.getRefreshToken())
+                .userId(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
                 .build(); // Access Token, Refresh Token, 사용자 정보 반환
     }
 
     /*
+    유저 로그아웃
+     */
+    @Transactional
+    public void logout(Long userId) {
+        refreshTokenRepository.deleteById(userId); // DB의 Refresh Token 삭제
+    }
+
+    /*
     유저 회원 탈퇴
      */
     @Transactional
-    public String deleteUser(Long userId, String inputPassword) {
-
+    public String deleteUser(Long userId) {
         // PK로 유저 조회
         User user = getUserById(userId);
-
-        // 비밀번호 검증
-        validateCorrectPassword(inputPassword, user.getPassword());
 
         // Refresh Token 삭제
         refreshTokenRepository.deleteById(userId);
@@ -243,8 +265,11 @@ public class UserServiceImpl implements UserService {
         이미 사용하고 있는 이름(닉네임)인지 확인
      */
     public void validateDuplicateName(String name) {
+
         if (userRepository.existsByName(name)) {
-            throw new DuplicateNameException();
+            User user = userRepository.findByName(name).get();
+
+            if (!user.isDeleted()) throw new DuplicateNameException();
         }
     }
 
@@ -286,6 +311,9 @@ public class UserServiceImpl implements UserService {
         RefreshToken existingToken = refreshTokenRepository.findById(userId)
                 .orElseThrow(NotFoundTokenException::new);
 
+        if (!existingToken.getValue().equals(refreshToken)) {
+            throw new InvalidTokenException();
+        }
     }
 
     /*
