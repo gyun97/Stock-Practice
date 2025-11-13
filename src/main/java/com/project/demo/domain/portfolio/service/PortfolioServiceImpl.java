@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.exception.portfolio.NotFoundPortfolioException;
 import com.project.demo.common.websocket.WebSocketSessionManager;
 import com.project.demo.domain.portfolio.dto.response.PortfolioResponse;
+import com.project.demo.domain.portfolio.dto.response.RankingResponse;
 import com.project.demo.domain.portfolio.entity.Portfolio;
+import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.stock.dto.response.StockData;
 import com.project.demo.domain.userstock.dto.response.UserStockResponse;
@@ -18,9 +20,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -38,21 +38,49 @@ public class PortfolioServiceImpl implements PortfolioService{
     private static final int PRINCIPAL = 10000000; // 초기 원금
 
     /*
-    내 포토폴리오 조회
+    내 포토폴리오 조회 (Redis 캐시 활용)
      */
     public PortfolioResponse getMyPortfolio(Long userId) {
         Portfolio myPortfolio = portfolioRepository.findByUserId(userId)
                 .orElseThrow(NotFoundPortfolioException::new);
 
-        calculateReturnRate(myPortfolio);
-
-        return PortfolioResponse.of(myPortfolio);
+        // Redis 캐시에서 먼저 확인
+        String cacheKey = "portfolio:data:" + userId;
+        String cachedJson = redisTemplate.opsForValue().get(cacheKey);
+        
+        if (cachedJson != null && !cachedJson.isBlank()) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> cachedData = objectMapper.readValue(cachedJson, Map.class);
+                
+                // 캐시된 데이터가 있으면 바로 반환 (빠른 응답)
+                long stockAsset = ((Number) cachedData.getOrDefault("stockAsset", 0L)).longValue();
+                long totalAsset = ((Number) cachedData.getOrDefault("totalAsset", 0L)).longValue();
+                double returnRate = ((Number) cachedData.getOrDefault("returnRate", 0.0)).doubleValue();
+                
+                log.debug("포트폴리오 캐시 히트 - 사용자 ID: {}", userId);
+                return PortfolioResponse.of(myPortfolio, stockAsset, totalAsset, returnRate);
+            } catch (Exception e) {
+                log.warn("포트폴리오 캐시 파싱 실패 (사용자 ID: {}): {}", userId, e.getMessage());
+                // 캐시 파싱 실패 시 계산 수행
+            }
+        }
+        
+        // 캐시가 없거나 파싱 실패 시 계산 수행
+        log.debug("포트폴리오 캐시 미스 - 계산 수행 (사용자 ID: {})", userId);
+        Map<String, Object> calculatedData = calculateAndCacheReturnRate(myPortfolio);
+        
+        long stockAsset = ((Number) calculatedData.getOrDefault("stockAsset", 0L)).longValue();
+        long totalAsset = ((Number) calculatedData.getOrDefault("totalAsset", 0L)).longValue();
+        double returnRate = ((Number) calculatedData.getOrDefault("returnRate", 0.0)).doubleValue();
+        
+        return PortfolioResponse.of(myPortfolio, stockAsset, totalAsset, returnRate);
     }
 
     /*
-    현재 내 포토폴리오의 수익률 계산 (Redis 캐싱 적용)
+    포트폴리오 수익률 계산 및 캐싱 (반환값 포함)
      */
-    public void calculateReturnRate(Portfolio portfolio) {
+    private Map<String, Object> calculateAndCacheReturnRate(Portfolio portfolio) {
         Long userId = portfolio.getUser().getId();
         String cacheKey = "portfolio:data:" + userId;
         
@@ -112,6 +140,19 @@ public class PortfolioServiceImpl implements PortfolioService{
                 String portfolioJson = objectMapper.writeValueAsString(portfolioUpdate);
                 redisTemplate.opsForValue().set(cacheKey, portfolioJson, 10, TimeUnit.SECONDS);
                 
+                // Redis Sorted Set에 총 자산 기준 랭킹 저장 (탈퇴하지 않은 사용자만)
+                User user = portfolio.getUser();
+                if (!user.isDeleted()) {
+                    String rankingKey = "user:rank:totalAsset";
+                    redisTemplate.opsForZSet().add(rankingKey, userId.toString(), totalCurrentAsset);
+                    log.debug("랭킹 Sorted Set 업데이트 - 사용자 ID: {}, 총 자산: {}", userId, totalCurrentAsset);
+                } else {
+                    // 탈퇴한 사용자는 Sorted Set에서 제거
+                    String rankingKey = "user:rank:totalAsset";
+                    redisTemplate.opsForZSet().remove(rankingKey, userId.toString());
+                    log.debug("탈퇴 사용자 랭킹 제거 - 사용자 ID: {}", userId);
+                }
+                
                 // WebSocket 세션 관리자를 통해 직접 전송
                 sessionManager.sendPortfolioUpdate(userId, portfolioUpdate);
                 log.debug("포트폴리오 업데이트 전송 - 사용자 ID: {}, 수익률: {}%", userId, returnRate);
@@ -119,6 +160,15 @@ public class PortfolioServiceImpl implements PortfolioService{
                 log.error("포트폴리오 WebSocket 전송 또는 캐시 저장 오류 (사용자 ID: {})", userId, e);
             }
         }
+        
+        return portfolioUpdate;
+    }
+
+    /*
+    현재 내 포토폴리오의 수익률 계산 (Redis 캐싱 적용) - 스케줄러용
+     */
+    public void calculateReturnRate(Portfolio portfolio) {
+        calculateAndCacheReturnRate(portfolio);
     }
     
     /*
@@ -154,6 +204,115 @@ public class PortfolioServiceImpl implements PortfolioService{
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /*
+    총 자산 기준 사용자 랭킹 조회 (Redis Sorted Set 활용)
+     */
+    @Override
+    public List<RankingResponse> getRanking(int limit) {
+        List<RankingResponse> rankings = new ArrayList<>();
+        
+        try {
+            String rankingKey = "user:rank:totalAsset";
+            
+            // Redis Sorted Set에서 상위 limit개 사용자 ID 조회 (내림차순)
+            Set<String> topUserIds = redisTemplate.opsForZSet()
+                    .reverseRange(rankingKey, 0, limit - 1);
+            
+            if (topUserIds == null || topUserIds.isEmpty()) {
+                log.debug("랭킹 Sorted Set이 비어있음 - 전체 포트폴리오로 초기화 시도");
+                // Sorted Set이 비어있으면 모든 포트폴리오를 조회하여 초기화
+                List<Portfolio> allPortfolios = portfolioRepository.findAll();
+                for (Portfolio portfolio : allPortfolios) {
+                    User user = portfolio.getUser();
+                    if (!user.isDeleted()) {
+                        // 포트폴리오 데이터 계산 및 Sorted Set에 추가
+                        calculateAndCacheReturnRate(portfolio);
+                    }
+                }
+                // 초기화 후 다시 조회
+                topUserIds = redisTemplate.opsForZSet()
+                        .reverseRange(rankingKey, 0, limit - 1);
+                
+                if (topUserIds == null || topUserIds.isEmpty()) {
+                    log.warn("랭킹 초기화 후에도 데이터가 없음");
+                    return rankings;
+                }
+            }
+            
+            // 각 사용자의 상세 정보 조회
+            int rank = 1;
+            for (String userIdStr : topUserIds) {
+                try {
+                    Long userId = Long.parseLong(userIdStr);
+                    
+                    // 사용자 정보 조회
+                    Portfolio portfolio = portfolioRepository.findByUserId(userId).orElse(null);
+                    if (portfolio == null) {
+                        log.warn("랭킹 조회 - 포트폴리오를 찾을 수 없음 (사용자 ID: {})", userId);
+                        continue;
+                    }
+                    
+                    User user = portfolio.getUser();
+                    if (user.isDeleted()) {
+                        // 탈퇴한 사용자는 Sorted Set에서 제거
+                        redisTemplate.opsForZSet().remove(rankingKey, userIdStr);
+                        log.debug("탈퇴 사용자 랭킹에서 제거 - 사용자 ID: {}", userId);
+                        continue;
+                    }
+                    
+                    // 포트폴리오 데이터 조회 (캐시 우선)
+                    String cacheKey = "portfolio:data:" + userId;
+                    String cachedJson = redisTemplate.opsForValue().get(cacheKey);
+                    Map<String, Object> portfolioData = null;
+                    
+                    if (cachedJson != null && !cachedJson.isBlank()) {
+                        try {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> parsed = objectMapper.readValue(cachedJson, Map.class);
+                            portfolioData = parsed;
+                        } catch (JsonProcessingException e) {
+                            log.warn("랭킹 조회 - 캐시 파싱 실패 (사용자 ID: {}): {}", userId, e.getMessage());
+                        }
+                    }
+                    
+                    // 캐시가 없으면 계산
+                    if (portfolioData == null) {
+                        portfolioData = calculateAndCacheReturnRate(portfolio);
+                    }
+                    
+                    // Sorted Set에서 총 자산 확인 (실제 값과 동기화 확인)
+                    Double score = redisTemplate.opsForZSet().score(rankingKey, userIdStr);
+                    long totalAsset = ((Number) portfolioData.getOrDefault("totalAsset", 0L)).longValue();
+                    
+                    // Sorted Set의 값과 실제 총 자산이 다르면 업데이트
+                    if (score == null || score.longValue() != totalAsset) {
+                        redisTemplate.opsForZSet().add(rankingKey, userIdStr, totalAsset);
+                        log.debug("랭킹 동기화 - 사용자 ID: {}, 총 자산: {}", userId, totalAsset);
+                    }
+                    
+                    double returnRate = ((Number) portfolioData.getOrDefault("returnRate", 0.0)).doubleValue();
+                    String userName = user.getName();
+                    
+                    rankings.add(new RankingResponse(userId, userName, totalAsset, returnRate, rank++));
+                    
+                } catch (NumberFormatException e) {
+                    log.warn("랭킹 조회 - 잘못된 사용자 ID 형식: {}", userIdStr);
+                    continue;
+                } catch (Exception e) {
+                    log.warn("랭킹 조회 - 사용자 정보 조회 실패 (사용자 ID: {}): {}", userIdStr, e.getMessage());
+                    continue;
+                }
+            }
+            
+            log.debug("랭킹 조회 완료 - 상위 {}명", rankings.size());
+            
+        } catch (Exception e) {
+            log.error("랭킹 조회 오류", e);
+        }
+        
+        return rankings;
     }
 
     /*

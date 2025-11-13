@@ -31,6 +31,7 @@ export default function Home() {
   const [userStocks, setUserStocks] = useState<UserStock[]>([])
   const [sortBy, setSortBy] = useState<'volume' | 'price' | 'rise' | 'fall'>('volume')
   const [userStockSortBy, setUserStockSortBy] = useState<'quantity' | 'changeRate'>('quantity')
+  const [rankings, setRankings] = useState<Array<{userId: number, userName: string, totalAsset: number, returnRate: number, rank: number}>>([])
   const loaderRef = useRef<HTMLDivElement | null>(null)
   const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
@@ -199,6 +200,27 @@ export default function Home() {
     }
   }
 
+  // 랭킹 데이터 가져오기
+  const fetchRankings = async () => {
+    try {
+      console.log('랭킹 API 호출 시작:', '/api/v1/portfolios/ranking?limit=10')
+      const response = await fetch('/api/v1/portfolios/ranking?limit=10')
+      console.log('랭킹 API 응답 상태:', response.status)
+      if (response.ok) {
+        const result = await response.json()
+        console.log('랭킹 API 응답 데이터:', result)
+        const rankingsData = result.data || []
+        console.log('랭킹 데이터:', rankingsData)
+        setRankings(rankingsData)
+      } else {
+        const errorText = await response.text()
+        console.error('랭킹 조회 실패:', response.status, errorText)
+      }
+    } catch (err) {
+      console.error('랭킹 조회 오류:', err)
+    }
+  }
+
   // 초기 페이지 로드
   useEffect(() => {
     fetch(`/api/v1/stocks`)
@@ -225,6 +247,9 @@ export default function Home() {
         console.error("주식 데이터 불러오기 실패", err)
         // setRows([]) // 실패 시 빈 값
       })
+    
+    // 랭킹 데이터도 함께 가져오기
+    fetchRankings()
   }, [])
 
   // STOMP 실시간 업데이트 반영 (Redis Pub/Sub -> 백엔드 브로드캐스트를 전제로 /topic/stocks 구독)
@@ -618,6 +643,111 @@ export default function Home() {
         </div>
       )}
 
+      {/* 유저 랭킹 섹션 */}
+      <div style={{ maxWidth: 1120, margin: '32px auto', padding: '0 16px' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 12, 
+            marginBottom: 16,
+            padding: '16px 20px',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+            borderRadius: 12,
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20
+            }}>
+              🏆
+            </div>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+                유저 랭킹
+              </h2>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
+                총 자산 기준 상위 10명
+              </p>
+            </div>
+          </div>
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
+            {/* 헤더 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 150px 150px', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 700 }}>
+              <div style={{ textAlign: 'center' }}>순위</div>
+              <div>사용자</div>
+              <div style={{ textAlign: 'right' }}>총 자산</div>
+              <div style={{ textAlign: 'right' }}>수익률</div>
+            </div>
+            {/* 랭킹 목록 */}
+            {rankings.map((ranking, idx) => {
+              return (
+                <div
+                  key={ranking.userId}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '60px 1fr 150px 150px',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '14px',
+                    borderBottom: idx < rankings.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    background: 'white',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = '#f9fafb'
+                    e.currentTarget.style.transform = 'translateY(-1px)'
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'white'
+                    e.currentTarget.style.transform = 'translateY(0)'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                >
+                  {/* 순위 */}
+                  <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 700, color: '#374151' }}>
+                    {ranking.rank === 1 ? '🥇' : ranking.rank === 2 ? '🥈' : ranking.rank === 3 ? '🥉' : ranking.rank}
+                  </div>
+                  {/* 사용자 이름 */}
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
+                    {ranking.userName}
+                  </div>
+                  {/* 총 자산 */}
+                  <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
+                    {ranking.totalAsset.toLocaleString()}원
+                  </div>
+                  {/* 수익률 */}
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: ranking.returnRate >= 0 ? '#b91c1c' : '#1d4ed8',
+                      background: ranking.returnRate >= 0 ? '#fee2e2' : '#dbeafe'
+                    }}>
+                      {ranking.returnRate >= 0 ? '+' : ''}{ranking.returnRate.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+            {rankings.length === 0 && (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+                랭킹 데이터를 불러오는 중...
+              </div>
+            )}
+          </div>
+        </div>
+
       {/* 보유 종목 섹션 */}
       {userInfo && userStocks.length > 0 && (
         <div style={{ maxWidth: 1120, margin: '32px auto', padding: '0 16px' }}>
@@ -727,7 +857,7 @@ export default function Home() {
                     textAlign: 'right', 
                     fontVariantNumeric: 'tabular-nums', 
                     fontWeight: 700, 
-                    color: changeRate > 0 ? '#dc2626' : changeRate < 0 ? '#2563eb' : '#0f172a',
+                    color: '#000000',
                     transition: 'color 0.3s ease'
                   }}>
                     {stock.currentPrice != null ? `${stock.currentPrice.toLocaleString()}원` : '-'}
@@ -875,7 +1005,7 @@ export default function Home() {
                 textAlign: 'right', 
                 fontVariantNumeric: 'tabular-nums', 
                 fontWeight: 700, 
-                color: row.changeRate > 0 ? '#dc2626' : row.changeRate < 0 ? '#2563eb' : '#0f172a',
+                color: '#000000',
                 transition: 'color 0.3s ease'
               }}>
                 {row.price != null ? `${row.price.toLocaleString()}원` : '-'}
@@ -1090,10 +1220,10 @@ function StatisticsSection({ rows }: { rows: Row[] }) {
   const totalVolume = rows.reduce((sum, r) => sum + (r.volume || 0), 0)
 
   const stats = [
-    { label: '전체 종목', value: totalStocks.toLocaleString(), icon: '📊', color: '#3b82f6' },
+    { label: '전체 종목', value: totalStocks.toLocaleString(), icon: '📋', color: '#3b82f6' },
     { label: '상승 종목', value: risingCount.toLocaleString(), icon: '📈', color: '#dc2626' },
     { label: '하락 종목', value: fallingCount.toLocaleString(), icon: '📉', color: '#2563eb' },
-    { label: '평균 등락률', value: `${avgChangeRate >= 0 ? '+' : ''}${avgChangeRate.toFixed(2)}%`, icon: '📊', color: avgChangeRate >= 0 ? '#dc2626' : '#2563eb' },
+    { label: '평균 등락률', value: `${avgChangeRate >= 0 ? '+' : ''}${avgChangeRate.toFixed(2)}%`, icon: '📌', color: avgChangeRate >= 0 ? '#dc2626' : '#2563eb' },
   ]
 
   return (
