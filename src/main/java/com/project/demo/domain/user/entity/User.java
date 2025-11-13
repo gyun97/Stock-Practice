@@ -4,8 +4,10 @@ import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.order.entity.Order;
+import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.enums.UserRole;
+import com.project.demo.domain.userstock.entity.UserStock;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -15,6 +17,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -35,7 +38,7 @@ public class User extends TimeStamped {
     private String name;
 
     @Column(nullable = false)
-    private long balance; // 잔액
+    private long balance; // 가용 자산(잔액)
 
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false; // 탈퇴 여부
@@ -55,8 +58,11 @@ public class User extends TimeStamped {
 
     private String profileImage;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "user")
     private List<Order> orders;
+
+    @OneToMany(mappedBy = "user")
+    private List<UserStock> userStocks = new ArrayList<>();
 
     @Builder
     public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted, SocialType socialType, String socialId, String profileImage) {

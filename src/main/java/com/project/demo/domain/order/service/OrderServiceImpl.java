@@ -6,6 +6,7 @@ import com.project.demo.common.exception.order.ExecutedOrderException;
 import com.project.demo.common.exception.order.NotEnoughMoneyException;
 import com.project.demo.common.exception.order.NotEnoughStockException;
 import com.project.demo.common.exception.order.NotFoundOrderException;
+import com.project.demo.common.exception.portfolio.NotFoundPortfolioException;
 import com.project.demo.common.exception.stock.NotFoundStockException;
 import com.project.demo.common.exception.user.NotFoundUserException;
 import com.project.demo.domain.execution.entity.Execution;
@@ -14,6 +15,8 @@ import com.project.demo.domain.order.dto.response.OrderResponse;
 import com.project.demo.domain.order.entity.Order;
 import com.project.demo.domain.order.enums.OrderType;
 import com.project.demo.domain.order.repository.OrderRepository;
+import com.project.demo.domain.portfolio.entity.Portfolio;
+import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.stock.dto.response.StockData;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.stock.repository.StockRepository;
@@ -21,6 +24,7 @@ import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.user.repository.UserRepository;
 import com.project.demo.domain.userstock.entity.UserStock;
 import com.project.demo.domain.userstock.repository.UserStockRepository;
+import com.project.demo.common.websocket.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -28,7 +32,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -43,8 +49,10 @@ public class OrderServiceImpl implements OrderService{
     private final UserStockRepository userStockRepository;
     private final StockRepository stockRepository;
     private final ExecutionRepository executionRepository;
+    private final PortfolioRepository portfolioRepository;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final WebSocketSessionManager sessionManager;
 
     /*
     주식 즉시 매수
@@ -84,6 +92,8 @@ public class OrderServiceImpl implements OrderService{
 
         orderRepository.save(newOrder);
 
+        stock.getOrders().add(newOrder);
+
         // 주문 체결
         executeBuy(newOrder, user, stock, stockPrice, quantity, totalPrice);
 
@@ -109,12 +119,16 @@ public class OrderServiceImpl implements OrderService{
 
         executionRepository.save(execution);
 
+        // 해당 유저의 포토폴리오 가져오기
+        Portfolio portfolio = portfolioRepository.findByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
+
         // 기존 보유 주식(UserStock) 확인
         Optional<UserStock> optionalUserStock = userStockRepository.findByUserAndStock(user, stock);
+        UserStock userStock;
 
         if (optionalUserStock.isPresent()) { // 만약 해당 종목의 주식을 이전에 이미 구매했다면
-            // 해당 종목의 평균 단가 갱신
-            UserStock userStock = optionalUserStock.get();
+            userStock = optionalUserStock.get();
 
             int currentQuantity = userStock.getTotalQuantity();
             int currentAvgPrice = userStock.getAvgPrice();
@@ -122,21 +136,37 @@ public class OrderServiceImpl implements OrderService{
             int newTotalQuantity = currentQuantity + quantity;
             int newAvgPrice = (currentAvgPrice * currentQuantity + price * quantity) / newTotalQuantity;
 
-            userStock.updateAveragePrice(newAvgPrice); // 평균 구매 갱신
-            userStock.updateQuantity(newTotalQuantity);
+            userStock.updateAveragePrice(newAvgPrice); // 해당 종목의 평균 단가 갱신
+            long purchaseAmount = (long) price * quantity;
+            userStock.updateQuantity(newTotalQuantity); // 수량 변화
 
         } else {
             // 신규 보유 주식 생성
-            UserStock userStock = UserStock.builder()
+            userStock = UserStock.builder()
                     .user(user)
                     .stock(stock)
                     .avgPrice(price)
                     .totalQuantity(quantity)
-                    .totalAsset(price * quantity)
-                    .avgReturnRate(0.0)
+                    .ticker(stock.getTicker())
+//                    .totalAsset(price * quantity)
+//                    .avgReturnRate(0.0)
+                    .portfolio(portfolio)
+                    .userName(user.getName())
+                    .stockName(stock.getName())
                     .build();
+
             userStockRepository.save(userStock);
+
+            stock.getUserStocks().add(userStock);
+            user.getUserStocks().add(userStock);
         }
+
+        userStock.increasePurchaseAmount((long) price * quantity); // 해당 종목 총 구매액 갱신
+
+        portfolio.getUserStocks().add(userStock);
+
+        // 매수 후 포토폴리오에 반영
+        updatePortfolioAfterBuy(portfolio, price, quantity);
     }
 
     /*
@@ -158,7 +188,7 @@ public class OrderServiceImpl implements OrderService{
                 .orElseThrow(NotEnoughStockException::new);
 
         if (userStock.getTotalQuantity() < quantity) {
-            throw new NotEnoughStockException(); // 보유량보다 매수량이 많으면 예외
+            throw new NotEnoughStockException(); // 보유량보다 매도량이 많으면 예외
         }
 
         // 주식 현재가
@@ -180,6 +210,8 @@ public class OrderServiceImpl implements OrderService{
                 .build();
 
         orderRepository.save(newOrder);
+
+        stock.getOrders().add(newOrder);
 
         // 주문 체결
         executeSell(newOrder, user, stock, stockPrice, quantity, totalPrice);
@@ -208,18 +240,75 @@ public class OrderServiceImpl implements OrderService{
 
         int remainingQuantity = userStock.getTotalQuantity() - quantity;
 
-        // 차익 계산
+        // 수익 계산
         int avgPrice = userStock.getAvgPrice();
         int profit = (price - avgPrice) * quantity;
         double returnRate = ((double) profit / (avgPrice * quantity)) * 100; // 수익률 계산
 
         log.info("[매도체결] {} 매도 수익: {}원 (수익률: {}%)", stock.getName(), profit, returnRate);
 
+        Portfolio portfolio = portfolioRepository.findByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
+
         if (remainingQuantity > 0) { // 아직 남은 주식이 있다면
             userStock.updateQuantity(remainingQuantity); // 수량 업데이트
+            userStock.decreasePurchaseAmount(quantity); // 매입원가 업데이트
         } else { // 모든 주식을 다 팔았다면
-            userStockRepository.delete(userStock); // 보유 주식에서 삭제
+            // 보유 주식에서 삭제
+            userStockRepository.delete(userStock);
+            user.getUserStocks().remove(userStock);
+            stock.getUserStocks().remove(userStock);
+            portfolio.getUserStocks().remove(userStock);
         }
+
+        // 주식 매도 -> 포트폴리오 갱신
+        updatePortfolioAfterSell(portfolio, price, quantity);
+
+    }
+
+    @Transactional
+    private void updatePortfolioAfterBuy(Portfolio portfolio, int buyPrice, int quantity) {
+
+        // 매수 후 보유 주식 평가액 증가
+        int increaseStockValue = buyPrice * quantity;
+        portfolio.increaseStockAsset(increaseStockValue);
+
+        // 잔액(현금) 감소
+        portfolio.decreaseBalance(increaseStockValue);
+
+        // 총 보유 수량 증가
+        portfolio.increaseTotalQuantity(quantity);
+
+        // 총 자산 재계산
+        portfolio.recalculateTotalAsset();
+
+        // 보유 종목 수 업데이트
+        portfolio.updateHoldCount();
+    }
+
+    /*
+    주식 매도로 인한 포토폴리오 업데이트
+     */
+    @Transactional
+    private void updatePortfolioAfterSell(Portfolio portfolio, int sellPrice, int quantity) {
+
+        // 매도 후 보유 주식 평가액 감소
+        int decreasedStockValue = sellPrice * quantity;
+        portfolio.decreaseStockAsset(decreasedStockValue);
+
+        // 잔액(현금) 증가
+        portfolio.increaseBalance(decreasedStockValue);
+
+        // 총 보유 수량 감소
+        portfolio.decreaseTotalQuantity(quantity);
+
+        // 총 자산 재계산
+        portfolio.recalculateTotalAsset();
+
+        // 수익률 업데이트
+//        portfolio.updateReturnRate();
+
+        portfolio.updateHoldCount();
     }
 
     /*
@@ -290,7 +379,7 @@ public class OrderServiceImpl implements OrderService{
     /*
     예약 주문 자동 체결 스케줄러
      */
-    @Scheduled(fixedDelay = 5000) // 5초마다 반복
+    @Scheduled(fixedDelay = 1000) // 1초마다 반복
     @Transactional
     public void executeReservedOrders() {
         List<Order> reservedOrders = orderRepository.findAllByIsReservedTrueAndIsExecutedFalse();
@@ -304,6 +393,17 @@ public class OrderServiceImpl implements OrderService{
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted(); // 체결 완료로 갱신
                 log.info("[예약매수체결] {}: {}원", order.getStock().getName(), currentPrice);
+                
+                // 주문 체결 알림 전송
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "BUY");
+                notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)", 
+                    order.getStock().getName(), currentPrice));
+                notification.put("stockName", order.getStock().getName());
+                notification.put("stockTicker", order.getStock().getTicker());
+                notification.put("executionPrice", currentPrice);
+                notification.put("quantity", order.getQuantity());
+                sessionManager.sendOrderNotification(order.getUser().getId(), notification);
             }
 
             // 예약 매도 조건: 현재가 >= 예약가
@@ -312,20 +412,52 @@ public class OrderServiceImpl implements OrderService{
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted();
                 log.info("[예약매도체결] {}: {}원", order.getStock().getName(), currentPrice);
+                
+                // 주문 체결 알림 전송
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("type", "SELL");
+                notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)", 
+                    order.getStock().getName(), currentPrice));
+                notification.put("stockName", order.getStock().getName());
+                notification.put("stockTicker", order.getStock().getTicker());
+                notification.put("executionPrice", currentPrice);
+                notification.put("quantity", order.getQuantity());
+                sessionManager.sendOrderNotification(order.getUser().getId(), notification);
             }
         }
     }
 
     /*
-    내 주문 내역 조회
+    내 주문 전체 내역 조회
      */
-    public List<OrderResponse> getMyOrders(Long userId) {
+    public List<OrderResponse> getMyAllOrders(Long userId) {
         List<Order> myOrders = orderRepository.findByUserId(userId);
 
         return myOrders.stream().map(OrderResponse::of)
                 .collect(Collectors.toList());
     }
 
+    /*
+    내 일반 주문(즉시 주문) 내역 조회
+     */
+    public List<OrderResponse> getNormalOrders(Long userId) {
+        List<Order> orders = orderRepository.findNormalOrdersByUser(userId);
+
+        return orders.stream().map(OrderResponse::of)
+                .collect(Collectors.toList());
+
+    }
+
+    /*
+    내 예약 주문 내역 조회
+     */
+    public List<OrderResponse> getReservationOrders(Long userId) {
+        List<Order> orders = orderRepository.findReservationOrdersByUser(userId);
+
+        return orders.stream().map(OrderResponse::of)
+                .collect(Collectors.toList());
+
+    }
 
     /*
     예약 주문 취소

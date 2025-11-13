@@ -1,5 +1,6 @@
 package com.project.demo.common.util;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -11,6 +12,21 @@ public class DateUtil {
     public static String today() {
         return LocalDate.now().format(FORMATTER);
     }
+
+//    // 최근 거래일 날짜 (주말/공휴일 제외)
+//    public static String getLatestTradingDate() {
+//        LocalDate today = LocalDate.now();
+//
+//        // 오늘이 주말이면 금요일로 조정
+//        while (today.getDayOfWeek() == DayOfWeek.SATURDAY || today.getDayOfWeek() == DayOfWeek.SUNDAY) {
+//            today = today.minusDays(1);
+//        }
+//
+//        // TODO: 공휴일 체크 로직 추가 가능
+//        // 현재는 주말만 고려
+//
+//        return today.format(FORMATTER);
+//    }
 
     // n개월 전 날짜 (yyyyMMdd)
     public static String monthsAgo(int months) {
@@ -32,5 +48,9 @@ public class DateUtil {
         return LocalDate.now().minusWeeks(weeks).format(FORMATTER);
     }
 
-
+    // 특정 날짜의 다음 날 (yyyyMMdd)
+    public static String nextDay(String dateStr) {
+        LocalDate date = LocalDate.parse(dateStr, FORMATTER);
+        return date.plusDays(1).format(FORMATTER);
+    }
 }

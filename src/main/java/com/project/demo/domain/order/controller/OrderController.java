@@ -90,13 +90,36 @@ public class OrderController {
     }
 
     /**
-     * 내 주문 내역 조회
+     * 내 주문 내역 전체 조회
      * @param authUser
      * @return [내 주문 내역 리스트](오더 ID, 유저 ID, 주식 ID, 주문가(예약가), 주문 수량, 총 가격, 주문 타입, 체결 여부, 예약 여부)
      */
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getMyOrders(@AuthenticationPrincipal AuthUser authUser) {
-        List<OrderResponse> response = orderService.getMyOrders(authUser.getUserId());
+        List<OrderResponse> response = orderService.getMyAllOrders(authUser.getUserId());
         return ResponseEntity.ok(ApiResponse.requestSuccess(response));
     }
+
+    /**
+     * 내 일반 주문(즉시 주문) 내역 전체 조회
+     * @param authUser
+     * @return [내 일반 주문 내역 리스트](오더 ID, 유저 ID, 주식 ID, 주문가(예약가), 주문 수량, 총 가격, 주문 타입, 체결 여부, 예약 여부)
+     */
+    @GetMapping("/normal")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getNormalOrders(@AuthenticationPrincipal AuthUser authUser) {
+        List<OrderResponse> response = orderService.getNormalOrders(authUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
+    }
+
+    /**
+     * 내 예약 주문 내역 전체 조회
+     * @param authUser
+     * @return [내 예약 주문 내역 리스트](오더 ID, 유저 ID, 주식 ID, 주문가(예약가), 주문 수량, 총 가격, 주문 타입, 체결 여부, 예약 여부)
+     */
+    @GetMapping("/reservation")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getReservationOrders(@AuthenticationPrincipal AuthUser authUser) {
+        List<OrderResponse> response = orderService.getReservationOrders(authUser.getUserId());
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
+    }
+
 }

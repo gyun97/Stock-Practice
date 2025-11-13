@@ -32,7 +32,7 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            HttpServletRequest httpRequest,
+            @NonNull HttpServletRequest httpRequest,
             @NonNull HttpServletResponse httpResponse,
             @NonNull FilterChain chain
     ) throws ServletException, IOException {
@@ -55,8 +55,9 @@ public class JwtSecurityFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken); // SecurityContextHolder는 현재 요청의 인증 상태(Authentication 객체)를 보관하는 “Thread-local 저장소”
                 }
             } catch (ExpiredJwtException e) {
-                log.error("만료된 JWT token 입니다.", e);
-                handleJwtException(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "Access Token expired");
+                log.warn("만료된 JWT token 입니다. - {}", e.getMessage());
+                // 토큰이 만료되었지만 필터 체인은 계속 진행 (컨트롤러에서 처리)
+                // 프론트엔드에서 401 응답을 받으면 자동으로 토큰 재발급 요청
             } catch (MalformedJwtException | SecurityException e) {
                 log.error("유효하지 않는 JWT 서명 입니다.", e);
                 handleJwtException(httpResponse, HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT signature");

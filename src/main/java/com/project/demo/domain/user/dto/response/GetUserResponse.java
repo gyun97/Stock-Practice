@@ -12,12 +12,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class GetUserResponse {
 
+    private Long userId;
     private String name;
     private String email;
     private double balance;
 
     public static GetUserResponse of(User user) {
         return new GetUserResponse(
+                user.getId(),
                 user.getName(),
                 user.getEmail(),
                 user.getBalance()

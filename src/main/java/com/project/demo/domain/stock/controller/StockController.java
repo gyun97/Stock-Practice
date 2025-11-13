@@ -29,27 +29,23 @@ public class StockController {
         return ResponseEntity.ok(ApiResponse.requestSuccess(stockService.showAllStock()));
     }
 
-//    @GetMapping("/{ticker}")
-//    public ResponseEntity<ApiResponse<List<CandleResponse>>> getMinuteCandles(
-//            @PathVariable String ticker,
-//            @RequestParam(required = false) String date,
-//            @RequestParam(required = false) String time) {
-//
-//        // 기본값: 현재 일자
-//        if (date == null) date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-//
-//        // 기본값: 현재 시각 (HHmmss)
-//        if (time == null) time = LocalTime.now().format(DateTimeFormatter.ofPattern("HHmmss"));
-//
-//        List<CandleResponse> minuteCandles = stockService.getMinuteCandles(ticker, date, time);
-//        return ResponseEntity.ok(ApiResponse.requestSuccess(minuteCandles));
-//    }
 
     @GetMapping("/{ticker}/period")
     public ResponseEntity<ApiResponse<List<CandleResponse>>> getPeriodStockInfo(
             @PathVariable String ticker, @RequestParam(required = true) String period) {
 
         List<CandleResponse> response = stockService.getPeriodStockInfo(ticker, period);
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
+    }
+
+    @GetMapping("/{ticker}/period/range")
+    public ResponseEntity<ApiResponse<List<CandleResponse>>> getPeriodStockInfoByRange(
+            @PathVariable String ticker, 
+            @RequestParam(required = true) String period,
+            @RequestParam(required = true) String startDate,
+            @RequestParam(required = true) String endDate) {
+
+        List<CandleResponse> response = stockService.getPeriodStockInfoByRange(ticker, period, startDate, endDate);
         return ResponseEntity.ok(ApiResponse.requestSuccess(response));
     }
 

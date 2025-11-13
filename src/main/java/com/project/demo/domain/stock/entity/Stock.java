@@ -3,12 +3,14 @@ package com.project.demo.domain.stock.entity;
 import com.project.demo.common.util.TimeStamped;
 import com.project.demo.domain.order.entity.Order;
 import com.project.demo.domain.stock.enums.Market;
+import com.project.demo.domain.userstock.entity.UserStock;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -35,11 +37,12 @@ public class Stock extends TimeStamped {
 
     private Long volume; // 누적 거래량
 
-//    @Column(nullable = false)
-//    private int price;
+    @OneToMany(mappedBy = "stock")
+    private List<Order> orders = new ArrayList<>();
 
-    @OneToMany(mappedBy = "stock", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Order> orders;
+    @OneToMany(mappedBy = "stock")
+    private List<UserStock> userStocks = new ArrayList<>();
+
 
     @Builder
     public Stock(Long id, String ticker, String name, Market market, Long volume) {

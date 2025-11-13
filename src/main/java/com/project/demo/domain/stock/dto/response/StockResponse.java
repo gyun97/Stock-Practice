@@ -1,6 +1,7 @@
 package com.project.demo.domain.stock.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.project.demo.domain.stock.entity.Stock;
 import lombok.*;
 
 @Getter
