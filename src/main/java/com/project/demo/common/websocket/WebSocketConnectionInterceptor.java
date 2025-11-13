@@ -10,6 +10,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.stereotype.Component;
+import org.springframework.lang.NonNull;
 
 @Slf4j
 @Component
@@ -31,7 +32,7 @@ public class WebSocketConnectionInterceptor implements ChannelInterceptor {
     }
 
     @Override
-    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+    public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
         StompCommand command = accessor.getCommand();
 
@@ -53,16 +54,15 @@ public class WebSocketConnectionInterceptor implements ChannelInterceptor {
                 }
             }
         } else if (StompCommand.DISCONNECT.equals(command)) {
-            // WebSocket 연결 해제 시 세션 제거
+            // WebSocket 연결 해제 시 세션 제거 (Redis에서 조회)
             String sessionId = accessor.getSessionId();
-            sessionManager.getConnectedUsers().entrySet().stream()
-                    .filter(entry -> entry.getValue().equals(sessionId))
-                    .findFirst()
-                    .ifPresent(entry -> {
-                        Long userId = entry.getKey();
-                        sessionManager.removeUserSession(userId);
-                        log.info("WebSocket 연결 해제 - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
-                    });
+            Long userId = sessionManager.getUserIdBySessionId(sessionId);
+            if (userId != null) {
+                sessionManager.removeUserSession(userId);
+                log.info("WebSocket 연결 해제 - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
+            } else {
+                log.warn("연결 해제할 사용자를 찾을 수 없음 - 세션 ID: {}", sessionId);
+            }
         }
 
         return message;

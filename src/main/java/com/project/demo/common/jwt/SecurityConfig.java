@@ -63,6 +63,7 @@ public class SecurityConfig {
                                         "/swagger-ui/**",
                                         "/v3/api-docs/**",
                                         "/api/v1/stocks/**",
+                                        "/api/v1/portfolios/ranking",  // 랭킹 API는 공개
                                         "/signup/**",
                                         // WebSocket 관련 경로 추가
                                         "/ws/**",           // WebSocket 연결 경로

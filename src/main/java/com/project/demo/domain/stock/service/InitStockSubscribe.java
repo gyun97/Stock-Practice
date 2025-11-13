@@ -19,6 +19,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.*;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -42,6 +43,7 @@ public class InitStockSubscribe {
     private final WebClient webClient;
     private final ConnectWebSocketClient client;
     private final StringRedisTemplate redisTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${KIS_APP_KEY}")
     private String appKey;
@@ -253,9 +255,10 @@ public class InitStockSubscribe {
             redisTemplate.opsForZSet().add("stock:rank:price", trKey, price); // 가격 높은 순으로 정렬 redis 저장
             redisTemplate.opsForZSet().add("stock:rank:changeRate", trKey, changeRate); // 등락률 높은 순으로 정렬 redis 저장
 
-            redisTemplate.convertAndSend("stock:updates", json); // 백엔드가 KIS에서 받은 데이터를 RedisSubscriber에 발송
+            // STOMP로 직접 전송 (Redis Pub/Sub 제거)
+            messagingTemplate.convertAndSend("/topic/stocks", json);
 
-            log.info("Redis 저장 & Pub/Sub 발행(REST) → {}", json);
+            log.info("Redis 저장 & STOMP 직접 전송(REST) → {}", json);
 
         } catch (Exception e) {
             log.warn("REST 현재가 브로드캐스트 실패", e);
