@@ -12,6 +12,7 @@ import java.time.Duration;
 
 @Configuration
 public class WebClientConfig {
+
     @Bean
     public WebClient webClient(WebClient.Builder builder) {
         // 타임아웃 설정

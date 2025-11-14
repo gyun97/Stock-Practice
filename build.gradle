@@ -36,6 +36,9 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	
+	// Reactor Test for reactive testing
+	testImplementation 'io.projectreactor:reactor-test'
 
 	// Spring-Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -67,6 +70,7 @@ dependencies {
 	compileOnly group: 'io.jsonwebtoken', name: 'jjwt-api', version: '0.11.5'
 	runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-impl', version: '0.11.5'
 	runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-jackson', version: '0.11.5'
+	testImplementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: '0.11.5'
 
 	// validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
