@@ -5,7 +5,6 @@ import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.service.UserService;
-import com.project.demo.domain.user.service.UserServiceImpl;
 import com.project.demo.common.jwt.JwtUtil;
 import com.project.demo.common.response.ApiResponse;
 import com.project.demo.domain.user.dto.request.LoginRequest;
@@ -28,7 +27,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class UserController {
     private final JwtUtil jwtUtil;
-    private final UserServiceImpl refreshTokenService;
+//    private final UserServiceImpl refreshTokenService;
     private final UserService userService;
     
     @Value("${cookie.secure}")
@@ -139,7 +138,8 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> refreshAccessToken(HttpServletRequest httpServletRequest) {
 
         String refreshToken = jwtUtil.getRefreshTokenFromCookie(httpServletRequest); // 쿠키에서 Refresh Token 꺼내기
-        String newAccessToken = refreshTokenService.refreshAccessToken(refreshToken);
+//        String newAccessToken = refreshTokenService.refreshAccessToken(refreshToken);
+        String newAccessToken = userService.refreshAccessToken(refreshToken);
         return ResponseEntity.ok(ApiResponse.requestSuccess(newAccessToken));
     }
 }

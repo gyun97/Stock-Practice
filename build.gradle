@@ -36,6 +36,16 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testRuntimeOnly 'com.h2database:h2'
+	
+	// Testcontainers
+	testImplementation platform('org.testcontainers:testcontainers-bom:1.19.8')
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:mysql'
+	testImplementation 'org.testcontainers:testcontainers'
+	
+	// Reactor Test for reactive testing
+	testImplementation 'io.projectreactor:reactor-test'
 
 	// Spring-Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
@@ -67,6 +77,7 @@ dependencies {
 	compileOnly group: 'io.jsonwebtoken', name: 'jjwt-api', version: '0.11.5'
 	runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-impl', version: '0.11.5'
 	runtimeOnly group: 'io.jsonwebtoken', name: 'jjwt-jackson', version: '0.11.5'
+	testImplementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: '0.11.5'
 
 	// validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -78,4 +89,5 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	maxParallelForks = 1  // 통합 테스트는 순차 실행
 }

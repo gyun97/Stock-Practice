@@ -34,6 +34,7 @@ import java.util.Set;
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@org.springframework.context.annotation.Profile("!test")  // test 프로파일에서는 제외
 public class InitStockSubscribe {
 
     private final ObjectMapper mapper;

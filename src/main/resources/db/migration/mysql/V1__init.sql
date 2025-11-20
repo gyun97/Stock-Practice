@@ -96,21 +96,7 @@ CREATE TABLE `user_stocks` (
     FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
 );
 
--- 7. candles
-CREATE TABLE candles (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    ticker VARCHAR(12) NOT NULL COMMENT '종목코드 (예: 005930)',
-    date CHAR(8) NOT NULL COMMENT '영업일자 (yyyyMMdd)',
-    time CHAR(6) NOT NULL COMMENT '체결시간 (HHmmss)',
-    open BIGINT NOT NULL COMMENT '시가',
-    high BIGINT NOT NULL COMMENT '고가',
-    low BIGINT NOT NULL COMMENT '저가',
-    close BIGINT NOT NULL COMMENT '종가',
-    volume BIGINT NOT NULL COMMENT '거래량',
-    UNIQUE KEY uq_candle (ticker, date, time)
-);
-
--- 8. refresh_tokens
+-- 7. refresh_tokens
 CREATE TABLE refresh_tokens (
     rt_key BIGINT PRIMARY KEY,
     rt_value VARCHAR(255) NOT NULL COMMENT '토큰 값'
