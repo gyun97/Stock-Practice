@@ -9,11 +9,11 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 public class RedisConfig {
 
     @Bean
-    public RedisMessageListenerContainer redisContainer(RedisConnectionFactory connectionFactory,
-                                                        RedisSubscriber subscriber) {
+    public RedisMessageListenerContainer redisContainer(RedisConnectionFactory connectionFactory) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
         // Redis Pub/Sub 제거 - 단일 서버 환경에서 직접 STOMP로 전송
+        // RedisSubscriber는 주석 처리됨 - 더 이상 사용하지 않음
         // container.addMessageListener(subscriber, new ChannelTopic("stock:updates")); // 제거됨
         // container.addMessageListener(subscriber, new PatternTopic("order:notifications:*")); // 제거됨
         return container;

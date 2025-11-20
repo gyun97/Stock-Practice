@@ -23,7 +23,7 @@ public enum ErrorCode {
     ADMIN_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "AUTH-006", "유효하지 않은 관리자 토큰입니다."),
 
     // 유저 관련 에러 코드
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-001", "해당 계정의 사용자를 찾을 수 없습니다"),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER-001", "해당 계정의 사용자를 찾을 수 없습니다."),
 
     // 주문 관련 에러 코드
     MONEY_NOT_ENOUGH(HttpStatus.BAD_REQUEST, "ORDER-001", "보유 금액이 부족합니다"),

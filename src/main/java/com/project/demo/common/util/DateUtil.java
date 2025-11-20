@@ -47,10 +47,4 @@ public class DateUtil {
     public static String weeksAgo(int weeks) {
         return LocalDate.now().minusWeeks(weeks).format(FORMATTER);
     }
-
-    // 특정 날짜의 다음 날 (yyyyMMdd)
-    public static String nextDay(String dateStr) {
-        LocalDate date = LocalDate.parse(dateStr, FORMATTER);
-        return date.plusDays(1).format(FORMATTER);
-    }
 }

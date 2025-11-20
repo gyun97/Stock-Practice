@@ -1,0 +1,11 @@
+-- 통합 테스트 전 데이터베이스 초기화
+SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE executions;
+TRUNCATE TABLE orders;
+TRUNCATE TABLE user_stocks;
+TRUNCATE TABLE portfolios;
+TRUNCATE TABLE refresh_tokens;
+TRUNCATE TABLE users;
+TRUNCATE TABLE stocks;
+SET FOREIGN_KEY_CHECKS = 1;
+
