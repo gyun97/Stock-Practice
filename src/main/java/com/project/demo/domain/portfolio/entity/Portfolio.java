@@ -47,7 +47,7 @@ public class Portfolio extends TimeStamped {
     private User user;
 
     @OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserStock> userStocks;
+    private List<UserStock> userStocks = new java.util.ArrayList<>();
 
 
     @Builder
@@ -78,7 +78,7 @@ public class Portfolio extends TimeStamped {
     }
 
     public void updateHoldCount() {
-        this.holdCount = this.userStocks.size();
+        this.holdCount = this.userStocks != null ? this.userStocks.size() : 0;
     }
 
     // -----------------------------매도 ----------------------------
