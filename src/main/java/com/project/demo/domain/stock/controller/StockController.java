@@ -49,4 +49,15 @@ public class StockController {
         return ResponseEntity.ok(ApiResponse.requestSuccess(response));
     }
 
+    /**
+     * 특정 종목의 기업 개요 조회
+     */
+    @GetMapping("/{ticker}/outline")
+    public ResponseEntity<ApiResponse<String>> getStockOutline(@PathVariable String ticker) {
+        log.info("기업 개요 API 호출 - ticker: {}", ticker);
+        String outline = stockService.getStockOutline(ticker);
+        log.info("기업 개요 API 응답 - ticker: {}, outline: {}", ticker, outline != null ? outline.substring(0, Math.min(50, outline.length())) : "null");
+        return ResponseEntity.ok(ApiResponse.requestSuccess(outline));
+    }
+
 }

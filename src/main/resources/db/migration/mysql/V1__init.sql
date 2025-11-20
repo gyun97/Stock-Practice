@@ -26,6 +26,7 @@ CREATE TABLE `stocks` (
     `volume` BIGINT NULL DEFAULT 0,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
+    `outline` TEXT NULL,
     PRIMARY KEY (`stock_id`)
 );
 

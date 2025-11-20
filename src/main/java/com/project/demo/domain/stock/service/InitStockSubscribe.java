@@ -45,6 +45,7 @@ public class InitStockSubscribe {
     private final ConnectWebSocketClient client;
     private final StringRedisTemplate redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
+    private final StockOutlineService stockOutlineService;
 
     @Value("${KIS_APP_KEY}")
     private String appKey;
@@ -103,13 +104,33 @@ public class InitStockSubscribe {
 
             // 해당 종목 정보 RDB 저장
             if (!stockRepository.existsByTicker(ticker)) {
+                // 기업 개요 가져오기
+                String outline = stockOutlineService.getOutline(ticker);
+                
                 Stock stock = Stock.builder()
                         .ticker(ticker)
                         .name(name)
                         .market(market)
                         .volume(volume)
                         .build();
+                
+                // outline이 있으면 설정
+                if (outline != null) {
+                    stock.setOutline(outline);
+                }
+                
                 stockRepository.save(stock);
+            } else {
+                // 기존 주식이 있으면 outline 업데이트 (outline이 없고 새로운 outline이 있는 경우)
+                stockRepository.findByTicker(ticker).ifPresent(stock -> {
+                    if (stock.getOutline() == null) {
+                        String outline = stockOutlineService.getOutline(ticker);
+                        if (outline != null) {
+                            stock.setOutline(outline);
+                            stockRepository.save(stock);
+                        }
+                    }
+                });
             }
         }
     }
