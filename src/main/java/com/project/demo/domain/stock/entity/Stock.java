@@ -37,6 +37,9 @@ public class Stock extends TimeStamped {
 
     private Long volume; // 누적 거래량
 
+    @Column(columnDefinition = "TEXT")
+    private String outline; // 기업 개요
+
     @OneToMany(mappedBy = "stock")
     private List<Order> orders = new ArrayList<>();
 
@@ -51,8 +54,14 @@ public class Stock extends TimeStamped {
         this.name = name;
         this.market = market;
         this.volume = volume;
-//        this.price = price;
+        this.outline = null;
     }
 
+    /**
+     * 기업 개요(outline) 설정
+     */
+    public void setOutline(String outline) {
+        this.outline = outline;
+    }
 
 }

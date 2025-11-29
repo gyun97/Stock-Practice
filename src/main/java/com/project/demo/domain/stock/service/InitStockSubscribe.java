@@ -20,6 +20,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -45,6 +46,7 @@ public class InitStockSubscribe {
     private final ConnectWebSocketClient client;
     private final StringRedisTemplate redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
+    private final StockOutlineService stockOutlineService;
 
     @Value("${KIS_APP_KEY}")
     private String appKey;
@@ -103,13 +105,33 @@ public class InitStockSubscribe {
 
             // 해당 종목 정보 RDB 저장
             if (!stockRepository.existsByTicker(ticker)) {
+                // 기업 개요 가져오기
+                String outline = stockOutlineService.getOutline(ticker);
+                
                 Stock stock = Stock.builder()
                         .ticker(ticker)
                         .name(name)
                         .market(market)
                         .volume(volume)
                         .build();
+                
+                // outline이 있으면 설정
+                if (outline != null) {
+                    stock.setOutline(outline);
+                }
+                
                 stockRepository.save(stock);
+            } else {
+                // 기존 주식이 있으면 outline 업데이트 (outline이 없고 새로운 outline이 있는 경우)
+                stockRepository.findByTicker(ticker).ifPresent(stock -> {
+                    if (stock.getOutline() == null) {
+                        String outline = stockOutlineService.getOutline(ticker);
+                        if (outline != null) {
+                            stock.setOutline(outline);
+                            stockRepository.save(stock);
+                        }
+                    }
+                });
             }
         }
     }
@@ -119,6 +141,28 @@ public class InitStockSubscribe {
     @EventListener(ApplicationReadyEvent.class)
     @Order(2)
     public void subscribeTop30(ApplicationReadyEvent event) throws JsonProcessingException, InterruptedException {
+        subscribeAllStocks();
+    }
+
+    /**
+     * 평일 9시에 자동으로 종목 구독
+     * cron 표현식: 초 분 시 일 월 요일
+     * 0 0 9 * * MON-FRI: 평일 9시 0분 0초
+     */
+    @Scheduled(cron = "0 0 9 * * MON-FRI", zone = "Asia/Seoul")
+    public void subscribeStocksAtMarketOpen() throws JsonProcessingException, InterruptedException {
+        log.info("평일 9시 스케줄러 실행 - 종목 구독 시작");
+        if (MarketTime.isMarketOpen()) {
+            subscribeAllStocks();
+        } else {
+            log.info("장 시간이 아니므로 구독하지 않습니다.");
+        }
+    }
+
+    /**
+     * 전체 종목 구독 로직
+     */
+    private void subscribeAllStocks() throws JsonProcessingException, InterruptedException {
         Set<String> allTickers = stockRepository.findAllTickers();
 
         // 만약 장시간이라면 30개 종목들 구독해서 KIS WebSocket으로 실시간 체결가 가져오기

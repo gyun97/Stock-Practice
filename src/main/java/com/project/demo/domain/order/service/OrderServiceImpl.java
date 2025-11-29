@@ -27,7 +27,7 @@ import com.project.demo.domain.userstock.repository.UserStockRepository;
 import com.project.demo.common.websocket.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate; 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -377,52 +377,150 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    예약 주문 자동 체결 스케줄러
+    특정 종목의 예약 주문 체결 (이벤트 기반 - 주가 업데이트 시 호출)
      */
-    @Scheduled(fixedDelay = 1000) // 1초마다 반복
     @Transactional
-    public void executeReservedOrders() {
-        List<Order> reservedOrders = orderRepository.findAllByIsReservedTrueAndIsExecutedFalse();
+    public void executeReservedOrdersForTicker(String ticker, int currentPrice) {
+        List<Order> reservedOrders = orderRepository.findReservedOrdersByTicker(ticker);
+        
+        if (reservedOrders.isEmpty()) {
+            return;
+        }
+
+        log.debug("예약 주문 체결 확인 - 종목: {}, 현재가: {}, 예약 주문 수: {}", ticker, currentPrice, reservedOrders.size());
 
         for (Order order : reservedOrders) {
-            int currentPrice = getStockPrice(order.getStock().getTicker());
-
             // 예약 매수 조건: 현재가 <= 예약가
             if (order.getType() == OrderType.BUY && currentPrice <= order.getPrice()) {
+                log.info("[예약매수체결조건만족] 주문 ID: {}, 종목: {}, 현재가: {} <= 예약가: {}", 
+                    order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
                 executeBuy(order, order.getUser(), order.getStock(), currentPrice,
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted(); // 체결 완료로 갱신
                 log.info("[예약매수체결] {}: {}원", order.getStock().getName(), currentPrice);
                 
                 // 주문 체결 알림 전송
-                Map<String, Object> notification = new HashMap<>();
-                notification.put("type", "BUY");
-                notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)", 
-                    order.getStock().getName(), currentPrice));
-                notification.put("stockName", order.getStock().getName());
-                notification.put("stockTicker", order.getStock().getTicker());
-                notification.put("executionPrice", currentPrice);
-                notification.put("quantity", order.getQuantity());
-                sessionManager.sendOrderNotification(order.getUser().getId(), notification);
+                try {
+                    Map<String, Object> notification = new HashMap<>();
+                    notification.put("type", "BUY");
+                    notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)", 
+                        order.getStock().getName(), currentPrice));
+                    notification.put("stockName", order.getStock().getName());
+                    notification.put("stockTicker", order.getStock().getTicker());
+                    notification.put("executionPrice", currentPrice);
+                    notification.put("quantity", order.getQuantity());
+                    sessionManager.sendOrderNotification(order.getUser().getId(), notification);
+                    log.info("[예약매수알림전송] 사용자 ID: {}, 종목: {}", order.getUser().getId(), order.getStock().getName());
+                } catch (Exception e) {
+                    log.error("[예약매수알림전송실패] 사용자 ID: {}, 종목: {}, 오류: {}", 
+                        order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                }
             }
 
             // 예약 매도 조건: 현재가 >= 예약가
             if (order.getType() == OrderType.SELL && currentPrice >= order.getPrice()) {
+                log.info("[예약매도체결조건만족] 주문 ID: {}, 종목: {}, 현재가: {} >= 예약가: {}", 
+                    order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
                 executeSell(order, order.getUser(), order.getStock(), currentPrice,
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted();
                 log.info("[예약매도체결] {}: {}원", order.getStock().getName(), currentPrice);
                 
                 // 주문 체결 알림 전송
-                Map<String, Object> notification = new HashMap<>();
-                notification.put("type", "SELL");
-                notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)", 
-                    order.getStock().getName(), currentPrice));
-                notification.put("stockName", order.getStock().getName());
-                notification.put("stockTicker", order.getStock().getTicker());
-                notification.put("executionPrice", currentPrice);
-                notification.put("quantity", order.getQuantity());
-                sessionManager.sendOrderNotification(order.getUser().getId(), notification);
+                try {
+                    Map<String, Object> notification = new HashMap<>();
+                    notification.put("type", "SELL");
+                    notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)", 
+                        order.getStock().getName(), currentPrice));
+                    notification.put("stockName", order.getStock().getName());
+                    notification.put("stockTicker", order.getStock().getTicker());
+                    notification.put("executionPrice", currentPrice);
+                    notification.put("quantity", order.getQuantity());
+                    sessionManager.sendOrderNotification(order.getUser().getId(), notification);
+                    log.info("[예약매도알림전송] 사용자 ID: {}, 종목: {}", order.getUser().getId(), order.getStock().getName());
+                } catch (Exception e) {
+                    log.error("[예약매도알림전송실패] 사용자 ID: {}, 종목: {}, 오류: {}", 
+                        order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                }
+            }
+        }
+    }
+
+    /*
+    예약 주문 자동 체결 스케줄러 (백업용 - 10초마다 실행)
+    주가 업데이트가 없는 경우를 대비한 안전장치
+     */
+    @Scheduled(fixedDelay = 10000) // 10초마다 반복 (백업용)
+    @Transactional
+    public void executeReservedOrders() {
+        List<Order> reservedOrders = orderRepository.findAllByIsReservedTrueAndIsExecutedFalse();
+        
+        if (reservedOrders.isEmpty()) {
+            return;
+        }
+        
+        log.debug("예약 주문 체결 확인 중 (스케줄러) - 대기 중인 예약 주문 수: {}", reservedOrders.size());
+
+        for (Order order : reservedOrders) {
+            try {
+                int currentPrice = getStockPrice(order.getStock().getTicker());
+                log.debug("예약 주문 체결 확인 - 주문 ID: {}, 종목: {}, 현재가: {}, 예약가: {}, 주문타입: {}", 
+                    order.getId(), order.getStock().getName(), currentPrice, order.getPrice(), order.getType());
+
+                // 예약 매수 조건: 현재가 <= 예약가
+                if (order.getType() == OrderType.BUY && currentPrice <= order.getPrice()) {
+                    log.info("[예약매수체결조건만족-스케줄러] 주문 ID: {}, 종목: {}, 현재가: {} <= 예약가: {}", 
+                        order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
+                    executeBuy(order, order.getUser(), order.getStock(), currentPrice,
+                            order.getQuantity(), currentPrice * order.getQuantity());
+                    order.markExecuted();
+                    log.info("[예약매수체결-스케줄러] {}: {}원", order.getStock().getName(), currentPrice);
+                    
+                    // 주문 체결 알림 전송
+                    try {
+                        Map<String, Object> notification = new HashMap<>();
+                        notification.put("type", "BUY");
+                        notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)", 
+                            order.getStock().getName(), currentPrice));
+                        notification.put("stockName", order.getStock().getName());
+                        notification.put("stockTicker", order.getStock().getTicker());
+                        notification.put("executionPrice", currentPrice);
+                        notification.put("quantity", order.getQuantity());
+                        sessionManager.sendOrderNotification(order.getUser().getId(), notification);
+                    } catch (Exception e) {
+                        log.error("[예약매수알림전송실패-스케줄러] 사용자 ID: {}, 종목: {}, 오류: {}", 
+                            order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                    }
+                }
+
+                // 예약 매도 조건: 현재가 >= 예약가
+                if (order.getType() == OrderType.SELL && currentPrice >= order.getPrice()) {
+                    log.info("[예약매도체결조건만족-스케줄러] 주문 ID: {}, 종목: {}, 현재가: {} >= 예약가: {}", 
+                        order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
+                    executeSell(order, order.getUser(), order.getStock(), currentPrice,
+                            order.getQuantity(), currentPrice * order.getQuantity());
+                    order.markExecuted();
+                    log.info("[예약매도체결-스케줄러] {}: {}원", order.getStock().getName(), currentPrice);
+                    
+                    // 주문 체결 알림 전송
+                    try {
+                        Map<String, Object> notification = new HashMap<>();
+                        notification.put("type", "SELL");
+                        notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)", 
+                            order.getStock().getName(), currentPrice));
+                        notification.put("stockName", order.getStock().getName());
+                        notification.put("stockTicker", order.getStock().getTicker());
+                        notification.put("executionPrice", currentPrice);
+                        notification.put("quantity", order.getQuantity());
+                        sessionManager.sendOrderNotification(order.getUser().getId(), notification);
+                    } catch (Exception e) {
+                        log.error("[예약매도알림전송실패-스케줄러] 사용자 ID: {}, 종목: {}, 오류: {}", 
+                            order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("예약 주문 체결 확인 중 오류 - 주문 ID: {}, 종목: {}, 오류: {}", 
+                    order.getId(), order.getStock().getName(), e.getMessage());
             }
         }
     }

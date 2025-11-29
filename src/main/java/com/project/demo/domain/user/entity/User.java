@@ -104,7 +104,7 @@ public class User extends TimeStamped {
         this.userRole = newRole;
         this.isDeleted = false;
         this.withdrawalAt = null;
-        this.balance = 10000000;
+        // balance는 기존 값 유지 (초기화하지 않음)
     }
 
     /*

@@ -23,6 +23,13 @@ public interface OrderService {
 
     public void executeReservedOrders();
 
+    /**
+     * 특정 종목의 예약 주문 체결 (이벤트 기반)
+     * @param ticker 종목 코드
+     * @param currentPrice 현재가
+     */
+    public void executeReservedOrdersForTicker(String ticker, int currentPrice);
+
     public OrderResponse cancelReservation(Long orderId);
 
     public List<OrderResponse> getMyAllOrders(Long userId);

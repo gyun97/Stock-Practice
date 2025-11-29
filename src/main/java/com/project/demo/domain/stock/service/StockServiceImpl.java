@@ -253,4 +253,19 @@ public class StockServiceImpl implements StockService {
             return 0;
         }
     }
+ 
+    /*
+    기업 개요 조회
+     */
+    @Override
+    public String getStockOutline(String ticker) {
+        return stockRepository.findByTicker(ticker)
+                .map(stock -> {
+                    String outline = stock.getOutline();
+                    log.info("기업 개요 조회 - ticker: {}, outline 존재: {}, outline 길이: {}", 
+                            ticker, outline != null, outline != null ? outline.length() : 0);
+                    return outline;
+                })
+                .orElse(null);
+    }
 }

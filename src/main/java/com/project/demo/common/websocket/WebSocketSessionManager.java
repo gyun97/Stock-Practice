@@ -126,13 +126,28 @@ public class WebSocketSessionManager {
      * 특정 사용자에게 주문 체결 알림 전송 (직접 STOMP 전송)
      */
     public void sendOrderNotification(Long userId, Object notification) {
-        // 사용자가 연결되어 있는지 확인 후 직접 STOMP로 전송
-        if (isUserConnected(userId) && messagingTemplate != null) {
-            String destination = "/topic/order/notifications/" + userId;
-            log.info("주문 알림 전송 - 사용자 ID: {}, 목적지: {}", userId, destination);
-            messagingTemplate.convertAndSend(destination, notification);
+        // MessagingTemplate이 없으면 전송 불가
+        if (messagingTemplate == null) {
+            log.warn("MessagingTemplate이 설정되지 않음 - 사용자 ID: {}", userId);
+            return;
+        }
+        
+        String destination = "/topic/order/notifications/" + userId;
+        
+        // 사용자가 연결되어 있는지 확인
+        boolean connected = isUserConnected(userId);
+        if (connected) {
+            log.info("주문 알림 전송 - 사용자 ID: {}, 목적지: {}, 연결 상태: 연결됨", userId, destination);
         } else {
-            log.debug("사용자 세션이 없거나 MessagingTemplate이 설정되지 않음 - 사용자 ID: {}", userId);
+            log.warn("주문 알림 전송 시도 - 사용자 ID: {}, 목적지: {}, 연결 상태: 연결 안됨 (알림은 전송되지만 사용자가 받지 못할 수 있음)", userId, destination);
+        }
+        
+        // 연결 여부와 관계없이 알림 전송 (사용자가 나중에 접속하면 받을 수 있도록)
+        try {
+            messagingTemplate.convertAndSend(destination, notification);
+            log.info("주문 알림 전송 완료 - 사용자 ID: {}, 목적지: {}", userId, destination);
+        } catch (Exception e) {
+            log.error("주문 알림 전송 실패 - 사용자 ID: {}, 목적지: {}, 오류: {}", userId, destination, e.getMessage(), e);
         }
     }
 

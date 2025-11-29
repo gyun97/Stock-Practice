@@ -26,6 +26,7 @@ CREATE TABLE `stocks` (
     `volume` BIGINT NULL DEFAULT 0,
     `created_at` DATETIME NOT NULL,
     `updated_at` DATETIME NOT NULL,
+    `outline` TEXT NULL,
     PRIMARY KEY (`stock_id`)
 );
 
@@ -47,7 +48,7 @@ CREATE TABLE `orders` (
     FOREIGN KEY (`stock_id`) REFERENCES `stocks`(`stock_id`)
 );
 
--- 4. executions (order_id 컬럼 추가됨)
+-- 4. executions
 CREATE TABLE `executions` (
     `execution_id` BIGINT NOT NULL AUTO_INCREMENT,
     `order_id` BIGINT NOT NULL,
@@ -67,7 +68,6 @@ CREATE TABLE `portfolios` (
     `user_id` BIGINT NOT NULL,
     `total_quantity` BIGINT NOT NULL,
     `total_asset` DOUBLE NOT NULL,
---    `return_rate` DOUBLE NOT NULL,
     `balance` BIGINT NOT NULL,
     `hold_count` INT Not NULL,
     `stock_asset` BIGINT NOT NULL,
