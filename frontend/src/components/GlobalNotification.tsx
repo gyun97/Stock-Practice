@@ -69,9 +69,12 @@ export default function GlobalNotification() {
         const subscriptionTopic = `/topic/order/notifications/${userId}`
         console.log('주문 알림 토픽 구독:', subscriptionTopic)
         client.subscribe(subscriptionTopic, (msg) => {
+          console.log('=== 주문 알림 WebSocket 메시지 수신 ===')
+          console.log('원본 메시지:', msg.body)
+          console.log('메시지 타입:', typeof msg.body)
           try {
             const notificationData = JSON.parse(msg.body)
-            console.log('전역 주문 알림 수신:', notificationData)
+            console.log('전역 주문 알림 수신 (파싱 성공):', notificationData)
             
             // 브라우저 알림 권한 상태 확인
             console.log('브라우저 알림 권한:', Notification.permission)

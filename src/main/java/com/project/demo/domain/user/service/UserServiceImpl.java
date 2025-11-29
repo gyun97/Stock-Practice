@@ -89,18 +89,22 @@ public class UserServiceImpl implements UserService {
         // 공통 토큰 발급 로직
         TokensResponse tokens = issueTokens(savedUser);
 
-        // 가입 유저의 초기 포토폴리오 생성
-        Portfolio newPortfolio = Portfolio.builder()
-                .balance(10000000)
-                .totalAsset(10000000)
-                .totalQuantity(0)
+        // 포트폴리오 처리: 탈퇴한 사용자 재가입 시 기존 포트폴리오 유지, 신규 사용자는 새로 생성
+        Portfolio portfolio = portfolioRepository.findByUser(savedUser).orElse(null);
+        if (portfolio == null) {
+            // 신규 유저의 초기 포트폴리오 생성
+            Portfolio newPortfolio = Portfolio.builder()
+                    .balance(10000000)
+                    .totalAsset(10000000)
+                    .totalQuantity(0)
 //                .avgReturnRate(0)
-                .holdCount(0)
-                .stockAsset(0)
-                .user(savedUser)
-                .build();
-
-        portfolioRepository.save(newPortfolio);
+                    .holdCount(0)
+                    .stockAsset(0)
+                    .user(savedUser)
+                    .build();
+            portfolioRepository.save(newPortfolio);
+        }
+        // 탈퇴한 사용자 재가입 시 기존 포트폴리오는 그대로 유지됨
 
         return LoginResponse.builder()
                 .accessToken(tokens.getAccessToken())

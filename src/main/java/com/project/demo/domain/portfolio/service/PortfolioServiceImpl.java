@@ -318,7 +318,7 @@ public class PortfolioServiceImpl implements PortfolioService{
     /*
     모든 사용자의 포트폴리오 수익률을 주기적으로 계산하고 실시간 발행 (Redis 캐싱 적용)
     */
-    @Scheduled(fixedDelay = 5000) // 5초마다 실행
+    @Scheduled(fixedDelay =5000) // 5초마다 실행
     public void updateAllPortfolioReturnRates() {
         long startTime = System.currentTimeMillis();
         int processedCount = 0;
