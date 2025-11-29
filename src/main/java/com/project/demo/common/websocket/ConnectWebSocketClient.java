@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.kis.AesDecryptUtil;
 import com.project.demo.common.util.MarketTime;
+import com.project.demo.domain.order.service.OrderService;
 import com.project.demo.domain.stock.repository.StockRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -24,16 +25,18 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private final StringRedisTemplate redisTemplate;
     private final StockRepository stockRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final OrderService orderService;
 
     private String iv;
     private String key;
 
-    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository, SimpMessagingTemplate messagingTemplate) throws Exception {
+    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService) throws Exception {
         super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
         this.stockRepository = stockRepository;
         this.messagingTemplate = messagingTemplate;
+        this.orderService = orderService;
     }
 
     /**
@@ -131,6 +134,13 @@ public class ConnectWebSocketClient extends WebSocketClient {
             messagingTemplate.convertAndSend("/topic/stocks", json);
 
             log.info("Redis 저장 & STOMP 직접 전송(WS) → {}", json);
+            
+            // 이벤트 기반 예약 주문 체결 (주가 업데이트 시 해당 종목의 예약 주문만 체크)
+            try {
+                orderService.executeReservedOrdersForTicker(ticker, price);
+            } catch (Exception e) {
+                log.error("예약 주문 체결 중 오류 발생 - 종목: {}, 현재가: {}, 오류: {}", ticker, price, e.getMessage(), e);
+            }
         }
     }
 

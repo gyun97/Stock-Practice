@@ -108,28 +108,6 @@ export default function MyPage() {
       ctx.fillStyle = colors[index % colors.length]
       ctx.fill()
       
-      // 텍스트 라벨 그리기 (비중이 3% 이상인 경우만)
-      if (percentage >= 3) {
-        const labelAngle = currentAngle + sliceAngle / 2
-        const labelRadius = (radius + innerRadius) / 2
-        const labelX = centerX + Math.cos(labelAngle) * labelRadius
-        const labelY = centerY + Math.sin(labelAngle) * labelRadius
-        
-        ctx.fillStyle = 'white'
-        ctx.font = 'bold 10px Arial'
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        
-        // 회사 이름 표시 (간단한 이름으로 축약)
-        const shortName = stock.companyName.length > 4 ? 
-          stock.companyName.substring(0, 4) : stock.companyName
-        ctx.fillText(shortName, labelX, labelY - 5)
-        
-        // 비중 표시
-        ctx.font = 'bold 8px Arial'
-        ctx.fillText(`${percentage.toFixed(1)}%`, labelX, labelY + 8)
-      }
-      
       currentAngle += sliceAngle
     })
 
@@ -416,11 +394,13 @@ export default function MyPage() {
         // 주문 알림 구독
         client.subscribe(`/topic/order/notifications/${userId}`, (msg) => {
           const raw = msg.body
-          console.log('주문 알림 WebSocket 메시지 수신:', raw)
+          console.log('=== 마이페이지 주문 알림 WebSocket 메시지 수신 ===')
+          console.log('원본 메시지:', raw)
+          console.log('메시지 타입:', typeof raw)
           
           try {
             const notificationData = JSON.parse(raw)
-            console.log('주문 알림 데이터:', notificationData)
+            console.log('주문 알림 데이터 (파싱 성공):', notificationData)
             
             // 알림 추가
             setNotifications(prev => {
@@ -434,11 +414,22 @@ export default function MyPage() {
             })
             
             // 브라우저 알림 (사용자가 페이지에 있을 때)
+            console.log('브라우저 알림 권한 상태:', Notification.permission)
             if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('주문 체결 알림', {
-                body: notificationData.message,
-                icon: '/favicon.ico'
-              })
+              console.log('브라우저 알림 생성 시도...')
+              try {
+                const notification = new Notification('주문 체결 알림', {
+                  body: notificationData.message,
+                  icon: '/favicon.ico'
+                })
+                console.log('브라우저 알림 생성 성공:', notification)
+                notification.onshow = () => console.log('브라우저 알림 표시됨')
+                notification.onerror = (e) => console.error('브라우저 알림 오류:', e)
+              } catch (e) {
+                console.error('브라우저 알림 생성 실패:', e)
+              }
+            } else {
+              console.warn('브라우저 알림 권한이 없음:', Notification.permission)
             }
           } catch (error) {
             console.error('주문 알림 파싱 오류:', error)
@@ -487,13 +478,23 @@ export default function MyPage() {
     e.preventDefault()
     setEditMessage('')
 
-    if (!editForm.newEmail || !editForm.newName) {
-      setEditMessage('모든 항목을 입력해 주세요.')
+    if (!userInfo) {
+      setEditMessage('로그인이 필요합니다.')
       return
     }
 
-    if (!userInfo) {
-      setEditMessage('로그인이 필요합니다.')
+    // 빈 값이면 null로 전송 (백엔드에서 기존 값 유지)
+    const requestBody: { newEmail?: string; newName?: string } = {}
+    if (editForm.newEmail && editForm.newEmail.trim() !== '') {
+      requestBody.newEmail = editForm.newEmail.trim()
+    }
+    if (editForm.newName && editForm.newName.trim() !== '') {
+      requestBody.newName = editForm.newName.trim()
+    }
+
+    // 둘 다 비어있으면 수정할 내용이 없음
+    if (Object.keys(requestBody).length === 0) {
+      setEditMessage('수정할 내용을 입력해주세요.')
       return
     }
 
@@ -504,10 +505,7 @@ export default function MyPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          newEmail: editForm.newEmail,
-          newName: editForm.newName
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (res.ok) {
@@ -576,19 +574,22 @@ export default function MyPage() {
       return
     }
 
-    const accessToken = localStorage.getItem('accessToken')
-    if (!accessToken) {
+    if (pwForm.currentPassword === pwForm.newPassword) {
+      setPwMessage('현재 비밀번호와 새 비밀번호가 동일합니다.')
+      return
+    }
+
+    if (!userInfo) {
       setPwMessage('로그인이 필요합니다.')
       return
     }
 
     try {
       setPwSubmitting(true)
-      const res = await fetch('/api/v1/users/password', {
+      const res = await tokenManager.authenticatedFetch('/api/v1/users/password', {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(pwForm)
       })
@@ -598,6 +599,7 @@ export default function MyPage() {
         setTimeout(() => {
           setPwModalOpen(false)
           setPwMessage('')
+          setPwForm({ currentPassword: '', newPassword: '', checkNewPassword: '' })
         }, 800)
       } else if (res.status === 400 || res.status === 401) {
         const text = await res.text()
@@ -606,7 +608,16 @@ export default function MyPage() {
         setPwMessage(`비밀번호 변경 실패 (상태 코드: ${res.status})`)
       }
     } catch (err) {
-      setPwMessage('네트워크 오류가 발생했습니다.')
+      console.error('비밀번호 변경 오류:', err)
+      if (err instanceof Error && err.message.includes('토큰 갱신')) {
+        setPwMessage('로그인이 만료되었습니다. 다시 로그인해주세요.')
+        tokenManager.clearTokens()
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 2000)
+      } else {
+        setPwMessage('네트워크 오류가 발생했습니다.')
+      }
     } finally {
       setPwSubmitting(false)
     }
@@ -615,33 +626,25 @@ export default function MyPage() {
   const handleDeleteAccount = async () => {
     setDeleteMessage('')
 
-    const accessToken = localStorage.getItem('accessToken')
-    const userInfo = localStorage.getItem('userInfo')
-    
-    if (!accessToken || !userInfo) {
+    if (!userInfo) {
       setDeleteMessage('로그인이 필요합니다.')
       return
     }
 
     try {
       setDeleteSubmitting(true)
-      const parsedUserInfo = JSON.parse(userInfo)
-      const res = await fetch(`/api/v1/users/${parsedUserInfo.userId}`, {
+      const res = await tokenManager.authenticatedFetch(`/api/v1/users/${userInfo.userId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Content-Type': 'application/json'
         }
       })
 
       if (res.ok) {
         setDeleteMessage('회원탈퇴가 완료되었습니다.')
         // 자동 로그아웃
+        tokenManager.clearTokens()
         setTimeout(() => {
-          localStorage.removeItem('userInfo')
-          localStorage.removeItem('accessToken')
-          localStorage.removeItem('refreshToken')
-          localStorage.removeItem('loginMethod')
           window.location.href = '/'
         }, 1500)
       } else if (res.status === 400 || res.status === 401) {
@@ -651,7 +654,16 @@ export default function MyPage() {
         setDeleteMessage(`회원탈퇴 실패 (상태 코드: ${res.status})`)
       }
     } catch (err) {
-      setDeleteMessage('네트워크 오류가 발생했습니다.')
+      console.error('회원탈퇴 오류:', err)
+      if (err instanceof Error && err.message.includes('토큰 갱신')) {
+        setDeleteMessage('로그인이 만료되었습니다. 다시 로그인해주세요.')
+        tokenManager.clearTokens()
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 2000)
+      } else {
+        setDeleteMessage('네트워크 오류가 발생했습니다.')
+      }
     } finally {
       setDeleteSubmitting(false)
     }
@@ -1084,24 +1096,91 @@ export default function MyPage() {
             </h2>
             
             {/* 주식 비중 도넛 그래프 */}
-            {userStocks.length > 0 && (
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                marginBottom: 20,
-                padding: '20px 0',
-                borderBottom: '1px solid #e5e7eb'
-              }}>
-                <canvas 
-                  ref={canvasRef}
-                  style={{
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 8,
-                    background: 'white'
-                  }}
-                />
-              </div>
-            )}
+            {userStocks.length > 0 && (() => {
+              const colors = [
+                '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+                '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+              ]
+              const totalStockAsset = userStocks.reduce((sum, stock) => sum + stock.currentAsset, 0)
+              
+              // 범례용 데이터 준비 (그래프와 동일한 순서와 색상)
+              const legendData = userStocks
+                .map((stock, index) => {
+                  const percentage = totalStockAsset > 0 ? (stock.currentAsset / totalStockAsset) * 100 : 0
+                  return { stock, percentage, originalIndex: index }
+                })
+                .filter(item => item.percentage >= 1) // 1% 이상만 표시
+                .sort((a, b) => b.percentage - a.percentage) // 비중 순으로 정렬
+              
+              return (
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap',
+                  gap: 24,
+                  justifyContent: 'center', 
+                  alignItems: 'flex-start',
+                  marginBottom: 20,
+                  padding: '20px 0',
+                  borderBottom: '1px solid #e5e7eb'
+                }}>
+                  <canvas 
+                    ref={canvasRef}
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 8,
+                      background: 'white'
+                    }}
+                  />
+                  
+                  {/* 범례 */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    minWidth: 200,
+                    maxWidth: 300
+                  }}>
+                    <div style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#374151',
+                      marginBottom: 4
+                    }}>
+                      종목별 비중
+                    </div>
+                    {legendData.map(({ stock, percentage, originalIndex }) => (
+                      <div key={`${stock.ticker}-${originalIndex}`} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 0'
+                      }}>
+                        <div style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 4,
+                          backgroundColor: colors[originalIndex % colors.length],
+                          flexShrink: 0
+                        }} />
+                        <div style={{
+                          flex: 1,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: 13,
+                          color: '#374151'
+                        }}>
+                          <span style={{ fontWeight: 500 }}>{stock.companyName}</span>
+                          <span style={{ color: '#6b7280', marginLeft: 8 }}>
+                            {percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
             
             {userStocks.length > 0 ? (
               <div style={{ overflowX: 'auto' }}>
@@ -1438,27 +1517,25 @@ export default function MyPage() {
             <form onSubmit={submitUserInfoUpdate}>
               <div style={{ display: 'grid', gap: 12 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>이메일</label>
+                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>이메일 (선택)</label>
                   <input
                     type="email"
                     name="newEmail"
                     value={editForm.newEmail}
                     onChange={handleEditChange}
                     style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                    placeholder="이메일"
-                    required
+                    placeholder="이메일 (변경하지 않으려면 비워두세요)"
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>닉네임</label>
+                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>닉네임 (선택)</label>
                   <input
                     type="text"
                     name="newName"
                     value={editForm.newName}
                     onChange={handleEditChange}
                     style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                    placeholder="닉네임"
-                    required
+                    placeholder="닉네임 (변경하지 않으려면 비워두세요)"
                   />
                 </div>
               </div>
@@ -1503,13 +1580,8 @@ export default function MyPage() {
             )}
 
             <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: '0 0 12px 0', fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
                 정말로 회원탈퇴를 하시겠습니까?
-              </p>
-              <p style={{ margin: 0, fontSize: 13, color: '#6b7280', lineHeight: 1.4 }}>
-                • 탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.<br/>
-                • 보유 중인 주식과 잔액이 모두 삭제됩니다.<br/>
-                • 주문 내역과 거래 기록이 모두 삭제됩니다.
               </p>
             </div>
 
