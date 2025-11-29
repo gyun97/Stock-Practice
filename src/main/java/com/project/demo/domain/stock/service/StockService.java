@@ -20,4 +20,9 @@ public interface StockService {
      */
     int getCurrentPrice(String ticker);
 
+    /**
+     * 기업 개요 조회
+     */
+    String getStockOutline(String ticker);
+
 }

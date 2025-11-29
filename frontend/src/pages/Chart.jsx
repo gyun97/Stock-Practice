@@ -13,6 +13,7 @@ export default function Chart() {
   const [logoUrl, setLogoUrl] = useState('')
   const [currentStockId, setCurrentStockId] = useState(null)
   const [currentPrice, setCurrentPrice] = useState(null)
+  const [outline, setOutline] = useState('')
   const [orderTab, setOrderTab] = useState('market') // 'market' | 'reserve'
   const [qty, setQty] = useState(1)
   const [reserveQty, setReserveQty] = useState(1)
@@ -104,6 +105,30 @@ export default function Chart() {
             })
           }
         }
+      }
+      
+      // 기업 개요 로드
+      try {
+        const outlineResponse = await fetch(`/api/v1/stocks/${ticker}/outline`)
+        if (outlineResponse.ok) {
+          const outlineResult = await outlineResponse.json()
+          console.log('기업 개요 응답:', outlineResult)
+          console.log('기업 개요 data:', outlineResult.data)
+          console.log('기업 개요 data 타입:', typeof outlineResult.data)
+          // null이거나 undefined가 아니고, 빈 문자열이 아닐 때만 설정
+          if (outlineResult.data !== null && outlineResult.data !== undefined && outlineResult.data.trim() !== '') {
+            setOutline(outlineResult.data)
+          } else {
+            console.log('기업 개요 데이터가 없습니다. (null 또는 빈 문자열)')
+            setOutline('')
+          }
+        } else {
+          console.log('기업 개요 API 호출 실패:', outlineResponse.status)
+          setOutline('')
+        }
+      } catch (error) {
+        console.error('기업 개요 로드 실패:', error)
+        setOutline('')
       }
     } catch (error) {
       console.error('회사 정보 로드 실패:', error)
@@ -910,7 +935,46 @@ export default function Chart() {
           </div>
         </div>
 
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#ffffff', padding: 16, position: 'sticky', top: 16 }}>
+        {/* 우측 패널: 기업 개요 + 매수/매도 */}
+        <div style={{ position: 'sticky', top: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* 기업 개요 UI */}
+          <div style={{ 
+            border: '1px solid #e5e7eb', 
+            borderRadius: 8, 
+            background: '#ffffff',
+            padding: 16
+          }}>
+            <div style={{ 
+              fontSize: 16, 
+              fontWeight: 600, 
+              color: '#374151', 
+              marginBottom: 12 
+            }}>
+              기업 개요
+            </div>
+            {outline && outline.trim() !== '' ? (
+              <div style={{ 
+                fontSize: 14, 
+                color: '#111827', 
+                lineHeight: 1.7
+              }}>
+                {outline}
+              </div>
+            ) : (
+              <div style={{ 
+                fontSize: 14, 
+                color: '#9ca3af', 
+                textAlign: 'center',
+                fontStyle: 'italic',
+                padding: '20px 0'
+              }}>
+                기업 개요 정보가 없습니다.
+              </div>
+            )}
+          </div>
+          
+          {/* 매수/매도 창 */}
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#ffffff', padding: 16 }}>
           {!isLoggedIn ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div style={{ fontSize: 16, color: '#666', marginBottom: 16 }}>
@@ -984,6 +1048,7 @@ export default function Chart() {
               )}
             </>
           )}
+          </div>
         </div>
       </div>
     </div>
