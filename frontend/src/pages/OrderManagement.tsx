@@ -55,12 +55,12 @@ export default function OrderManagement() {
       if (response.ok) {
         const result = await response.json()
         const ordersData = result.data || []
-        
+
         // 디버깅: 주문 데이터 로그 출력
         console.log('전체 주문 데이터:', ordersData)
-        console.log('예약 주문:', ordersData.filter(order => order.reserved))
-        console.log('일반 주문:', ordersData.filter(order => !order.reserved))
-        
+        console.log('예약 주문:', ordersData.filter((order: Order) => order.reserved))
+        console.log('일반 주문:', ordersData.filter((order: Order) => !order.reserved))
+
         setOrders(ordersData)
       } else if (response.status === 401) {
         setError('로그인이 만료되었습니다. 다시 로그인해주세요.')
@@ -134,20 +134,20 @@ export default function OrderManagement() {
 
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         background: '#f8fafc'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: 40, 
-            height: 40, 
-            border: '4px solid #e5e7eb', 
-            borderTop: '4px solid #2962FF', 
-            borderRadius: '50%', 
+          <div style={{
+            width: 40,
+            height: 40,
+            border: '4px solid #e5e7eb',
+            borderTop: '4px solid #2962FF',
+            borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto 16px'
           }}></div>
@@ -165,10 +165,10 @@ export default function OrderManagement() {
 
   if (error) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         background: '#f8fafc'
       }}>
@@ -193,10 +193,10 @@ export default function OrderManagement() {
           }}>
             {error}
           </div>
-          
+
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               style={{
                 padding: '12px 24px',
                 background: '#2962FF',
@@ -210,7 +210,7 @@ export default function OrderManagement() {
             >
               로그인하러 가기
             </Link>
-            
+
             <button
               onClick={() => window.location.reload()}
               style={{
@@ -236,46 +236,46 @@ export default function OrderManagement() {
   const normalOrders = orders.filter(order => !order.reserved)
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       background: '#f8fafc',
       padding: '20px 0'
     }}>
-      <div style={{ 
-        maxWidth: 1000, 
-        margin: '0 auto', 
-        padding: '0 16px' 
+      <div style={{
+        maxWidth: 1000,
+        margin: '0 auto',
+        padding: '0 16px'
       }}>
         {/* 헤더 */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: 32 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 32
         }}>
           <div>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: 28, 
-              fontWeight: 'bold', 
-              color: '#1f2937' 
+            <h1 style={{
+              margin: 0,
+              fontSize: 28,
+              fontWeight: 'bold',
+              color: '#1f2937'
             }}>
               주문 관리
             </h1>
-            <p style={{ 
-              margin: '8px 0 0 0', 
-              fontSize: 14, 
-              color: '#6b7280' 
+            <p style={{
+              margin: '8px 0 0 0',
+              fontSize: 14,
+              color: '#6b7280'
             }}>
               내 주문 내역 조회 및 예약 주문 취소
             </p>
           </div>
-          <Link 
-            to="/mypage" 
-            style={{ 
-              color: '#6b7280', 
-              textDecoration: 'none', 
-              fontSize: 14 
+          <Link
+            to="/mypage"
+            style={{
+              color: '#6b7280',
+              textDecoration: 'none',
+              fontSize: 14
             }}
           >
             ← 마이페이지로 돌아가기
@@ -305,15 +305,15 @@ export default function OrderManagement() {
           padding: 24,
           marginBottom: 24
         }}>
-          <h2 style={{ 
-            margin: '0 0 20px 0', 
-            fontSize: 20, 
-            fontWeight: '600', 
-            color: '#1f2937' 
+          <h2 style={{
+            margin: '0 0 20px 0',
+            fontSize: 20,
+            fontWeight: '600',
+            color: '#1f2937'
           }}>
             예약 주문 내역 ({reservedOrders.length}건)
           </h2>
-          
+
           {reservedOrders.length === 0 ? (
             <div style={{
               textAlign: 'center',
@@ -325,17 +325,17 @@ export default function OrderManagement() {
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ 
-                width: '100%', 
+              <table style={{
+                width: '100%',
                 borderCollapse: 'collapse',
                 fontSize: 14
               }}>
                 <thead>
-                  <tr style={{ 
+                  <tr style={{
                     background: '#f8fafc',
                     borderBottom: '2px solid #e5e7eb'
                   }}>
-                    
+
                     <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>종목</th>
                     <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>구분</th>
                     <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>수량</th>
@@ -343,14 +343,13 @@ export default function OrderManagement() {
                     <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>총 금액</th>
                     <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: '600', color: '#374151' }}>상태</th>
                     <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>주문일시</th>
-                            <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: '600', color: '#374151' }}>주문 취소</th>
+                    <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: '600', color: '#374151' }}>주문 취소</th>
                   </tr>
                 </thead>
                 <tbody>
                   {reservedOrders.map(order => (
-                    <tr key={order.orderId} style={{ 
-                      borderBottom: '1px solid #f1f5f9',
-                      '&:hover': { background: '#f8fafc' }
+                    <tr key={order.orderId} style={{
+                      borderBottom: '1px solid #f1f5f9'
                     }}>
                       <td style={{ padding: '12px 8px', fontWeight: '500' }}>{order.stockName}</td>
                       <td style={{ padding: '12px 8px' }}>
@@ -360,9 +359,9 @@ export default function OrderManagement() {
                           fontSize: 12,
                           fontWeight: '500',
                           background: order.orderType === 'BUY' ? '#dbeafe' : '#fef2f2',
-                                  color: order.orderType === 'BUY' ? '#1e40af' : '#dc2626'
-                                }}>
-                                  {order.orderType === 'BUY' ? '매수' : '매도'}
+                          color: order.orderType === 'BUY' ? '#1e40af' : '#dc2626'
+                        }}>
+                          {order.orderType === 'BUY' ? '매수' : '매도'}
                         </span>
                       </td>
                       <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
@@ -425,15 +424,15 @@ export default function OrderManagement() {
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           padding: 24
         }}>
-          <h2 style={{ 
-            margin: '0 0 20px 0', 
-            fontSize: 20, 
-            fontWeight: '600', 
-            color: '#1f2937' 
+          <h2 style={{
+            margin: '0 0 20px 0',
+            fontSize: 20,
+            fontWeight: '600',
+            color: '#1f2937'
           }}>
             일반 주문 내역 ({normalOrders.length}건)
           </h2>
-          
+
           {normalOrders.length === 0 ? (
             <div style={{
               textAlign: 'center',
@@ -445,17 +444,17 @@ export default function OrderManagement() {
             </div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ 
-                width: '100%', 
+              <table style={{
+                width: '100%',
                 borderCollapse: 'collapse',
                 fontSize: 14
               }}>
                 <thead>
-                  <tr style={{ 
+                  <tr style={{
                     background: '#f8fafc',
                     borderBottom: '2px solid #e5e7eb'
                   }}>
-                    
+
                     <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>종목</th>
                     <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>구분</th>
                     <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>수량</th>
@@ -467,7 +466,7 @@ export default function OrderManagement() {
                 </thead>
                 <tbody>
                   {normalOrders.map(order => (
-                    <tr key={order.orderId} style={{ 
+                    <tr key={order.orderId} style={{
                       borderBottom: '1px solid #f1f5f9'
                     }}>
                       <td style={{ padding: '12px 8px', fontWeight: '500' }}>{order.stockName}</td>
@@ -478,9 +477,9 @@ export default function OrderManagement() {
                           fontSize: 12,
                           fontWeight: '500',
                           background: order.orderType === 'BUY' ? '#dbeafe' : '#fef2f2',
-                                  color: order.orderType === 'BUY' ? '#1e40af' : '#dc2626'
-                                }}>
-                                  {order.orderType === 'BUY' ? '매수' : '매도'}
+                          color: order.orderType === 'BUY' ? '#1e40af' : '#dc2626'
+                        }}>
+                          {order.orderType === 'BUY' ? '매수' : '매도'}
                         </span>
                       </td>
                       <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
