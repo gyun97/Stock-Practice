@@ -1,6 +1,14 @@
 # 프로덕션 환경 설정
 # HTTPS를 사용하는 환경에서 사용
 
+kis:
+  app:
+    key: ${KIS_APP_KEY}
+    secret: ${KIS_APP_SECRET}
+  domain:
+    real: ${REAL_BASE_URL}
+    virtual: ${VIRTUAL_BASE_URL}
+
 jwt:
   secret:
     key: ${JWT_SECRET_KEY}
