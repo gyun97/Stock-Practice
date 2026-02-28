@@ -63,8 +63,7 @@ public class SecurityConfig {
                                 "/api/v1/users/reissue", // 토큰 재발급 API (쿠키 기반 인증)
                                 "/oauth2/authorization/**", // OAuth2 인증 경로
                                 "/login/oauth2/code/**", // OAuth2 콜백 경로
-                                "/actuator/prometheus",
-                                "/actuator/health",
+                                "/actuator/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/api/v1/stocks/**",
