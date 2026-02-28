@@ -103,6 +103,17 @@ services:
       - "${REDIS_SENTINEL_PORT3}:26379"
 
   # -----------------
+  # Frontend (Nginx Proxy)
+  # -----------------
+  frontend:
+    image: ${DOCKER_USERNAME}/stock-frontend:latest
+    container_name: stock-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+
+  # -----------------
   # Spring Boot App (운영 환경용 이미지 기반)
   # -----------------
   app:
@@ -119,4 +130,4 @@ services:
         condition: service_started
     #    restart: always
     ports:
-      - "80:80"
+      - "8080:8080"
