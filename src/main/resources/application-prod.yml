@@ -15,12 +15,13 @@ jwt:
   
 # 쿠키 보안 설정
 cookie:
-  secure: true  # HTTPS에서는 true로 설정
+  secure: false  # HTTP(80포트) 환경에서는 false로 설정 (HTTPS 전환 시 true)
   domain: ${COOKIE_DOMAIN:}  # 실제 도메인 설정 (예: .example.com), 비어있으면 IP 주소 기반 동작
 
 
 server:
   port: 8080
+  forward-headers-strategy: native  # Nginx의 X-Forwarded-* 헤더를 신뢰하여 올바른 Redirect URI 생성
 #  ssl:
 #    enabled: true
 
