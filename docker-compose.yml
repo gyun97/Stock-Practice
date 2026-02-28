@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+
+  # -----------------
+  # MySQL
+  # -----------------
+  mysql:
+    image: mysql:8
+    container_name: stock-mysql
+    environment:
+#      MYSQL_USER: "${MYSQL_NAME}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # -----------------
+  # Redis Master
+  # -----------------
+  redis_master:
+    image: bitnami/redis
+    container_name: redis-master
+    hostname: redis-master
+    environment:
+      - REDIS_REPLICATION_MODE=master
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - "${REDIS_PORT}:6379"
+
+  # -----------------
+  # Redis Replica
+  # -----------------
+  redis_replica1:
+    image: bitnami/redis
+    container_name: redis-replicas-1
+    hostname: redis-replicas-1
+    environment:
+      - REDIS_REPLICATION_MODE=slave
+      - REDIS_MASTER_HOST=redis-master
+      - ALLOW_EMPTY_PASSWORD=yes
+    depends_on:
+      - redis_master
+    ports:
+      - "${REDIS_REPLICA_PORT1}:6379"
+
+  # -----------------
+  # Redis Sentinel 1
+  # -----------------
+  redis-sentinel-1:
+    image: bitnami/redis-sentinel:latest
+    container_name: sentinel1
+    environment:
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
+    depends_on:
+      - redis_master
+      - redis_replica1
+    ports:
+      - "${REDIS_SENTINEL_PORT1}:26379"
+
+  # -----------------
+  # Redis Sentinel 2
+  # -----------------
+  redis-sentinel-2:
+    image: bitnami/redis-sentinel:latest
+    container_name: sentinel2
+    environment:
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
+    depends_on:
+      - redis_master
+      - redis_replica1
+    ports:
+      - "${REDIS_SENTINEL_PORT2}:26379"
+
+  # -----------------
+  # Redis Sentinel 3
+  # -----------------
+  redis-sentinel-3:
+    image: bitnami/redis-sentinel:latest
+    container_name: sentinel3
+    environment:
+      - REDIS_MASTER_HOST=redis-master
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_SENTINEL_QUORUM=2
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=10000
+    depends_on:
+      - redis_master
+      - redis_replica1
+    ports:
+      - "${REDIS_SENTINEL_PORT3}:26379"
+
+  # -----------------
+  # Spring Boot App
+  # -----------------
+  app:
+#    entrypoint: [ "sh", "-c" ]
+#    command: "sleep 300"
+    env_file:
+      - .env
+    build: .
+    container_name: stock-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis_master:
+        condition: service_started
+      redis-sentinel-1:
+        condition: service_started
+#    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stock
+#      SPRING_DATASOURCE_URL: jdbc:mysql://stock-mysql:3306/stock?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+#      MYSQL_HOST: mysql
+#      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+#      MYSQL_NAME: "${MYSQL_NAME}"
+#      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    ports:
+      - "8080:8080"
