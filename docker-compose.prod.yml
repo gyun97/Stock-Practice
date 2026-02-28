@@ -13,6 +13,8 @@ services:
       MYSQL_DATABASE: "${MYSQL_DATABASE}"
     ports:
       - "3306:3306"
+    volumes:
+      - ./mysql_data:/var/lib/mysql
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       interval: 5s
@@ -29,6 +31,8 @@ services:
     environment:
       - REDIS_REPLICATION_MODE=master
       - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - ./redis_data:/bitnami/redis/data
     ports:
       - "${REDIS_PORT}:6379"
 
