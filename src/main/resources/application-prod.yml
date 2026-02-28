@@ -15,7 +15,7 @@ jwt:
   
 # 쿠키 보안 설정
 cookie:
-  secure: false  # HTTP(80포트) 환경에서는 false로 설정 (HTTPS 전환 시 true)
+  secure: true  # HTTPS 환경에서는 true로 설정
   domain: ${COOKIE_DOMAIN:}  # 실제 도메인 설정 (예: .example.com), 비어있으면 IP 주소 기반 동작
 
 
