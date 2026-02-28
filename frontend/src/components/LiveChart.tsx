@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { createChart, ISeriesApi, LineData, Time } from 'lightweight-charts'
+import { createChart, ISeriesApi, LineData, Time, LineSeries } from 'lightweight-charts'
 
 // 컴포넌트에 전달되는 props 타입 정의
 type Props = {
@@ -12,7 +12,7 @@ type Props = {
 export default function LiveChart({ lastPrice, lastTime, seed }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)   // 차트를 붙일 DOM 요소
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null)  // 라인 시리즈 객체 참조
-  const chartRef = useRef<any>(null)                         // 전체 차트 객체 참조
+  const chartRef = useRef<ReturnType<typeof createChart> | null>(null) // 전체 차트 객체 참조
 
   // 마운트 시 차트 생성
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function LiveChart({ lastPrice, lastTime, seed }: Props) {
     })
 
     // 라인 시리즈 추가 (실제 주가 라인)
-    const line = c.addLineSeries({
+    const line = c.addSeries(LineSeries, {
       color: '#3b82f6',                    // 선 색상 (파란색)
       lineWidth: 2,                        // 선 굵기
       priceLineVisible: true,              // 마지막 가격 라인 표시
