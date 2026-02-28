@@ -119,4 +119,4 @@ services:
         condition: service_started
     #    restart: always
     ports:
-      - "80:8080"
+      - "80:80"
