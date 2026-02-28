@@ -23,19 +23,35 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew clean build -x test
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Backend Docker Image
         uses: docker/build-push-action@v4
         with:
           context: .
           file: ./dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/stock-app:latest
+
+      - name: Build and Push Frontend Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/stock-frontend:latest
 
   deploy:
     needs: build-and-push
@@ -59,12 +75,11 @@ jobs:
             
             # 4. 최신 도커 이미지 Pull
             docker pull ${{ secrets.DOCKER_USERNAME }}/stock-app:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/stock-frontend:latest
             
-            # 5. 기존 컨테이너 내리기
-            docker compose -f docker-compose.prod.yml down app
+            # 5. 기존 서비스 중지 및 재시작 (새 이미지 반영)
+            docker compose --env-file .env.prod -f docker-compose.prod.yml down
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
             
-            # 6. 새 이미지 기반 컨테이너로 백그라운드 재실행
-            docker compose -f docker-compose.prod.yml up -d app
-            
-            # 7. 사용하지 않는 불필요한 도커 이미지들 정리 (디스크 공간 확보용)
-            docker image prune -f
+            # 6. 사용하지 않는 불필요한 도커 이미지들 정리 (디스크 공간 확보용)
+            docker image prune -af
