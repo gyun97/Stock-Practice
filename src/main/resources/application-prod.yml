@@ -20,7 +20,7 @@ cookie:
 
 
 server:
-  port: 8080
+  port: 80
 #  ssl:
 #    enabled: true
 
