@@ -21,7 +21,7 @@ cookie:
 
 server:
   port: 8080
-  forward-headers-strategy: native  # Nginx의 X-Forwarded-* 헤더를 신뢰하여 올바른 Redirect URI 생성
+  forward-headers-strategy: framework  # 'native'보다 'framework'가 필터 기반으로 동작하여 더 안정적임
 #  ssl:
 #    enabled: true
 
