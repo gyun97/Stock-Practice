@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Server via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
@@ -56,15 +56,16 @@ jobs:
             
             # 3. 배포 환경용 .env.prod 파일 생성 (GitHub Secrets에서 가져옴)
             echo "${{ secrets.ENV_PROD }}" > .env.prod
+            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env.prod
             
             # 4. 최신 도커 이미지 Pull
             docker pull ${{ secrets.DOCKER_USERNAME }}/stock-app:latest
             
             # 5. 기존 컨테이너 내리기
-            docker compose -f docker-compose.prod.yml down app
+            docker-compose --env-file .env.prod -f docker-compose.prod.yml down
             
             # 6. 새 이미지 기반 컨테이너로 백그라운드 재실행
-            docker compose -f docker-compose.prod.yml up -d app
+            docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d
             
             # 7. 사용하지 않는 불필요한 도커 이미지들 정리 (디스크 공간 확보용)
             docker image prune -f
