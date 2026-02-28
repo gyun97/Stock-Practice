@@ -8,7 +8,7 @@ jwt:
 # 쿠키 보안 설정
 cookie:
   secure: true  # HTTPS에서는 true로 설정
-  domain: ${COOKIE_DOMAIN}  # 실제 도메인 설정 (예: .example.com)
+  domain: ${COOKIE_DOMAIN:}  # 실제 도메인 설정 (예: .example.com), 비어있으면 IP 주소 기반 동작
 
 
 server:
