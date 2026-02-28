@@ -54,14 +54,17 @@ jobs:
             # 2. 최신 코드 레포지토리 가져오기
             git pull origin main
             
-            # 3. 최신 도커 이미지 Pull
+            # 3. 배포 환경용 .env.prod 파일 생성 (GitHub Secrets에서 가져옴)
+            echo "${{ secrets.ENV_PROD }}" > .env.prod
+            
+            # 4. 최신 도커 이미지 Pull
             docker pull ${{ secrets.DOCKER_USERNAME }}/stock-app:latest
             
-            # 4. 기존 컨테이너 내리기
+            # 5. 기존 컨테이너 내리기
             docker compose -f docker-compose.prod.yml down app
             
-            # 5. 새 이미지 기반 컨테이너로 백그라운드 재실행
+            # 6. 새 이미지 기반 컨테이너로 백그라운드 재실행
             docker compose -f docker-compose.prod.yml up -d app
             
-            # 6. 사용하지 않는 불필요한 도커 이미지들 정리 (디스크 공간 확보용)
+            # 7. 사용하지 않는 불필요한 도커 이미지들 정리 (디스크 공간 확보용)
             docker image prune -f
