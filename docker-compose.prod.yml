@@ -118,7 +118,5 @@ services:
       redis-sentinel-1:
         condition: service_started
     #    restart: always
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stock
     ports:
       - "8080:8080"
