@@ -9,6 +9,7 @@ export default function SignUp() {
     confirmPassword: '',
     name: ''
   })
+  const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -41,6 +42,12 @@ export default function SignUp() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!agreed) {
+      setError('이용약관 및 개인정보 처리방침에 동의해주세요.')
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -62,7 +69,7 @@ export default function SignUp() {
     const hasLetter = /[a-zA-Z]/.test(formData.password)
     const hasNumber = /[0-9]/.test(formData.password)
     const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password)
-    
+
     if (!hasLetter || !hasNumber || !hasSpecial) {
       setError('비밀번호는 알파벳, 숫자, 특수문자를 각각 하나씩 포함해야 합니다.')
       setLoading(false)
@@ -82,54 +89,54 @@ export default function SignUp() {
         }),
       })
 
-              if (response.ok || response.status === 302 || response.status === 201) {
-                // 성공 응답 (200) 또는 리다이렉트 응답 (302) 모두 성공으로 처리
-                console.log('회원가입 성공:', response.status)
-                
-                // 회원가입 성공 시 자동 로그인 처리
-                try {
-                  const result = await response.json()
-                  console.log('회원가입 응답:', result)
+      if (response.ok || response.status === 302 || response.status === 201) {
+        // 성공 응답 (200) 또는 리다이렉트 응답 (302) 모두 성공으로 처리
+        console.log('회원가입 성공:', response.status)
 
-                  const data = result?.data ?? result
-                  const accessToken = data?.accessToken ?? result?.accessToken
+        // 회원가입 성공 시 자동 로그인 처리
+        try {
+          const result = await response.json()
+          console.log('회원가입 응답:', result)
 
-                  if (accessToken) {
-                    // localStorage에 남아있는 기존 토큰 제거
-                    localStorage.removeItem('accessToken')
-                    tokenManager.setTokens(accessToken)
+          const data = result?.data ?? result
+          const accessToken = data?.accessToken ?? result?.accessToken
 
-                    // JWT에서 사용자 정보 복원
-                    const payload = decodeJwtPayload(accessToken)
-                    if (payload) {
-                      const userInfo = {
-                        userId: String(payload.sub ?? data?.userId ?? ''),
-                        email: String(payload.email ?? data?.email ?? ''),
-                        name: String(payload.name ?? data?.name ?? '')
-                      }
-                      localStorage.setItem('userInfo', JSON.stringify(userInfo))
-                    } else if (data?.email || data?.name) {
-                      const fallback = { userId: String(data?.userId ?? ''), email: data?.email ?? '', name: data?.name ?? '' }
-                      localStorage.setItem('userInfo', JSON.stringify(fallback))
-                    }
+          if (accessToken) {
+            // localStorage에 남아있는 기존 토큰 제거
+            localStorage.removeItem('accessToken')
+            tokenManager.setTokens(accessToken)
 
-                    // 일반 로그인으로 표시
-                    localStorage.setItem('loginMethod', 'local')
-                    // 메인 페이지로 이동
-                    navigate('/')
-                  } else {
-                    // 토큰이 없으면 로그인 페이지로 유도
-                    setSuccess(true)
-                    setTimeout(() => { navigate('/login') }, 1500)
-                  }
-                } catch (parseError) {
-                  console.error('응답 파싱 오류:', parseError)
-                  // 파싱 실패 시 로그인 페이지로 이동
-                  setSuccess(true)
-                  setTimeout(() => {
-                    navigate('/login')
-                  }, 1500)
-                }
+            // JWT에서 사용자 정보 복원
+            const payload = decodeJwtPayload(accessToken)
+            if (payload) {
+              const userInfo = {
+                userId: String(payload.sub ?? data?.userId ?? ''),
+                email: String(payload.email ?? data?.email ?? ''),
+                name: String(payload.name ?? data?.name ?? '')
+              }
+              localStorage.setItem('userInfo', JSON.stringify(userInfo))
+            } else if (data?.email || data?.name) {
+              const fallback = { userId: String(data?.userId ?? ''), email: data?.email ?? '', name: data?.name ?? '' }
+              localStorage.setItem('userInfo', JSON.stringify(fallback))
+            }
+
+            // 일반 로그인으로 표시
+            localStorage.setItem('loginMethod', 'local')
+            // 메인 페이지로 이동
+            navigate('/')
+          } else {
+            // 토큰이 없으면 로그인 페이지로 유도
+            setSuccess(true)
+            setTimeout(() => { navigate('/login') }, 1500)
+          }
+        } catch (parseError) {
+          console.error('응답 파싱 오류:', parseError)
+          // 파싱 실패 시 로그인 페이지로 이동
+          setSuccess(true)
+          setTimeout(() => {
+            navigate('/login')
+          }, 1500)
+        }
       } else {
         // 에러 응답인 경우에만 JSON 파싱 시도
         try {
@@ -149,10 +156,10 @@ export default function SignUp() {
 
   if (success) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         background: '#f8fafc'
       }}>
@@ -167,25 +174,25 @@ export default function SignUp() {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: 24, 
-            fontWeight: 'bold', 
+          <h1 style={{
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 'bold',
             color: '#059669',
             marginBottom: 8
           }}>
             회원가입 완료!
           </h1>
-          <p style={{ 
-            margin: 0, 
-            color: '#6b7280', 
+          <p style={{
+            margin: 0,
+            color: '#6b7280',
             fontSize: 14,
             marginBottom: 16
           }}>
             로그인 페이지로 이동합니다...
           </p>
-          <Link 
-            to="/login" 
+          <Link
+            to="/login"
             style={{
               display: 'inline-block',
               padding: '8px 16px',
@@ -205,10 +212,10 @@ export default function SignUp() {
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: 'center',
       background: '#f8fafc'
     }}>
@@ -223,19 +230,19 @@ export default function SignUp() {
       }}>
         {/* 헤더 */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: 28, 
-            fontWeight: 'bold', 
+          <h1 style={{
+            margin: 0,
+            fontSize: 28,
+            fontWeight: 'bold',
             color: '#1f2937',
             marginBottom: 8
           }}>
             회원가입
           </h1>
-          <p style={{ 
-            margin: 0, 
-            color: '#6b7280', 
-            fontSize: 14 
+          <p style={{
+            margin: 0,
+            color: '#6b7280',
+            fontSize: 14
           }}>
             새로운 계정을 만들어 주식 정보를 확인하세요
           </p>
@@ -259,10 +266,10 @@ export default function SignUp() {
         {/* 회원가입 폼 */}
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ 
-              display: 'block', 
-              fontSize: 14, 
-              fontWeight: '500', 
+            <label style={{
+              display: 'block',
+              fontSize: 14,
+              fontWeight: '500',
               color: '#374151',
               marginBottom: 6
             }}>
@@ -287,10 +294,10 @@ export default function SignUp() {
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ 
-              display: 'block', 
-              fontSize: 14, 
-              fontWeight: '500', 
+            <label style={{
+              display: 'block',
+              fontSize: 14,
+              fontWeight: '500',
               color: '#374151',
               marginBottom: 6
             }}>
@@ -315,10 +322,10 @@ export default function SignUp() {
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ 
-              display: 'block', 
-              fontSize: 14, 
-              fontWeight: '500', 
+            <label style={{
+              display: 'block',
+              fontSize: 14,
+              fontWeight: '500',
               color: '#374151',
               marginBottom: 6
             }}>
@@ -343,10 +350,10 @@ export default function SignUp() {
           </div>
 
           <div style={{ marginBottom: 24 }}>
-            <label style={{ 
-              display: 'block', 
-              fontSize: 14, 
-              fontWeight: '500', 
+            <label style={{
+              display: 'block',
+              fontSize: 14,
+              fontWeight: '500',
               color: '#374151',
               marginBottom: 6
             }}>
@@ -368,6 +375,22 @@ export default function SignUp() {
               }}
               placeholder="비밀번호를 다시 입력하세요"
             />
+          </div>
+
+          <div style={{ marginBottom: 24, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <input
+              type="checkbox"
+              id="agreed"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              style={{ marginTop: 4, cursor: 'pointer' }}
+            />
+            <label htmlFor="agreed" style={{ fontSize: 13, color: '#4b5563', lineHeight: '1.5', cursor: 'pointer' }}>
+              <span style={{ color: '#2962FF', fontWeight: 'bold' }}>[필수]</span> 이용약관 및 개인정보 수집·이용 동의
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                수집항목: 닉네임, 이메일, 비밀번호 / 목적: 회원 식별 및 서비스 제공 / 보유기간: 회원 탈퇴 시까지
+              </div>
+            </label>
           </div>
 
           <button
@@ -395,11 +418,11 @@ export default function SignUp() {
           <span style={{ color: '#6b7280', fontSize: 14 }}>
             이미 계정이 있으신가요?{' '}
           </span>
-          <Link 
-            to="/login" 
-            style={{ 
-              color: '#2962FF', 
-              textDecoration: 'none', 
+          <Link
+            to="/login"
+            style={{
+              color: '#2962FF',
+              textDecoration: 'none',
               fontSize: 14,
               fontWeight: '500'
             }}
@@ -410,11 +433,11 @@ export default function SignUp() {
 
         {/* 메인 페이지로 돌아가기 */}
         <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Link 
-            to="/" 
-            style={{ 
-              color: '#6b7280', 
-              textDecoration: 'none', 
+          <Link
+            to="/"
+            style={{
+              color: '#6b7280',
+              textDecoration: 'none',
               fontSize: 14
             }}
           >
