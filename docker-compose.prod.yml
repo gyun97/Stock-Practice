@@ -14,7 +14,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       interval: 5s
@@ -32,7 +32,7 @@ services:
       - REDIS_REPLICATION_MODE=master
       - ALLOW_EMPTY_PASSWORD=yes
     volumes:
-      - ./redis_data:/bitnami/redis/data
+      - redis_data:/bitnami/redis/data
     ports:
       - "${REDIS_PORT}:6379"
 
@@ -150,3 +150,7 @@ services:
     #    restart: always
     ports:
       - "8080:8080"
+
+volumes:
+  mysql_data:
+  redis_data:
