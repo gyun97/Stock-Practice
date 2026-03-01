@@ -48,8 +48,8 @@ export default function MyPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [deleteMessage, setDeleteMessage] = useState('')
-  const [notifications, setNotifications] = useState<Array<{id: number, message: string, type: string, timestamp: Date}>>([])
-  
+  const [notifications, setNotifications] = useState<Array<{ id: number, message: string, type: string, timestamp: Date }>>([])
+
   // WebSocket 연결을 위한 ref
   const stompRef = useRef<any>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -79,7 +79,7 @@ export default function MyPage() {
 
     // 전체 주식 자산 계산
     const totalStockAsset = userStocks.reduce((sum, stock) => sum + stock.currentAsset, 0)
-    
+
     if (totalStockAsset === 0) return
 
     // 색상 팔레트
@@ -93,21 +93,21 @@ export default function MyPage() {
     // 각 주식별 비중 계산 및 그리기
     userStocks.forEach((stock, index) => {
       const percentage = (stock.currentAsset / totalStockAsset) * 100
-      
+
       // 비중이 1% 미만이면 건너뛰기
       if (percentage < 1) return
 
       const sliceAngle = (stock.currentAsset / totalStockAsset) * 2 * Math.PI
-      
+
       // 호 그리기
       ctx.beginPath()
       ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle)
       ctx.arc(centerX, centerY, innerRadius, currentAngle + sliceAngle, currentAngle, true)
       ctx.closePath()
-      
+
       ctx.fillStyle = colors[index % colors.length]
       ctx.fill()
-      
+
       currentAngle += sliceAngle
     })
 
@@ -117,7 +117,7 @@ export default function MyPage() {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('총 주식 자산', centerX, centerY - 10)
-    
+
     ctx.fillStyle = '#6B7280'
     ctx.font = '14px Arial'
     ctx.fillText(`${totalStockAsset.toLocaleString()}원`, centerX, centerY + 10)
@@ -126,13 +126,13 @@ export default function MyPage() {
   // 포트폴리오 수익률 실시간 업데이트 핸들러
   const onPortfolioUpdate = (payload: any, raw: string) => {
     console.log('포트폴리오 업데이트:', { payload, raw })
-    
+
     try {
       // JSON 형태의 데이터인지 확인
       if (typeof raw === 'string' && raw.startsWith('{')) {
         const portfolioData = JSON.parse(raw)
         console.log('포트폴리오 JSON 데이터:', portfolioData)
-        
+
         // portfolioInfo가 null이어도 WebSocket 데이터로 업데이트
         setPortfolioInfo(prev => {
           if (prev) {
@@ -216,7 +216,7 @@ export default function MyPage() {
       try {
         // 먼저 서버 상태 확인
         await checkServerStatus()
-        
+
         const storedUserInfo = localStorage.getItem('userInfo')
         if (!storedUserInfo) {
           setError('로그인이 필요합니다.')
@@ -226,10 +226,10 @@ export default function MyPage() {
 
         const parsedUserInfo = JSON.parse(storedUserInfo)
         const accessToken = tokenManager.getAccessToken()
-        
+
         console.log('마이페이지 API 호출:', `/api/v1/users/${parsedUserInfo.userId}`)
         console.log('Access Token:', accessToken ? '존재함' : '없음 (자동 재발급 시도)')
-        
+
         const response = await tokenManager.authenticatedFetch(`/api/v1/users/${parsedUserInfo.userId}`)
 
         console.log('API 응답 상태:', response.status)
@@ -239,7 +239,7 @@ export default function MyPage() {
           const result = await response.json()
           console.log('API 응답 데이터:', result)
           setUserInfo(result.data)
-          
+
           // 포트폴리오 정보도 함께 가져오기
           await fetchPortfolioInfo(parsedUserInfo.userId)
           await fetchUserStocks(parsedUserInfo.userId)
@@ -261,7 +261,7 @@ export default function MyPage() {
         console.error('마이페이지 API 호출 오류:', err)
         console.error('에러 타입:', err instanceof Error ? err.constructor.name : typeof err)
         console.error('에러 메시지:', err instanceof Error ? err.message : String(err))
-        
+
         // 토큰 갱신 실패 에러 처리
         if (err instanceof Error && err.message.includes('토큰 갱신')) {
           setError('로그인이 만료되었습니다. 다시 로그인해주세요.')
@@ -282,7 +282,7 @@ export default function MyPage() {
     const fetchPortfolioInfo = async (userId: number) => {
       try {
         console.log('포트폴리오 API 호출:', `/api/v1/portfolios/users/${userId}`)
-        
+
         const response = await tokenManager.authenticatedFetch(`/api/v1/portfolios/users/${userId}`)
 
         console.log('포트폴리오 API 응답 상태:', response.status)
@@ -304,7 +304,7 @@ export default function MyPage() {
     const fetchUserStocks = async (userId: number) => {
       try {
         console.log('보유 주식 API 호출:', `/api/v1/userstocks`)
-        
+
         const response = await tokenManager.authenticatedFetch(`/api/v1/userstocks`)
 
         console.log('보유 주식 API 응답 상태:', response.status)
@@ -348,7 +348,7 @@ export default function MyPage() {
     if (userInfo) {
       console.log('마이페이지 WebSocket 연결 시작')
       const client = createStompClient(onPortfolioUpdate)
-      
+
       // 포트폴리오 업데이트 토픽 구독
       client.onConnect = () => {
         // 사용자별 포트폴리오 업데이트 구독
@@ -357,7 +357,7 @@ export default function MyPage() {
         client.subscribe(`/topic/portfolio/updates/${userId}`, (msg) => {
           const raw = msg.body
           console.log('포트폴리오 WebSocket 메시지 수신:', raw)
-          
+
           try {
             // JSON 형태인지 확인
             if (raw.startsWith('{')) {
@@ -374,34 +374,34 @@ export default function MyPage() {
             onPortfolioUpdate(raw, raw)
           }
         })
-        
+
         // 사용자별 보유 주식 업데이트 구독
         client.subscribe(`/topic/userstock/updates/${userId}`, (msg) => {
           const raw = msg.body
           console.log('보유 주식 WebSocket 메시지 수신:', raw)
-          
+
           try {
             const userStockData = JSON.parse(raw)
             console.log('보유 주식 업데이트 데이터:', userStockData)
-            
+
             // 사용자별 토픽이므로 바로 업데이트
             setUserStocks(userStockData.userStocks)
           } catch (error) {
             console.error('보유 주식 업데이트 파싱 오류:', error)
           }
         })
-        
+
         // 주문 알림 구독
         client.subscribe(`/topic/order/notifications/${userId}`, (msg) => {
           const raw = msg.body
           console.log('=== 마이페이지 주문 알림 WebSocket 메시지 수신 ===')
           console.log('원본 메시지:', raw)
           console.log('메시지 타입:', typeof raw)
-          
+
           try {
             const notificationData = JSON.parse(raw)
             console.log('주문 알림 데이터 (파싱 성공):', notificationData)
-            
+
             // 알림 추가
             setNotifications(prev => {
               const newNotification = {
@@ -412,7 +412,7 @@ export default function MyPage() {
               }
               return [newNotification, ...prev].slice(0, 10) // 최대 10개 유지
             })
-            
+
             // 브라우저 알림 (사용자가 페이지에 있을 때)
             console.log('브라우저 알림 권한 상태:', Notification.permission)
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -436,10 +436,10 @@ export default function MyPage() {
           }
         })
       }
-      
+
       client.activate()
       stompRef.current = client
-      
+
       return () => {
         console.log('마이페이지 WebSocket 연결 해제')
         client.deactivate()
@@ -525,7 +525,7 @@ export default function MyPage() {
           parsed.name = updatedUser.name
           localStorage.setItem('userInfo', JSON.stringify(parsed))
         }
-        
+
         setEditMessage('정보가 수정되었습니다.')
         setTimeout(() => {
           setEditModalOpen(false)
@@ -671,20 +671,20 @@ export default function MyPage() {
 
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         background: '#f8fafc'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ 
-            width: 40, 
-            height: 40, 
-            border: '4px solid #e5e7eb', 
-            borderTop: '4px solid #2962FF', 
-            borderRadius: '50%', 
+          <div style={{
+            width: 40,
+            height: 40,
+            border: '4px solid #e5e7eb',
+            borderTop: '4px solid #2962FF',
+            borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto 16px'
           }}></div>
@@ -702,10 +702,10 @@ export default function MyPage() {
 
   if (error) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
         background: '#f8fafc'
       }}>
@@ -730,7 +730,7 @@ export default function MyPage() {
           }}>
             {error}
           </div>
-          
+
           {serverStatus === 'offline' && (
             <div style={{
               padding: 12,
@@ -750,10 +750,10 @@ export default function MyPage() {
               </ul>
             </div>
           )}
-          
+
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <Link 
-              to="/login" 
+            <Link
+              to="/login"
               style={{
                 padding: '12px 24px',
                 background: '#2962FF',
@@ -767,7 +767,7 @@ export default function MyPage() {
             >
               로그인하러 가기
             </Link>
-            
+
             <button
               onClick={() => window.location.reload()}
               style={{
@@ -790,181 +790,136 @@ export default function MyPage() {
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div style={{
+      minHeight: '100vh',
       background: '#f8fafc',
       padding: '20px 0'
     }}>
-      <div style={{ 
-        maxWidth: 600, 
-        margin: '0 auto', 
-        padding: '0 16px' 
-      }}>
-        {/* 헤더 */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: 32 
+      <div className="container">
+        <div style={{
+          maxWidth: 600,
+          margin: '0 auto',
+          padding: '0 16px'
         }}>
-          <div>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: 28, 
-              fontWeight: 'bold', 
-              color: '#1f2937' 
-            }}>
-              마이페이지
-            </h1>
-            {/* 서버 상태 표시 */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 8, 
-              marginTop: 8 
+          {/* 헤더 */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 32
+          }}>
+            <div>
+              <h1 style={{
+                margin: 0,
+                fontSize: 28,
+                fontWeight: 'bold',
+                color: '#1f2937'
+              }}>
+                마이페이지
+              </h1>
+              {/* 서버 상태 표시 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 8
+              }}>
+                <div style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: serverStatus === 'online' ? '#10b981' :
+                    serverStatus === 'offline' ? '#ef4444' : '#f59e0b'
+                }}></div>
+                <span style={{
+                  fontSize: 12,
+                  color: serverStatus === 'online' ? '#10b981' :
+                    serverStatus === 'offline' ? '#ef4444' : '#f59e0b'
+                }}>
+                  {serverStatus === 'online' ? '서버 연결됨' :
+                    serverStatus === 'offline' ? '서버 연결 안됨' : '서버 상태 확인 중...'}
+                </span>
+              </div>
+            </div>
+            <Link
+              to="/"
+              style={{
+                color: '#6b7280',
+                textDecoration: 'none',
+                fontSize: 14
+              }}
+            >
+              ← 메인으로 돌아가기
+            </Link>
+          </div>
+
+          {/* 주문 알림 표시 */}
+          {notifications.length > 0 && (
+            <div style={{
+              background: 'white',
+              borderRadius: 12,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              padding: 16,
+              marginBottom: 24,
+              maxHeight: 200,
+              overflowY: 'auto'
             }}>
               <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: serverStatus === 'online' ? '#10b981' : 
-                                serverStatus === 'offline' ? '#ef4444' : '#f59e0b'
-              }}></div>
-              <span style={{ 
-                fontSize: 12, 
-                color: serverStatus === 'online' ? '#10b981' : 
-                       serverStatus === 'offline' ? '#ef4444' : '#f59e0b'
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12
               }}>
-                {serverStatus === 'online' ? '서버 연결됨' : 
-                 serverStatus === 'offline' ? '서버 연결 안됨' : '서버 상태 확인 중...'}
-              </span>
-            </div>
-          </div>
-          <Link 
-            to="/" 
-            style={{ 
-              color: '#6b7280', 
-              textDecoration: 'none', 
-              fontSize: 14 
-            }}
-          >
-            ← 메인으로 돌아가기
-          </Link>
-        </div>
-
-        {/* 주문 알림 표시 */}
-        {notifications.length > 0 && (
-          <div style={{
-            background: 'white',
-            borderRadius: 12,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            padding: 16,
-            marginBottom: 24,
-            maxHeight: 200,
-            overflowY: 'auto'
-          }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: 12 
-            }}>
-              <h3 style={{ 
-                margin: 0, 
-                fontSize: 16, 
-                fontWeight: '600', 
-                color: '#1f2937' 
-              }}>
-                📢 주문 체결 알림
-              </h3>
-              <button
-                onClick={() => setNotifications([])}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#6b7280',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  padding: '4px 8px'
-                }}
-              >
-                전체 삭제
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {notifications.map((notification, index) => (
-                <div
-                  key={notification.id}
+                <h3 style={{
+                  margin: 0,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  📢 주문 체결 알림
+                </h3>
+                <button
+                  onClick={() => setNotifications([])}
                   style={{
-                    padding: 12,
-                    background: notification.type === 'BUY' ? '#eff6ff' : '#fef3c7',
-                    borderRadius: 8,
-                    borderLeft: `4px solid ${notification.type === 'BUY' ? '#3b82f6' : '#f59e0b'}`
+                    background: 'none',
+                    border: 'none',
+                    color: '#6b7280',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    padding: '4px 8px'
                   }}
                 >
-                  <div style={{ fontSize: 14, color: '#1f2937' }}>
-                    {notification.message}
+                  전체 삭제
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {notifications.map((notification, index) => (
+                  <div
+                    key={notification.id}
+                    style={{
+                      padding: 12,
+                      background: notification.type === 'BUY' ? '#eff6ff' : '#fef3c7',
+                      borderRadius: 8,
+                      borderLeft: `4px solid ${notification.type === 'BUY' ? '#3b82f6' : '#f59e0b'}`
+                    }}
+                  >
+                    <div style={{ fontSize: 14, color: '#1f2937' }}>
+                      {notification.message}
+                    </div>
+                    <div style={{
+                      fontSize: 12,
+                      color: '#6b7280',
+                      marginTop: 4
+                    }}>
+                      {new Date(notification.timestamp).toLocaleString('ko-KR')}
+                    </div>
                   </div>
-                  <div style={{ 
-                    fontSize: 12, 
-                    color: '#6b7280', 
-                    marginTop: 4 
-                  }}>
-                    {new Date(notification.timestamp).toLocaleString('ko-KR')}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 사용자 정보 카드 */}
-        <div style={{
-          background: 'white',
-          borderRadius: 12,
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          padding: 32,
-          marginBottom: 24
-        }}>
-          <h2 style={{ 
-            margin: '0 0 24px 0', 
-            fontSize: 20, 
-            fontWeight: '600', 
-            color: '#1f2937' 
-          }}>
-            내 정보
-          </h2>
-          
-          <div style={{ display: 'grid', gap: 16 }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '12px 0',
-              borderBottom: '1px solid #f1f5f9'
-            }}>
-              <span style={{ fontSize: 14, color: '#6b7280' }}>닉네임</span>
-              <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                {userInfo?.name}
-              </span>
-            </div>
-            
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '12px 0'
-            }}>
-              <span style={{ fontSize: 14, color: '#6b7280' }}>이메일</span>
-              <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                {userInfo?.email}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 포트폴리오 현황 카드 */}
-        {portfolioInfo && (
+          {/* 사용자 정보 카드 */}
           <div style={{
             background: 'white',
             borderRadius: 12,
@@ -972,630 +927,678 @@ export default function MyPage() {
             padding: 32,
             marginBottom: 24
           }}>
-            <h2 style={{ 
-              margin: '0 0 24px 0', 
-              fontSize: 20, 
-              fontWeight: '600', 
-              color: '#1f2937' 
+            <h2 style={{
+              margin: '0 0 24px 0',
+              fontSize: 20,
+              fontWeight: '600',
+              color: '#1f2937'
             }}>
-              포트폴리오 현황
+              내 정보
             </h2>
-            
-            {/* 총 자산과 수익률 */}
-            <div style={{
-              background: '#f8fafc',
-              borderRadius: 8,
-              padding: 20,
-              marginBottom: 20,
-              border: '1px solid #e2e8f0'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>총 자산</span>
-                <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1f2937' }}>
-                  {(portfolioInfo.totalAsset || 0).toLocaleString()}원
-                </span>
-              </div>
-              {/* 총 수익 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>총 수익</span>
-                <span style={{ 
-                  fontSize: 18, 
-                  fontWeight: '600', 
-                  color: calculateTotalProfit() >= 0 ? '#dc2626' : '#2563eb'
-                }}>
-                  {calculateTotalProfit() >= 0 ? '+' : ''}{calculateTotalProfit().toLocaleString()}원
-                </span>
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>수익률</span>
-                <span style={{ 
-                  fontSize: 18, 
-                  fontWeight: '600', 
-                  color: (portfolioInfo.returnRate || 0) >= 0 ? '#dc2626' : '#2563eb'
-                }}>
-                  {(portfolioInfo.returnRate || 0) >= 0 ? '+' : ''}{(portfolioInfo.returnRate || 0).toFixed(2)}%
-                </span>
-              </div>
-            </div>
 
-            {/* 자산 구성 */}
             <div style={{ display: 'grid', gap: 16 }}>
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '12px 0',
                 borderBottom: '1px solid #f1f5f9'
               }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>현금 잔액</span>
-                <span style={{ fontSize: 16, fontWeight: '500', color: '#059669' }}>
-                  {(portfolioInfo.balance || 0).toLocaleString()}원
-                </span>
-              </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                padding: '12px 0',
-                borderBottom: '1px solid #f1f5f9'
-              }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>보유 주식 총액</span>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>닉네임</span>
                 <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                  {(portfolioInfo.stockAsset || 0).toLocaleString()}원
+                  {userInfo?.name}
                 </span>
               </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                padding: '12px 0',
-                borderBottom: '1px solid #f1f5f9'
-              }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>보유 종목 수</span>
-                <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                  {portfolioInfo.holdCount || 0}개
-                </span>
-              </div>
-              
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
+
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '12px 0'
               }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>총 보유 주식 수량</span>
+                <span style={{ fontSize: 14, color: '#6b7280' }}>이메일</span>
                 <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
-                  {(portfolioInfo.totalQuantity || 0).toLocaleString()}주
+                  {userInfo?.email}
                 </span>
               </div>
             </div>
           </div>
-        )}
 
-        {/* 보유 주식 현황 */}
-        {portfolioInfo && (
+          {/* 포트폴리오 현황 카드 */}
+          {portfolioInfo && (
+            <div style={{
+              background: 'white',
+              borderRadius: 12,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              padding: 32,
+              marginBottom: 24
+            }}>
+              <h2 style={{
+                margin: '0 0 24px 0',
+                fontSize: 20,
+                fontWeight: '600',
+                color: '#1f2937'
+              }}>
+                포트폴리오 현황
+              </h2>
+
+              {/* 총 자산과 수익률 */}
+              <div style={{
+                background: '#f8fafc',
+                borderRadius: 8,
+                padding: 20,
+                marginBottom: 20,
+                border: '1px solid #e2e8f0'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 14, color: '#6b7280' }}>총 자산</span>
+                  <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1f2937' }}>
+                    {(portfolioInfo.totalAsset || 0).toLocaleString()}원
+                  </span>
+                </div>
+                {/* 총 수익 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 14, color: '#6b7280' }}>총 수익</span>
+                  <span style={{
+                    fontSize: 18,
+                    fontWeight: '600',
+                    color: calculateTotalProfit() >= 0 ? '#dc2626' : '#2563eb'
+                  }}>
+                    {calculateTotalProfit() >= 0 ? '+' : ''}{calculateTotalProfit().toLocaleString()}원
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                  <span style={{ fontSize: 14, color: '#6b7280' }}>수익률</span>
+                  <span style={{
+                    fontSize: 18,
+                    fontWeight: '600',
+                    color: (portfolioInfo.returnRate || 0) >= 0 ? '#dc2626' : '#2563eb'
+                  }}>
+                    {(portfolioInfo.returnRate || 0) >= 0 ? '+' : ''}{(portfolioInfo.returnRate || 0).toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* 자산 구성 */}
+              <div style={{ display: 'grid', gap: 16 }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f1f5f9'
+                }}>
+                  <span style={{ fontSize: 14, color: '#6b7280' }}>현금 잔액</span>
+                  <span style={{ fontSize: 16, fontWeight: '500', color: '#059669' }}>
+                    {(portfolioInfo.balance || 0).toLocaleString()}원
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f1f5f9'
+                }}>
+                  <span style={{ fontSize: 14, color: '#6b7280' }}>보유 주식 총액</span>
+                  <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                    {(portfolioInfo.stockAsset || 0).toLocaleString()}원
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f1f5f9'
+                }}>
+                  <span style={{ fontSize: 14, color: '#6b7280' }}>보유 종목 수</span>
+                  <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                    {portfolioInfo.holdCount || 0}개
+                  </span>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 0'
+                }}>
+                  <span style={{ fontSize: 14, color: '#6b7280' }}>총 보유 주식 수량</span>
+                  <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                    {(portfolioInfo.totalQuantity || 0).toLocaleString()}주
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 보유 주식 현황 */}
+          {portfolioInfo && (
+            <div style={{
+              background: 'white',
+              borderRadius: 12,
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              padding: 24,
+              marginBottom: 24
+            }}>
+              <h2 style={{
+                margin: '0 0 20px 0',
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#1f2937',
+                borderBottom: '2px solid #2962FF',
+                paddingBottom: 8
+              }}>
+                보유 주식 현황
+              </h2>
+
+              {/* 주식 비중 도넛 그래프 */}
+              {userStocks.length > 0 && (() => {
+                const colors = [
+                  '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+                  '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
+                ]
+                const totalStockAsset = userStocks.reduce((sum, stock) => sum + stock.currentAsset, 0)
+
+                // 범례용 데이터 준비 (그래프와 동일한 순서와 색상)
+                const legendData = userStocks
+                  .map((stock, index) => {
+                    const percentage = totalStockAsset > 0 ? (stock.currentAsset / totalStockAsset) * 100 : 0
+                    return { stock, percentage, originalIndex: index }
+                  })
+                  .filter(item => item.percentage >= 1) // 1% 이상만 표시
+                  .sort((a, b) => b.percentage - a.percentage) // 비중 순으로 정렬
+
+                return (
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 24,
+                    justifyContent: 'center',
+                    alignItems: 'flex-start',
+                    marginBottom: 20,
+                    padding: '20px 0',
+                    borderBottom: '1px solid #e5e7eb'
+                  }}>
+                    <canvas
+                      ref={canvasRef}
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: 8,
+                        background: 'white'
+                      }}
+                    />
+
+                    {/* 범례 */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                      minWidth: 200,
+                      maxWidth: 300
+                    }}>
+                      <div style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: '#374151',
+                        marginBottom: 4
+                      }}>
+                        종목별 비중
+                      </div>
+                      {legendData.map(({ stock, percentage, originalIndex }) => (
+                        <div key={`${stock.ticker}-${originalIndex}`} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '6px 0'
+                        }}>
+                          <div style={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: 4,
+                            backgroundColor: colors[originalIndex % colors.length],
+                            flexShrink: 0
+                          }} />
+                          <div style={{
+                            flex: 1,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: 13,
+                            color: '#374151'
+                          }}>
+                            <span style={{ fontWeight: 500 }}>{stock.companyName}</span>
+                            <span style={{ color: '#6b7280', marginLeft: 8 }}>
+                              {percentage.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {userStocks.length > 0 ? (
+                <div className="table-wrapper">
+                  <table style={{
+                    width: '100%',
+                    minWidth: 500,
+                    borderCollapse: 'collapse',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc' }}>
+                        <th style={{
+                          padding: '12px 8px',
+                          textAlign: 'left',
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: '#374151',
+                          borderBottom: '2px solid #e5e7eb',
+                          whiteSpace: 'nowrap'
+                        }}>종목명</th>
+                        <th style={{
+                          padding: '12px 8px',
+                          textAlign: 'right',
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: '#374151',
+                          borderBottom: '2px solid #e5e7eb',
+                          whiteSpace: 'nowrap'
+                        }}>보유수량</th>
+                        <th style={{
+                          padding: '12px 8px',
+                          textAlign: 'right',
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: '#374151',
+                          borderBottom: '2px solid #e5e7eb',
+                          whiteSpace: 'nowrap'
+                        }}>총 구매액</th>
+                        <th style={{
+                          padding: '12px 8px',
+                          textAlign: 'right',
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: '#374151',
+                          borderBottom: '2px solid #e5e7eb',
+                          whiteSpace: 'nowrap'
+                        }}>현재자산</th>
+                        <th style={{
+                          padding: '12px 8px',
+                          textAlign: 'right',
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: '#374151',
+                          borderBottom: '2px solid #e5e7eb',
+                          whiteSpace: 'nowrap'
+                        }}>손익</th>
+                        <th style={{
+                          padding: '12px 8px',
+                          textAlign: 'right',
+                          fontSize: 14,
+                          fontWeight: '600',
+                          color: '#374151',
+                          borderBottom: '2px solid #e5e7eb',
+                          whiteSpace: 'nowrap'
+                        }}>수익률</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userStocks.map((stock, index) => (
+                        <tr key={`${stock.ticker}-${index}`} style={{
+                          borderBottom: '1px solid #f3f4f6'
+                        }}>
+                          <td style={{
+                            padding: '12px 8px',
+                            fontSize: 14,
+                            color: '#1f2937',
+                            fontWeight: '500',
+                            whiteSpace: 'nowrap'
+                          }}>{stock.companyName}</td>
+                          <td style={{
+                            padding: '12px 8px',
+                            textAlign: 'right',
+                            fontSize: 14,
+                            color: '#374151',
+                            whiteSpace: 'nowrap'
+                          }}>{stock.totalQuantity.toLocaleString()}주</td>
+                          <td style={{
+                            padding: '12px 8px',
+                            textAlign: 'right',
+                            fontSize: 14,
+                            color: '#374151',
+                            whiteSpace: 'nowrap'
+                          }}>{(stock.avgPrice * stock.totalQuantity).toLocaleString()}원</td>
+                          <td style={{
+                            padding: '12px 8px',
+                            textAlign: 'right',
+                            fontSize: 14,
+                            color: '#374151',
+                            whiteSpace: 'nowrap'
+                          }}>{stock.currentAsset.toLocaleString()}원</td>
+                          <td style={{
+                            padding: '12px 8px',
+                            textAlign: 'right',
+                            fontSize: 14,
+                            fontWeight: '600',
+                            color: stock.profitLoss >= 0 ? '#dc2626' : '#2563eb',
+                            whiteSpace: 'nowrap'
+                          }}>{stock.profitLoss >= 0 ? '+' : ''}{stock.profitLoss.toLocaleString()}원</td>
+                          <td style={{
+                            padding: '12px 8px',
+                            textAlign: 'right',
+                            fontSize: 14,
+                            fontWeight: '600',
+                            color: stock.returnRate >= 0 ? '#dc2626' : '#2563eb',
+                            whiteSpace: 'nowrap'
+                          }}>{stock.returnRate >= 0 ? '+' : ''}{stock.returnRate.toFixed(2)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: '#6b7280',
+                  fontSize: 14
+                }}>
+                  보유 주식이 없습니다
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 액션 버튼들 */}
           <div style={{
             background: 'white',
             borderRadius: 12,
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            padding: 24,
-            marginBottom: 24
+            padding: 24
           }}>
-            <h2 style={{ 
-              margin: '0 0 20px 0', 
-              fontSize: 18, 
-              fontWeight: '600', 
-              color: '#1f2937',
-              borderBottom: '2px solid #2962FF',
-              paddingBottom: 8
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: 16,
+              fontWeight: '600',
+              color: '#1f2937'
             }}>
-              보유 주식 현황
-            </h2>
-            
-            {/* 주식 비중 도넛 그래프 */}
-            {userStocks.length > 0 && (() => {
-              const colors = [
-                '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-                '#06B6D4', '#84CC16', '#F97316', '#EC4899', '#6366F1'
-              ]
-              const totalStockAsset = userStocks.reduce((sum, stock) => sum + stock.currentAsset, 0)
-              
-              // 범례용 데이터 준비 (그래프와 동일한 순서와 색상)
-              const legendData = userStocks
-                .map((stock, index) => {
-                  const percentage = totalStockAsset > 0 ? (stock.currentAsset / totalStockAsset) * 100 : 0
-                  return { stock, percentage, originalIndex: index }
-                })
-                .filter(item => item.percentage >= 1) // 1% 이상만 표시
-                .sort((a, b) => b.percentage - a.percentage) // 비중 순으로 정렬
-              
-              return (
-                <div style={{ 
-                  display: 'flex', 
-                  flexWrap: 'wrap',
-                  gap: 24,
-                  justifyContent: 'center', 
-                  alignItems: 'flex-start',
-                  marginBottom: 20,
-                  padding: '20px 0',
-                  borderBottom: '1px solid #e5e7eb'
+              계정 관리
+            </h3>
+
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {/* 소셜 로그인 사용자는 비밀번호가 없을 수 있으므로 버튼 숨김 */}
+              {localStorage.getItem('loginMethod') !== 'oauth' && (
+                <button
+                  onClick={openPwModal}
+                  style={{
+                    padding: '12px 24px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    background: 'white',
+                    color: '#374151',
+                    fontSize: 14,
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = '#f9fafb'
+                    e.currentTarget.style.borderColor = '#9ca3af'
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'white'
+                    e.currentTarget.style.borderColor = '#d1d5db'
+                  }}
+                >
+                  비밀번호 변경
+                </button>
+              )}
+
+              <button
+                onClick={openEditModal}
+                style={{
+                  padding: '12px 24px',
+                  border: '1px solid #2962FF',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#2962FF',
+                  fontSize: 14,
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#eff6ff'
+                  e.currentTarget.style.borderColor = '#1d4ed8'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#2962FF'
+                }}
+              >
+                내 정보 수정
+              </button>
+
+              <button
+                onClick={openDeleteModal}
+                style={{
+                  padding: '12px 24px',
+                  border: '1px solid #dc2626',
+                  borderRadius: 6,
+                  background: 'white',
+                  color: '#dc2626',
+                  fontSize: 14,
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#fef2f2'
+                  e.currentTarget.style.borderColor = '#b91c1c'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#dc2626'
+                }}
+              >
+                회원탈퇴
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* 비밀번호 변경 모달 */}
+        {pwModalOpen && (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+          }}>
+            <div style={{
+              width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>비밀번호 변경</h3>
+                <button onClick={closePwModal} disabled={pwSubmitting} style={{
+                  border: 'none', background: 'transparent', fontSize: 18, cursor: pwSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
+                }}>✕</button>
+              </div>
+
+              {pwMessage && (
+                <div style={{
+                  padding: 12, background: '#f8fafc', border: '1px solid #e5e7eb',
+                  borderRadius: 8, color: '#374151', fontSize: 13, marginBottom: 12
                 }}>
-                  <canvas 
-                    ref={canvasRef}
-                    style={{
-                      border: '1px solid #e5e7eb',
-                      borderRadius: 8,
-                      background: 'white'
-                    }}
-                  />
-                  
-                  {/* 범례 */}
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                    minWidth: 200,
-                    maxWidth: 300
-                  }}>
-                    <div style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: '#374151',
-                      marginBottom: 4
-                    }}>
-                      종목별 비중
-                    </div>
-                    {legendData.map(({ stock, percentage, originalIndex }) => (
-                      <div key={`${stock.ticker}-${originalIndex}`} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '6px 0'
-                      }}>
-                        <div style={{
-                          width: 16,
-                          height: 16,
-                          borderRadius: 4,
-                          backgroundColor: colors[originalIndex % colors.length],
-                          flexShrink: 0
-                        }} />
-                        <div style={{
-                          flex: 1,
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          fontSize: 13,
-                          color: '#374151'
-                        }}>
-                          <span style={{ fontWeight: 500 }}>{stock.companyName}</span>
-                          <span style={{ color: '#6b7280', marginLeft: 8 }}>
-                            {percentage.toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                  {pwMessage}
+                </div>
+              )}
+
+              <form onSubmit={submitPasswordChange}>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>현재 비밀번호</label>
+                    <input
+                      type="password"
+                      name="currentPassword"
+                      value={pwForm.currentPassword}
+                      onChange={handlePwChange}
+                      style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                      placeholder="현재 비밀번호"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>새 비밀번호</label>
+                    <input
+                      type="password"
+                      name="newPassword"
+                      value={pwForm.newPassword}
+                      onChange={handlePwChange}
+                      style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                      placeholder="새 비밀번호"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>새 비밀번호 확인</label>
+                    <input
+                      type="password"
+                      name="checkNewPassword"
+                      value={pwForm.checkNewPassword}
+                      onChange={handlePwChange}
+                      style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                      placeholder="새 비밀번호 확인"
+                    />
                   </div>
                 </div>
-              )
-            })()}
-            
-            {userStocks.length > 0 ? (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ 
-                  width: '100%', 
-                  borderCollapse: 'collapse',
-                  whiteSpace: 'nowrap'
-                }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc' }}>
-                      <th style={{ 
-                        padding: '12px 8px', 
-                        textAlign: 'left', 
-                        fontSize: 14, 
-                        fontWeight: '600', 
-                        color: '#374151',
-                        borderBottom: '2px solid #e5e7eb',
-                        whiteSpace: 'nowrap'
-                      }}>종목명</th>
-                      <th style={{ 
-                        padding: '12px 8px', 
-                        textAlign: 'right', 
-                        fontSize: 14, 
-                        fontWeight: '600', 
-                        color: '#374151',
-                        borderBottom: '2px solid #e5e7eb',
-                        whiteSpace: 'nowrap'
-                      }}>보유수량</th>
-                      <th style={{ 
-                        padding: '12px 8px', 
-                        textAlign: 'right', 
-                        fontSize: 14, 
-                        fontWeight: '600', 
-                        color: '#374151',
-                        borderBottom: '2px solid #e5e7eb',
-                        whiteSpace: 'nowrap'
-                      }}>총 구매액</th>
-                      <th style={{ 
-                        padding: '12px 8px', 
-                        textAlign: 'right', 
-                        fontSize: 14, 
-                        fontWeight: '600', 
-                        color: '#374151',
-                        borderBottom: '2px solid #e5e7eb',
-                        whiteSpace: 'nowrap'
-                      }}>현재자산</th>
-                      <th style={{ 
-                        padding: '12px 8px', 
-                        textAlign: 'right', 
-                        fontSize: 14, 
-                        fontWeight: '600', 
-                        color: '#374151',
-                        borderBottom: '2px solid #e5e7eb',
-                        whiteSpace: 'nowrap'
-                      }}>손익</th>
-                      <th style={{ 
-                        padding: '12px 8px', 
-                        textAlign: 'right', 
-                        fontSize: 14, 
-                        fontWeight: '600', 
-                        color: '#374151',
-                        borderBottom: '2px solid #e5e7eb',
-                        whiteSpace: 'nowrap'
-                      }}>수익률</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {userStocks.map((stock, index) => (
-                      <tr key={`${stock.ticker}-${index}`} style={{ 
-                        borderBottom: '1px solid #f3f4f6'
-                      }}>
-                        <td style={{ 
-                          padding: '12px 8px', 
-                          fontSize: 14, 
-                          color: '#1f2937',
-                          fontWeight: '500',
-                          whiteSpace: 'nowrap'
-                        }}>{stock.companyName}</td>
-                        <td style={{ 
-                          padding: '12px 8px', 
-                          textAlign: 'right', 
-                          fontSize: 14, 
-                          color: '#374151',
-                          whiteSpace: 'nowrap'
-                        }}>{stock.totalQuantity.toLocaleString()}주</td>
-                        <td style={{ 
-                          padding: '12px 8px', 
-                          textAlign: 'right', 
-                          fontSize: 14, 
-                          color: '#374151',
-                          whiteSpace: 'nowrap'
-                        }}>{(stock.avgPrice * stock.totalQuantity).toLocaleString()}원</td>
-                        <td style={{ 
-                          padding: '12px 8px', 
-                          textAlign: 'right', 
-                          fontSize: 14, 
-                          color: '#374151',
-                          whiteSpace: 'nowrap'
-                        }}>{stock.currentAsset.toLocaleString()}원</td>
-                        <td style={{ 
-                          padding: '12px 8px', 
-                          textAlign: 'right', 
-                          fontSize: 14, 
-                          fontWeight: '600',
-                          color: stock.profitLoss >= 0 ? '#dc2626' : '#2563eb',
-                          whiteSpace: 'nowrap'
-                        }}>{stock.profitLoss >= 0 ? '+' : ''}{stock.profitLoss.toLocaleString()}원</td>
-                        <td style={{ 
-                          padding: '12px 8px', 
-                          textAlign: 'right', 
-                          fontSize: 14, 
-                          fontWeight: '600',
-                          color: stock.returnRate >= 0 ? '#dc2626' : '#2563eb',
-                          whiteSpace: 'nowrap'
-                        }}>{stock.returnRate >= 0 ? '+' : ''}{stock.returnRate.toFixed(2)}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{
-                textAlign: 'center',
-                padding: '40px 20px',
-                color: '#6b7280',
-                fontSize: 14
-              }}>
-                보유 주식이 없습니다
-              </div>
-            )}
+
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+                  <button type="button" onClick={closePwModal} disabled={pwSubmitting} style={{
+                    padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: pwSubmitting ? 'not-allowed' : 'pointer'
+                  }}>취소</button>
+                  <button type="submit" disabled={pwSubmitting} style={{
+                    padding: '10px 16px', border: 'none', borderRadius: 8, background: pwSubmitting ? '#9ca3af' : '#2962FF', color: 'white', cursor: pwSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
+                  }}>{pwSubmitting ? '변경 중...' : '변경하기'}</button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
-        {/* 액션 버튼들 */}
-        <div style={{
-          background: 'white',
-          borderRadius: 12,
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-          padding: 24
-        }}>
-          <h3 style={{ 
-            margin: '0 0 16px 0', 
-            fontSize: 16, 
-            fontWeight: '600', 
-            color: '#1f2937' 
+        {/* 내 정보 수정 모달 */}
+        {editModalOpen && (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
           }}>
-            계정 관리
-          </h3>
-          
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {/* 소셜 로그인 사용자는 비밀번호가 없을 수 있으므로 버튼 숨김 */}
-            {localStorage.getItem('loginMethod') !== 'oauth' && (
-            <button
-              onClick={openPwModal}
-              style={{
-                padding: '12px 24px',
-                border: '1px solid #d1d5db',
-                borderRadius: 6,
-                background: 'white',
-                color: '#374151',
-                fontSize: 14,
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#f9fafb'
-                e.currentTarget.style.borderColor = '#9ca3af'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.borderColor = '#d1d5db'
-              }}
-            >
-              비밀번호 변경
-            </button>
-            )}
-            
-            <button
-              onClick={openEditModal}
-              style={{
-                padding: '12px 24px',
-                border: '1px solid #2962FF',
-                borderRadius: 6,
-                background: 'white',
-                color: '#2962FF',
-                fontSize: 14,
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#eff6ff'
-                e.currentTarget.style.borderColor = '#1d4ed8'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.borderColor = '#2962FF'
-              }}
-            >
-              내 정보 수정
-            </button>
-            
-            <button
-              onClick={openDeleteModal}
-              style={{
-                padding: '12px 24px',
-                border: '1px solid #dc2626',
-                borderRadius: 6,
-                background: 'white',
-                color: '#dc2626',
-                fontSize: 14,
-                fontWeight: '500',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#fef2f2'
-                e.currentTarget.style.borderColor = '#b91c1c'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.borderColor = '#dc2626'
-              }}
-            >
-              회원탈퇴
-            </button>
+            <div style={{
+              width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>내 정보 수정</h3>
+                <button onClick={closeEditModal} disabled={editSubmitting} style={{
+                  border: 'none', background: 'transparent', fontSize: 18, cursor: editSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
+                }}>✕</button>
+              </div>
+
+              {editMessage && (
+                <div style={{
+                  padding: 12, background: editMessage.includes('수정되었습니다') ? '#d1fae5' : '#fef2f2',
+                  border: `1px solid ${editMessage.includes('수정되었습니다') ? '#34d399' : '#fecaca'}`,
+                  borderRadius: 8, color: editMessage.includes('수정되었습니다') ? '#065f46' : '#dc2626', fontSize: 13, marginBottom: 12
+                }}>
+                  {editMessage}
+                </div>
+              )}
+
+              <form onSubmit={submitUserInfoUpdate}>
+                <div style={{ display: 'grid', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>이메일 (선택)</label>
+                    <input
+                      type="email"
+                      name="newEmail"
+                      value={editForm.newEmail}
+                      onChange={handleEditChange}
+                      style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                      placeholder="이메일 (변경하지 않으려면 비워두세요)"
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>닉네임 (선택)</label>
+                    <input
+                      type="text"
+                      name="newName"
+                      value={editForm.newName}
+                      onChange={handleEditChange}
+                      style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                      placeholder="닉네임 (변경하지 않으려면 비워두세요)"
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+                  <button type="button" onClick={closeEditModal} disabled={editSubmitting} style={{
+                    padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: editSubmitting ? 'not-allowed' : 'pointer'
+                  }}>취소</button>
+                  <button type="submit" disabled={editSubmitting} style={{
+                    padding: '10px 16px', border: 'none', borderRadius: 8, background: editSubmitting ? '#9ca3af' : '#2962FF', color: 'white', cursor: editSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
+                  }}>{editSubmitting ? '수정 중...' : '수정하기'}</button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* 회원탈퇴 모달 */}
+        {deleteModalOpen && (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
+          }}>
+            <div style={{
+              width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>회원탈퇴</h3>
+                <button onClick={closeDeleteModal} disabled={deleteSubmitting} style={{
+                  border: 'none', background: 'transparent', fontSize: 18, cursor: deleteSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
+                }}>✕</button>
+              </div>
+
+              {deleteMessage && (
+                <div style={{
+                  padding: 12, background: deleteMessage.includes('완료') ? '#d1fae5' : '#fef2f2',
+                  border: `1px solid ${deleteMessage.includes('완료') ? '#34d399' : '#fecaca'}`,
+                  borderRadius: 8, color: deleteMessage.includes('완료') ? '#065f46' : '#dc2626', fontSize: 13, marginBottom: 12
+                }}>
+                  {deleteMessage}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ margin: 0, fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
+                  정말로 회원탈퇴를 하시겠습니까?
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={closeDeleteModal} disabled={deleteSubmitting} style={{
+                  padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: deleteSubmitting ? 'not-allowed' : 'pointer'
+                }}>취소</button>
+                <button type="button" onClick={handleDeleteAccount} disabled={deleteSubmitting} style={{
+                  padding: '10px 16px', border: 'none', borderRadius: 8, background: deleteSubmitting ? '#9ca3af' : '#dc2626', color: 'white', cursor: deleteSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
+                }}>{deleteSubmitting ? '탈퇴 중...' : '탈퇴하기'}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-      {/* 비밀번호 변경 모달 */}
-      {pwModalOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
-        }}>
-          <div style={{
-            width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>비밀번호 변경</h3>
-              <button onClick={closePwModal} disabled={pwSubmitting} style={{
-                border: 'none', background: 'transparent', fontSize: 18, cursor: pwSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
-              }}>✕</button>
-            </div>
-
-            {pwMessage && (
-              <div style={{
-                padding: 12, background: '#f8fafc', border: '1px solid #e5e7eb',
-                borderRadius: 8, color: '#374151', fontSize: 13, marginBottom: 12
-              }}>
-                {pwMessage}
-              </div>
-            )}
-
-            <form onSubmit={submitPasswordChange}>
-              <div style={{ display: 'grid', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>현재 비밀번호</label>
-                  <input
-                    type="password"
-                    name="currentPassword"
-                    value={pwForm.currentPassword}
-                    onChange={handlePwChange}
-                    style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                    placeholder="현재 비밀번호"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>새 비밀번호</label>
-                  <input
-                    type="password"
-                    name="newPassword"
-                    value={pwForm.newPassword}
-                    onChange={handlePwChange}
-                    style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                    placeholder="새 비밀번호"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>새 비밀번호 확인</label>
-                  <input
-                    type="password"
-                    name="checkNewPassword"
-                    value={pwForm.checkNewPassword}
-                    onChange={handlePwChange}
-                    style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                    placeholder="새 비밀번호 확인"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-                <button type="button" onClick={closePwModal} disabled={pwSubmitting} style={{
-                  padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: pwSubmitting ? 'not-allowed' : 'pointer'
-                }}>취소</button>
-                <button type="submit" disabled={pwSubmitting} style={{
-                  padding: '10px 16px', border: 'none', borderRadius: 8, background: pwSubmitting ? '#9ca3af' : '#2962FF', color: 'white', cursor: pwSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
-                }}>{pwSubmitting ? '변경 중...' : '변경하기'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 내 정보 수정 모달 */}
-      {editModalOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
-        }}>
-          <div style={{
-            width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>내 정보 수정</h3>
-              <button onClick={closeEditModal} disabled={editSubmitting} style={{
-                border: 'none', background: 'transparent', fontSize: 18, cursor: editSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
-              }}>✕</button>
-            </div>
-
-            {editMessage && (
-              <div style={{
-                padding: 12, background: editMessage.includes('수정되었습니다') ? '#d1fae5' : '#fef2f2', 
-                border: `1px solid ${editMessage.includes('수정되었습니다') ? '#34d399' : '#fecaca'}`,
-                borderRadius: 8, color: editMessage.includes('수정되었습니다') ? '#065f46' : '#dc2626', fontSize: 13, marginBottom: 12
-              }}>
-                {editMessage}
-              </div>
-            )}
-
-            <form onSubmit={submitUserInfoUpdate}>
-              <div style={{ display: 'grid', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>이메일 (선택)</label>
-                  <input
-                    type="email"
-                    name="newEmail"
-                    value={editForm.newEmail}
-                    onChange={handleEditChange}
-                    style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                    placeholder="이메일 (변경하지 않으려면 비워두세요)"
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>닉네임 (선택)</label>
-                  <input
-                    type="text"
-                    name="newName"
-                    value={editForm.newName}
-                    onChange={handleEditChange}
-                    style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
-                    placeholder="닉네임 (변경하지 않으려면 비워두세요)"
-                  />
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-                <button type="button" onClick={closeEditModal} disabled={editSubmitting} style={{
-                  padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: editSubmitting ? 'not-allowed' : 'pointer'
-                }}>취소</button>
-                <button type="submit" disabled={editSubmitting} style={{
-                  padding: '10px 16px', border: 'none', borderRadius: 8, background: editSubmitting ? '#9ca3af' : '#2962FF', color: 'white', cursor: editSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
-                }}>{editSubmitting ? '수정 중...' : '수정하기'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      
-      {/* 회원탈퇴 모달 */}
-      {deleteModalOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50
-        }}>
-          <div style={{
-            width: '100%', maxWidth: 420, background: 'white', borderRadius: 12,
-            boxShadow: '0 10px 25px rgba(0,0,0,0.15)', padding: 24, margin: 16
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>회원탈퇴</h3>
-              <button onClick={closeDeleteModal} disabled={deleteSubmitting} style={{
-                border: 'none', background: 'transparent', fontSize: 18, cursor: deleteSubmitting ? 'not-allowed' : 'pointer', color: '#6b7280'
-              }}>✕</button>
-            </div>
-
-            {deleteMessage && (
-              <div style={{
-                padding: 12, background: deleteMessage.includes('완료') ? '#d1fae5' : '#fef2f2', 
-                border: `1px solid ${deleteMessage.includes('완료') ? '#34d399' : '#fecaca'}`,
-                borderRadius: 8, color: deleteMessage.includes('완료') ? '#065f46' : '#dc2626', fontSize: 13, marginBottom: 12
-              }}>
-                {deleteMessage}
-              </div>
-            )}
-
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: 0, fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
-                정말로 회원탈퇴를 하시겠습니까?
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" onClick={closeDeleteModal} disabled={deleteSubmitting} style={{
-                padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#374151', cursor: deleteSubmitting ? 'not-allowed' : 'pointer'
-              }}>취소</button>
-              <button type="button" onClick={handleDeleteAccount} disabled={deleteSubmitting} style={{
-                padding: '10px 16px', border: 'none', borderRadius: 8, background: deleteSubmitting ? '#9ca3af' : '#dc2626', color: 'white', cursor: deleteSubmitting ? 'not-allowed' : 'pointer', fontWeight: 600
-              }}>{deleteSubmitting ? '탈퇴 중...' : '탈퇴하기'}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

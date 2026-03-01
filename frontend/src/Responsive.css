@@ -1,0 +1,359 @@
+/* Responsive.css */
+
+.container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 24px;
+}
+
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Hero Section */
+.hero-section {
+    padding: 64px 16px 24px;
+    text-align: center;
+}
+
+.hero-title-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.hero-logo {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+    margin-top: 38px;
+}
+
+.hero-title {
+    margin: 0;
+    font-size: 72px;
+    line-height: 1.05;
+    letter-spacing: -1.5px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.hero-desc {
+    margin: 14px auto 0;
+    font-size: 18px;
+    color: #475569;
+    max-width: 680px;
+}
+
+/* Grid Layouts */
+.grid-3 {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 28px;
+}
+
+.grid-2 {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Auth Buttons */
+.header-actions {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    z-index: 50;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.8);
+    padding: 8px 12px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Table Responsiveness */
+.stock-table-header,
+.stock-table-row {
+    display: grid;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+}
+
+/* Default Desktop Column widths for all stocks */
+.all-stocks-columns {
+    grid-template-columns: 50px 56px 1fr 100px 90px 100px;
+}
+
+/* Default Desktop Column widths for user stocks */
+.user-stocks-columns {
+    grid-template-columns: 56px 1fr 100px 120px 120px;
+}
+
+.ranking-columns {
+    grid-template-columns: 60px 1fr 150px 150px;
+}
+
+.optional-col {
+    display: block;
+}
+
+/* Helper to truly hide on mobile */
+.mobile-hidden {
+    display: block;
+}
+
+/* Media Queries */
+
+/* Tablet (Small laptops/large tablets) */
+@media (max-width: 1024px) {
+    .hero-title {
+        font-size: 56px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .all-stocks-columns {
+        grid-template-columns: 40px 48px 1fr 100px 100px 100px;
+    }
+}
+
+/* Mobile (Smartphone) */
+@media (max-width: 640px) {
+    .hero-section {
+        padding: 40px 16px 20px;
+    }
+
+    .hero-logo {
+        width: 80px;
+        height: 80px;
+        margin-top: 20px;
+    }
+
+    .hero-title {
+        font-size: 40px;
+    }
+
+    .hero-desc {
+        font-size: 15px;
+    }
+
+    .grid-3,
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* Compact header on mobile */
+    .header-actions {
+        padding: 6px 10px;
+        top: 8px;
+        right: 8px;
+    }
+
+    .stat-card {
+        padding: 12px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+    }
+
+    /* Compact table for mobile - prioritize name, hide volume */
+    .all-stocks-columns {
+        grid-template-columns: 28px 32px 1fr 70px 65px !important;
+        width: 100% !important;
+        gap: 2px !important;
+        padding: 8px 4px !important;
+    }
+
+    .volume-cell {
+        display: none !important;
+    }
+
+    .all-stocks-columns>div,
+    .rank-cell,
+    .name-text,
+    .price-cell,
+    .volume-cell {
+        font-size: 11px !important;
+    }
+
+    .ticker-text {
+        font-size: 9px !important;
+        margin-top: 0 !important;
+    }
+
+    .change-rate-badge {
+        padding: 2px 6px !important;
+        font-size: 10px !important;
+    }
+
+    .all-stocks-columns>div:last-child {
+        display: block;
+    }
+
+    .user-stocks-columns {
+        grid-template-columns: 48px 1fr 80px 80px;
+    }
+
+    .ranking-columns {
+        grid-template-columns: 50px 1fr 100px;
+    }
+
+    .optional-col {
+        display: block;
+    }
+
+    .mobile-hidden {
+        display: none !important;
+    }
+
+    .user-stocks-columns>div:nth-child(3) {
+        display: none;
+        /* Hide Holding count on tiny mobile */
+    }
+
+    .ranking-columns {
+        grid-template-columns: 50px 1fr 100px;
+    }
+
+    .ranking-columns>div:nth-child(3) {
+        display: none;
+        /* Hide Total Asset on tiny mobile */
+    }
+
+    /* Section Header and Sort Buttons */
+    .section-header {
+        flex-wrap: wrap !important;
+        height: auto !important;
+        gap: 16px !important;
+    }
+
+    .sort-buttons {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Chart Page Specific Overrides */
+    .chart-page-container {
+        padding: 8px !important;
+    }
+
+    .chart-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .chart-ticker {
+        display: none !important;
+    }
+
+    .chart-view-grid {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+    }
+
+    .chart-stats-card {
+        padding: 8px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+
+    .chart-stats-card>div:first-child {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+
+    .chart-stats-card>div:last-child {
+        text-align: left !important;
+        margin-left: 0 !important;
+        padding-top: 4px !important;
+        border-top: 1px solid #f1f5f9 !important;
+        width: 100% !important;
+    }
+
+    .chart-layout-grid {
+        display: block !important;
+    }
+
+    .chart-view-box {
+        height: 450px !important;
+        min-height: 450px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .chart-table-box {
+        overflow-x: auto !important;
+        margin-bottom: 16px !important;
+    }
+
+    .chart-order-panel {
+        position: static !important;
+        width: 100% !important;
+    }
+}
