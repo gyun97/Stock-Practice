@@ -22,27 +22,23 @@ import org.springframework.http.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@org.springframework.context.annotation.Profile("!test")  // test 프로파일에서는 제외
+@org.springframework.context.annotation.Profile("!test") // test 프로파일에서는 제외
 public class InitStockSubscribe {
 
     private final ObjectMapper mapper;
     private final KisApprovalKeyService approvalKeyService;
     private final KisApiAccessTokenService kisApiAccessTokenService;
     private final StockRepository stockRepository;
-    private final WebClient webClient;
     private final ConnectWebSocketClient client;
     private final StringRedisTemplate redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
@@ -57,90 +53,74 @@ public class InitStockSubscribe {
     @Value("${REAL_BASE_URL}")
     private String baseUrl;
 
-    private String iv;
-    private String key;
-
     private String approvalKey;
     private String accessToken;
 
-    // 서버 가동시 시가 총액 상위 30위 주식들 정보 가져와서 RDB 저장
-    @Transactional
-    @EventListener(ApplicationReadyEvent.class) // 스프링 애플리케이션이 완전히 시작된 후에 특정 메서드를 실행하는 어노테이션
+    private static final List<String> FIXED_TICKERS = List.of(
+            "005930", "000660", "373220", "207940", "005380", "068270", "000270", "005935", "005490", "105560",
+            "028260", "055550", "035420", "000810", "012330", "066570", "051910", "006400", "086790", "032830",
+            "010130", "329180", "035720", "015760", "003550", "034730", "011200", "018260", "009150", "034020",
+            "010140", "024110", "096770", "042660", "012450", "316140", "001450", "267250", "033780", "000100");
+
+    private static final Map<String, String> TICKER_NAME_MAP = Map.ofEntries(
+            Map.entry("005930", "삼성전자"), Map.entry("000660", "SK하이닉스"), Map.entry("373220", "LG에너지솔루션"),
+            Map.entry("207940", "삼성바이오로직스"), Map.entry("005380", "현대차"), Map.entry("068270", "셀트리온"),
+            Map.entry("000270", "기아"), Map.entry("005935", "삼성전자우"), Map.entry("005490", "POSCO홀딩스"),
+            Map.entry("105560", "KB금융"), Map.entry("028260", "삼성물산"), Map.entry("055550", "신한지주"),
+            Map.entry("035420", "NAVER"), Map.entry("000810", "삼성화재"), Map.entry("012330", "현대모비스"),
+            Map.entry("066570", "LG전자"), Map.entry("051910", "LG화학"), Map.entry("006400", "삼성SDI"),
+            Map.entry("086790", "하나금융지주"), Map.entry("032830", "삼성생명"), Map.entry("010130", "고려아연"),
+            Map.entry("329180", "HD현대중공업"), Map.entry("035720", "카카오"), Map.entry("015760", "한국전력"),
+            Map.entry("003550", "LG"), Map.entry("034730", "SK"), Map.entry("011200", "HMM"),
+            Map.entry("018260", "현대제철"), Map.entry("009150", "삼성전기"), Map.entry("034020", "두산에너빌리티"),
+            Map.entry("010140", "삼성중공업"), Map.entry("024110", "기업은행"), Map.entry("096770", "SK이노베이션"),
+            Map.entry("042660", "한화오션"), Map.entry("012450", "한화에어로스페이스"), Map.entry("316140", "우리금융지주"),
+            Map.entry("001450", "현대해상"), Map.entry("267250", "HD현대일렉트릭"), Map.entry("033780", "KT&G"),
+            Map.entry("000100", "유한양행"));
+
+    // 서버 가동 시 고정된 40개 주식들 정보 가져와서 RDB 저장
+    @EventListener(ApplicationReadyEvent.class)
     @Order(1)
-    public void saveTop30Stocks() {
-        approvalKey = approvalKeyService.getApprovalKey(); // KIS WebSocket 연결에 필요한 승인 키
-        accessToken = kisApiAccessTokenService.getAccessToken(); // KIS REST API 호출에 필요한 Access Token 발급 키
-        Map response = webClient.get()// SpringFlux의 WebClient로 KIS API에 요청 생성 및 전송
-                .uri(uriBuilder -> uriBuilder
-                        .path("/uapi/domestic-stock/v1/ranking/market-cap") // url
-                        .queryParam("fid_input_price_2", "0") // 입력 가격2(입력값 없을때 전체 (~ 가격))
-                        .queryParam("fid_cond_mrkt_div_code", "J") // 시장구분코드 (J:KRX, NX:NXT)
-                        .queryParam("fid_cond_scr_div_code", "20174") // Unique key( 20174 )
-                        .queryParam("fid_div_cls_code", "0") // 분류 구분 코드(0: 전체, 1:보통주, 2:우선주)
-                        .queryParam("fid_input_iscd", "0001") // 입력 종목코드(0000:전체, 0001:거래소, 1001:코스닥, 2001:코스피200)
-                        .queryParam("fid_trgt_cls_code", "0") // 대상 구분 코드(0 : 전체)
-                        .queryParam("fid_trgt_exls_cls_code", "0") // 대상 제외 구분 코드(0 : 전체)
-                        .queryParam("fid_input_price_1", "0") // 입력 가격1(입력값 없을때 전체 (가격 ~))
-                        .queryParam("fid_vol_cnt", "0") // 거래량 수(입력값 없을때 전체 (거래량 ~))
-                        .build())
-                .header("content-type", "application/json; charset=utf-8")
-                .header("authorization", "Bearer " + accessToken)
-                .header("appkey", appKey)
-                .header("appsecret", appSecret)
-                .header("tr_id", "FHPST01740000") // 거래ID
-                .header("custtype", "P") // 개인
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
+    public void saveFixedStocks() {
+        approvalKey = approvalKeyService.getApprovalKey();
+        accessToken = kisApiAccessTokenService.getAccessToken();
 
-        if (response == null || response.get("output") == null) return;
+        log.info("서버 가동: 고정 종목 40개 정보 초기화 시작");
+        for (String ticker : FIXED_TICKERS) {
+            try {
+                // RDB에 종목 기본 정보 저장 (없을 경우)
+                if (!stockRepository.existsByTicker(ticker)) {
+                    String outline = stockOutlineService.getOutline(ticker);
 
-        List<Map<String, Object>> outputs = (List<Map<String, Object>>) response.get("output");
+                    String name = TICKER_NAME_MAP.getOrDefault(ticker, "알 수 없는 종목");
+                    Stock stock = Stock.builder()
+                            .ticker(ticker)
+                            .name(name)
+                            .market(Market.KOSPI)
+                            .volume(0L)
+                            .build();
 
-        for (Map<String, Object> stockData : outputs) {
-            String ticker = (String) stockData.get("mksc_shrn_iscd"); // 주식 종목 구분 코드
-            String name = (String) stockData.get("hts_kor_isnm"); // 주식 종목 이름
-            Long volume = Long.parseLong((String) stockData.get("acml_vol")); // 누적 거래량
-            Market market = Market.KOSPI; // 시장 종류
-
-            // 해당 종목 정보 RDB 저장
-            if (!stockRepository.existsByTicker(ticker)) {
-                // 기업 개요 가져오기
-                String outline = stockOutlineService.getOutline(ticker);
-                
-                Stock stock = Stock.builder()
-                        .ticker(ticker)
-                        .name(name)
-                        .market(market)
-                        .volume(volume)
-                        .build();
-                
-                // outline이 있으면 설정
-                if (outline != null) {
-                    stock.setOutline(outline);
-                }
-                
-                stockRepository.save(stock);
-            } else {
-                // 기존 주식이 있으면 outline 업데이트 (outline이 없고 새로운 outline이 있는 경우)
-                stockRepository.findByTicker(ticker).ifPresent(stock -> {
-                    if (stock.getOutline() == null) {
-                        String outline = stockOutlineService.getOutline(ticker);
-                        if (outline != null) {
-                            stock.setOutline(outline);
-                            stockRepository.save(stock);
-                        }
+                    if (outline != null) {
+                        stock.setOutline(outline);
                     }
-                });
+                    stockRepository.save(stock);
+                }
+
+                // 최신 데이터(가격 등) 가져오기 및 Redis 저장
+                getStockInfoRest(ticker);
+                Thread.sleep(1000); // KIS API 초당 호출 제한(TPS) 방지를 위해 1초 대기
+            } catch (Exception e) {
+                log.warn("종목 초기화 실패: {}", ticker, e);
             }
         }
+        log.info("서버 가동: 고정 종목 40개 정보 초기화 완료");
     }
 
     // 메인 화면에 표기될 전체 주식들 정보 얻기 위해 구독
-//    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    // @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @EventListener(ApplicationReadyEvent.class)
     @Order(2)
-    public void subscribeTop30(ApplicationReadyEvent event) throws JsonProcessingException, InterruptedException {
+    public void subscribeFixedStocks(ApplicationReadyEvent event) throws JsonProcessingException, InterruptedException {
         subscribeAllStocks();
     }
 
@@ -163,27 +143,24 @@ public class InitStockSubscribe {
      * 전체 종목 구독 로직
      */
     private void subscribeAllStocks() throws JsonProcessingException, InterruptedException {
-        Set<String> allTickers = stockRepository.findAllTickers();
-
-        // 만약 장시간이라면 30개 종목들 구독해서 KIS WebSocket으로 실시간 체결가 가져오기
+        // 만약 장시간이라면 40개 종목들 구독해서 KIS WebSocket으로 실시간 체결가 가져오기
         if (MarketTime.isMarketOpen()) {
-            for (String ticker : allTickers) {
+            for (String ticker : FIXED_TICKERS) {
                 subscribeStock(ticker); // 해당 종목 구독
             }
-        } else { // 만약 장외시간이고 서버 첫 가동이서 데이터 없다면 종목들 데이터 받아오기
-            for (String ticker : allTickers) {
-
+        } else { // 만약 장외 시간이고 서버 첫 가동이서 데이터 없다면 종목들 데이터 받아오기
+            for (String ticker : FIXED_TICKERS) {
                 if (redisTemplate.hasKey("stock:data:" + ticker)) {
                     log.info("Redis에 기존 데이터 존재 → API 호출 생략: {}", ticker);
                     continue;
                 }
                 getStockInfoRest(ticker); // Rest API로 종가 가져오기
-                Thread.sleep(500); // KIS 초당 거래 요청 제한 때문에 2초 딜레이(이 이하는 초당 거래 요청 횟수 초과)
+                Thread.sleep(200);
             }
         }
     }
 
-    // 서버 가동시 사이트에서 다룰 30개 주식 종목 구독
+    // 주식 종목 구독
     private void subscribeStock(String ticker) throws JsonProcessingException {
         ObjectNode header = mapper.createObjectNode();
 
@@ -204,34 +181,10 @@ public class InitStockSubscribe {
         request.set("body", body);
 
         String json = mapper.writeValueAsString(request);
-        client.send(json); // KIS 웹소켓에 해당 종목 구독 요청 전송하면 KIS 웹소켓이 해당 종목 실시간 데이터 보내줌
-    }
-
-    // 해당 주식 종목 구독 해제
-    private void unsubscribeStock(String ticker) throws JsonProcessingException {
-        ObjectNode header = mapper.createObjectNode();
-
-        header.put("approval_key", approvalKey);
-        header.put("custtype", "P");
-        header.put("tr_type", "2"); // 구독 해제
-        header.put("content-type", "utf-8");
-
-        ObjectNode input = mapper.createObjectNode();
-        input.put("tr_id", "H0STCNT0");
-        input.put("tr_key", ticker);
-
-        ObjectNode body = mapper.createObjectNode();
-        body.set("input", input);
-
-        ObjectNode request = mapper.createObjectNode();
-        request.set("header", header);
-        request.set("body", body);
-
-        String json = mapper.writeValueAsString(request);
         client.send(json);
     }
 
-    // 서버 가동시 사이트에서 다룰 30개 주식 종목 최초 정보 가져오기
+    // 서버 가동시 사이트에서 다룰 40개 주식 종목 최초 정보 가져오기
     public void getStockInfoRest(String trKey) {
         String url = baseUrl + "/uapi/domestic-stock/v1/quotations/inquire-price";
 
@@ -250,12 +203,12 @@ public class InitStockSubscribe {
         HttpEntity<String> entity = new HttpEntity<>(headers);
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<Map> response = restTemplate.exchange(
-                builder.toUriString(), HttpMethod.GET, entity, Map.class
-        );
+                builder.toUriString(), HttpMethod.GET, entity, Map.class);
 
         try {
             Map body = response.getBody();
-            if (body == null) return;
+            if (body == null)
+                return;
 
             Object output = body.get("output");
             Map<String, Object> om = (Map<String, Object>) output;
@@ -264,7 +217,6 @@ public class InitStockSubscribe {
             long changeAmount = Long.parseLong(Optional.ofNullable(om.get("prdy_vrss")).orElse("0").toString());
             double changeRate = Double.parseDouble(Optional.ofNullable(om.get("prdy_ctrt")).orElse("0").toString());
             long volume = Long.parseLong(Optional.ofNullable(om.get("acml_vol")).orElse("0").toString());
-
 
             // Redis에 기존 데이터가 있으면 tradeTime 유지
             String key = "stock:data:" + trKey;
@@ -278,7 +230,9 @@ public class InitStockSubscribe {
                 }
             }
 
-            String companyName = stockRepository.findNameByTicker(trKey); // 회사 이름
+            String companyName = TICKER_NAME_MAP.getOrDefault(trKey, stockRepository.findNameByTicker(trKey));
+            if (companyName == null)
+                companyName = "알 수 없는 종목";
 
             ObjectNode out = mapper.createObjectNode();
             out.put("ticker", trKey); // 종목 코드
@@ -300,7 +254,7 @@ public class InitStockSubscribe {
             redisTemplate.opsForZSet().add("stock:rank:price", trKey, price); // 가격 높은 순으로 정렬 redis 저장
             redisTemplate.opsForZSet().add("stock:rank:changeRate", trKey, changeRate); // 등락률 높은 순으로 정렬 redis 저장
 
-            // STOMP로 직접 전송 (Redis Pub/Sub 제거)
+            // STOMP로 직접 전송
             messagingTemplate.convertAndSend("/topic/stocks", json);
 
             log.info("Redis 저장 & STOMP 직접 전송(REST) → {}", json);
@@ -309,6 +263,5 @@ public class InitStockSubscribe {
             log.warn("REST 현재가 브로드캐스트 실패", e);
         }
     }
-
 
 }
