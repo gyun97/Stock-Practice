@@ -26,12 +26,12 @@ export default function Home() {
   const [rows, setRows] = useState<Row[]>([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
-  const [userInfo, setUserInfo] = useState<{userId: string, email: string, name: string} | null>(null)
+  const [userInfo, setUserInfo] = useState<{ userId: string, email: string, name: string } | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [userStocks, setUserStocks] = useState<UserStock[]>([])
   const [sortBy, setSortBy] = useState<'volume' | 'price' | 'rise' | 'fall'>('volume')
   const [userStockSortBy, setUserStockSortBy] = useState<'quantity' | 'changeRate'>('quantity')
-  const [rankings, setRankings] = useState<Array<{userId: number, userName: string, totalAsset: number, returnRate: number, rank: number}>>([])
+  const [rankings, setRankings] = useState<Array<{ userId: number, userName: string, totalAsset: number, returnRate: number, rank: number }>>([])
   const loaderRef = useRef<HTMLDivElement | null>(null)
   const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
@@ -42,29 +42,29 @@ export default function Home() {
     const token = searchParams.get('token')
     if (token) {
       console.log('OAuth 토큰 받음:', token)
-      
+
       // 토큰을 메모리에 저장 (localStorage에서 기존 토큰 제거)
       localStorage.removeItem('accessToken')
       tokenManager.setTokens(token)
-      
+
       // 사용자 정보를 토큰에서 추출 (JWT 디코딩)
       try {
         const payload = decodeJwtPayload(token)
         console.log('JWT 페이로드:', payload)
         console.log('JWT에서 추출한 name:', payload.name, '(타입:', typeof payload.name, ', 길이:', payload.name ? payload.name.length : 0, ')')
-        
+
         const userInfo = {
           userId: payload.sub,
           email: payload.email,
           name: payload.name
         }
-        
+
         localStorage.setItem('userInfo', JSON.stringify(userInfo))
         localStorage.setItem('loginMethod', 'oauth')
         setUserInfo(userInfo)
-        
+
         console.log('OAuth 로그인 완료:', userInfo)
-        
+
         // URL에서 토큰 파라미터 제거
         setSearchParams({})
       } catch (error) {
@@ -180,7 +180,7 @@ export default function Home() {
   // 로그아웃 함수
   const handleLogout = async () => {
     console.log('메인 페이지 로그아웃 함수가 호출되었습니다!')
-    
+
     try {
       // 백엔드 로그아웃 API 호출
       console.log('로그아웃 API 호출 시작')
@@ -236,7 +236,7 @@ export default function Home() {
 
           const volume = toNum(it?.volume ?? it?.acml_vol ?? it?.accumulatedVolume) ?? 0
           return { ticker, name, price, changeRate, logoUrl, volume }
-//           return { ticker, name, price, changeRate, logoUrl}
+          //           return { ticker, name, price, changeRate, logoUrl}
         }).filter((r: Row) => r.ticker && r.name)
         // 선택한 정렬 기준으로 정렬
         const sorted = sortRows(normalized, sortBy)
@@ -247,7 +247,7 @@ export default function Home() {
         console.error("주식 데이터 불러오기 실패", err)
         // setRows([]) // 실패 시 빈 값
       })
-    
+
     // 랭킹 데이터도 함께 가져오기
     fetchRankings()
   }, [])
@@ -269,22 +269,22 @@ export default function Home() {
     }
 
     if (!code || price == null) return
-    
+
     // 장 마감 시간(15:30) 이후에는 실시간 업데이트 중단
-//     if (!isMarketOpen()) return
-    
+    //     if (!isMarketOpen()) return
+
     setRows(prev => {
       const found = prev.some(r => r.ticker === code)
       const updated = found
         ? prev.map(r =>
-            r.ticker === code
-              ? { ...r, price, changeRate: changeRate ?? r.changeRate, name: companyName ?? r.name, logoUrl: logoUrl ?? r.logoUrl, volume: volume ?? r.volume }
-              : r
-          )
+          r.ticker === code
+            ? { ...r, price, changeRate: changeRate ?? r.changeRate, name: companyName ?? r.name, logoUrl: logoUrl ?? r.logoUrl, volume: volume ?? r.volume }
+            : r
+        )
         : [...prev, { ticker: code, name: companyName ?? code, price, changeRate: changeRate ?? 0, logoUrl, volume: volume ?? 0 }]
       // 선택한 정렬 기준으로 정렬
       const sorted = sortRows(updated, sortBy)
-      
+
       // 보유 종목이 있으면 실시간 정보 업데이트
       if (userStocks.length > 0) {
         const updatedStocks = userStocks.map(stock => {
@@ -303,7 +303,7 @@ export default function Home() {
         const sortedStocks = sortUserStocks(updatedStocks, userStockSortBy)
         setUserStocks(sortedStocks)
       }
-      
+
       return sorted
     })
   }, [sortBy, userStockSortBy])
@@ -366,22 +366,9 @@ export default function Home() {
   }, [hasMore])
 
   return (
-    <div style={{ background: 'radial-gradient(1000px 400px at 50% -100px, #e0e7ff 0%, #ffffff 60%)' }}>
+    <div className="home-wrapper" style={{ background: 'radial-gradient(1000px 400px at 50% -100px, #e0e7ff 0%, #ffffff 60%)', minHeight: '100vh' }}>
       {/* 상단 우측 액션 바 */}
-      <div style={{ 
-        position: 'fixed', 
-        top: 12, 
-        right: 16, 
-        zIndex: 50, 
-        display: 'flex', 
-        gap: 8, 
-        alignItems: 'center',
-        backdropFilter: 'blur(10px)',
-        background: 'rgba(255, 255, 255, 0.8)',
-        padding: '8px 12px',
-        borderRadius: 12,
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-      }}>
+      <div className="header-actions">
         {userInfo ? (
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
@@ -418,7 +405,7 @@ export default function Home() {
             >
               👤
             </button>
-            
+
             {showDropdown && (
               <div style={{
                 position: 'absolute',
@@ -567,18 +554,12 @@ export default function Home() {
         )}
       </div>
       {/* 상단 히어로 (센터 정렬, 대형 타이틀) */}
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '64px 16px 24px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 4 }}>
-          <img 
-            src="/logos/Stock King2.jpg" 
-            alt="Stock King Logo" 
-            style={{ 
-              width: 120, 
-              height: 120, 
-              objectFit: 'contain',
-              background: 'transparent',
-              marginTop: '38px'
-            }} 
+      <div className="hero-section container">
+        <div className="hero-title-container">
+          <img
+            src="/logos/Stock King2.jpg"
+            alt="Stock King Logo"
+            className="hero-logo"
             onError={(e) => {
               // 이미지 로드 실패 시 숨김 처리
               e.currentTarget.style.display = 'none'
@@ -588,32 +569,17 @@ export default function Home() {
             <div style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, background: '#eef2ff', color: '#4338ca', fontSize: 12, fontWeight: 700, letterSpacing: 0.2, marginBottom: 0 }}>
               모의 주식 투자 플랫폼
             </div>
-            <h1 style={{
-              margin: 0,
-              padding: 0,
-              fontSize: 72,
-              lineHeight: 1.05,
-              letterSpacing: -1.5,
-              fontWeight: 900,
-              background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-              textShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
-              fontFamily: 'system-ui, -apple-system, sans-serif',
-              display: 'flex',
-              alignItems: 'center'
-            }}>
+            <h1 className="hero-title">
               Stock King
             </h1>
           </div>
         </div>
-        <p style={{ margin: '14px auto 0', fontSize: 18, color: '#475569', maxWidth: 680 }}>
+        <p className="hero-desc">
           실시간 차트와 주문, 포트폴리오까지. 빠르고 가벼운 트레이딩 경험을 제공합니다.
         </p>
-        
+
         {/* 하이라이트 카드 (새 디자인) */}
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginTop: 28 }}>
+        <div className="grid-3">
           <FeatureCard title="실시간 차트" desc="정교한 캔들 · 거래량 · 툴팁" emoji="📈" />
           <FeatureCard title="주문/알림" desc="즉시·예약 주문과 체결 알림" emoji="⚡" />
           <FeatureCard title="포트폴리오" desc="총자산·수익률을 실시간 추적" emoji="💼" />
@@ -621,20 +587,20 @@ export default function Home() {
       </div>
 
       {/* 통계 섹션 */}
-      <div style={{ maxWidth: 1120, margin: '40px auto', padding: '0 16px' }}>
+      <div className="container" style={{ margin: '40px auto' }}>
         <StatisticsSection rows={rows} />
       </div>
 
       {/* 최고 상승/하락 종목 하이라이트 */}
       {rows.length > 0 && (
-        <div style={{ maxWidth: 1120, margin: '32px auto', padding: '0 16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <TopStockCard 
+        <div className="container" style={{ margin: '32px auto' }}>
+          <div className="grid-2">
+            <TopStockCard
               title="🔥 상승률 TOP 3"
               rows={rows.filter(r => r.changeRate > 0).sort((a, b) => b.changeRate - a.changeRate).slice(0, 3)}
               color="#dc2626"
             />
-            <TopStockCard 
+            <TopStockCard
               title="📉 하락률 TOP 3"
               rows={rows.filter(r => r.changeRate < 0).sort((a, b) => a.changeRate - b.changeRate).slice(0, 3)}
               color="#2563eb"
@@ -644,117 +610,117 @@ export default function Home() {
       )}
 
       {/* 유저 랭킹 섹션 */}
-      <div style={{ maxWidth: 1120, margin: '32px auto', padding: '0 16px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 12, 
-            marginBottom: 16,
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-            borderRadius: 12,
-            border: '1px solid #e5e7eb'
+      <div className="container" style={{ margin: '32px auto' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 16,
+          padding: '16px 20px',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
+          borderRadius: 12,
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 20
           }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20
-            }}>
-              🏆
-            </div>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
-                유저 랭킹
-              </h2>
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
-                총 자산 기준 상위 10명
-              </p>
-            </div>
+            🏆
           </div>
-          <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
-            {/* 헤더 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 150px 150px', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 700 }}>
-              <div style={{ textAlign: 'center' }}>순위</div>
-              <div>사용자</div>
-              <div style={{ textAlign: 'right' }}>총 자산</div>
-              <div style={{ textAlign: 'right' }}>수익률</div>
-            </div>
-            {/* 랭킹 목록 */}
-            {rankings.map((ranking, idx) => {
-              return (
-                <div
-                  key={ranking.userId}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '60px 1fr 150px 150px',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '14px',
-                    borderBottom: idx < rankings.length - 1 ? '1px solid #f1f5f9' : 'none',
-                    background: 'white',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#f9fafb'
-                    e.currentTarget.style.transform = 'translateY(-1px)'
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'white'
-                    e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                >
-                  {/* 순위 */}
-                  <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 700, color: '#374151' }}>
-                    {ranking.rank === 1 ? '🥇' : ranking.rank === 2 ? '🥈' : ranking.rank === 3 ? '🥉' : ranking.rank}
-                  </div>
-                  {/* 사용자 이름 */}
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
-                    {ranking.userName}
-                  </div>
-                  {/* 총 자산 */}
-                  <div style={{ textAlign: 'right', fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
-                    {ranking.totalAsset.toLocaleString()}원
-                  </div>
-                  {/* 수익률 */}
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      fontWeight: 700,
-                      fontSize: 13,
-                      color: ranking.returnRate >= 0 ? '#b91c1c' : '#1d4ed8',
-                      background: ranking.returnRate >= 0 ? '#fee2e2' : '#dbeafe'
-                    }}>
-                      {ranking.returnRate >= 0 ? '+' : ''}{ranking.returnRate.toFixed(2)}%
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
-            {rankings.length === 0 && (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-                랭킹 데이터를 불러오는 중...
-              </div>
-            )}
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+              유저 랭킹
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
+              총 자산 기준 상위 10명
+            </p>
           </div>
         </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
+          {/* 헤더 */}
+          <div className="ranking-columns" style={{ display: 'grid', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 700 }}>
+            <div style={{ textAlign: 'center' }}>순위</div>
+            <div>사용자</div>
+            <div className="mobile-hidden" style={{ textAlign: 'right' }}>총 자산</div>
+            <div style={{ textAlign: 'right' }}>수익률</div>
+          </div>
+          {/* 랭킹 목록 */}
+          {rankings.map((ranking, idx) => {
+            return (
+              <div
+                key={ranking.userId}
+                className="ranking-columns"
+                style={{
+                  display: 'grid',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '14px',
+                  borderBottom: idx < rankings.length - 1 ? '1px solid #f1f5f9' : 'none',
+                  background: 'white',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f9fafb'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                {/* 순위 */}
+                <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 700, color: '#374151' }}>
+                  {ranking.rank === 1 ? '🥇' : ranking.rank === 2 ? '🥈' : ranking.rank === 3 ? '🥉' : ranking.rank}
+                </div>
+                {/* 사용자 이름 */}
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
+                  {ranking.userName}
+                </div>
+                {/* 총 자산 */}
+                <div className="mobile-hidden" style={{ textAlign: 'right', fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
+                  {ranking.totalAsset.toLocaleString()}원
+                </div>
+                {/* 수익률 */}
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: ranking.returnRate >= 0 ? '#b91c1c' : '#1d4ed8',
+                    background: ranking.returnRate >= 0 ? '#fee2e2' : '#dbeafe'
+                  }}>
+                    {ranking.returnRate >= 0 ? '+' : ''}{ranking.returnRate.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+          {rankings.length === 0 && (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+              랭킹 데이터를 불러오는 중...
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* 보유 종목 섹션 */}
       {userInfo && userStocks.length > 0 && (
-        <div style={{ maxWidth: 1120, margin: '32px auto', padding: '0 16px' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 12, 
+        <div className="container" style={{ margin: '32px auto' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
             marginBottom: 16,
             padding: '16px 20px',
             background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
@@ -808,10 +774,10 @@ export default function Home() {
           </div>
           <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
             {/* 헤더 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '56px 1fr 100px 120px 120px', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 700 }}>
+            <div className="user-stocks-columns stock-table-header" style={{ color: '#475569', fontSize: 12, fontWeight: 700 }}>
               <div />
               <div style={{ transform: 'translateX(8px)' }}>종목</div>
-              <div style={{ textAlign: 'right' }}>보유량</div>
+              <div className="optional-col" style={{ textAlign: 'right' }}>보유량</div>
               <div style={{ textAlign: 'right', transform: 'translateX(-8px)' }}>현재가</div>
               <div style={{ textAlign: 'right', transform: 'translateX(-8px)' }}>등락률</div>
             </div>
@@ -821,12 +787,8 @@ export default function Home() {
                 <Link
                   key={stock.ticker}
                   to={`/stocks/${stock.ticker}/chart`}
+                  className="user-stocks-columns stock-table-row"
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '56px 1fr 100px 120px 120px',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: '12px 14px',
                     borderTop: '1px solid #f1f5f9',
                     textDecoration: 'none',
                     color: 'inherit',
@@ -850,13 +812,13 @@ export default function Home() {
                     <span style={{ fontWeight: 700, color: '#0f172a' }}>{stock.companyName}</span>
                     <span style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{stock.ticker}</span>
                   </div>
-                  <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#334155', fontWeight: 600 }}>
+                  <div className="optional-col" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#334155', fontWeight: 600 }}>
                     {stock.totalQuantity.toLocaleString()}주
                   </div>
-                  <div style={{ 
-                    textAlign: 'right', 
-                    fontVariantNumeric: 'tabular-nums', 
-                    fontWeight: 700, 
+                  <div style={{
+                    textAlign: 'right',
+                    fontVariantNumeric: 'tabular-nums',
+                    fontWeight: 700,
                     color: '#000000',
                     transition: 'color 0.3s ease'
                   }}>
@@ -891,11 +853,11 @@ export default function Home() {
       )}
 
       {/* 목록 섹션 */}
-      <div style={{ maxWidth: 1120, margin: '24px auto 40px', padding: '0 16px' }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 12, 
+      <div className="container" style={{ margin: '24px auto 40px' }}>
+        <div className="section-header" style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
           marginBottom: 16,
           padding: '16px 20px',
           background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
@@ -915,14 +877,14 @@ export default function Home() {
             📈
           </div>
           <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
               실시간 차트
             </h2>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>
               모든 종목의 실시간 시세 정보를 확인하세요
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="sort-buttons" style={{ display: 'flex', gap: 8 }}>
             {[
               { key: 'volume', label: '거래량' },
               { key: 'price', label: '가격' },
@@ -941,7 +903,8 @@ export default function Home() {
                   cursor: 'pointer',
                   fontSize: 14,
                   fontWeight: sortBy === key ? 'bold' : 'normal',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {label}
@@ -949,94 +912,93 @@ export default function Home() {
             ))}
           </div>
         </div>
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
-          {/* 헤더 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '50px 56px 1fr 120px 120px 120px', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 700 }}>
-            <div style={{ textAlign: 'center' }}>순위</div>
-            <div />
-            <div style={{ transform: 'translateX(8px)' }}>종목</div>
-            <div style={{ textAlign: 'right', transform: 'translateX(-8px)' }}>현재가</div>
-            <div style={{ textAlign: 'right', transform: 'translateX(-8px)' }}>등락률</div>
-            <div style={{ textAlign: 'right', transform: 'translateX(-8px)' }}>거래량</div>
+        <div className="table-wrapper">
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, background: 'white' }}>
+            {/* 헤더 */}
+            <div className="all-stocks-columns stock-table-header" style={{ color: '#475569', fontSize: 12, fontWeight: 700 }}>
+              <div style={{ textAlign: 'center' }}>순위</div>
+              <div />
+              <div>종목</div>
+              <div style={{ textAlign: 'right' }}>현재가</div>
+              <div style={{ textAlign: 'right' }}>등락률</div>
+              <div className="volume-cell" style={{ textAlign: 'right' }}>거래량</div>
+            </div>
+            {rows.map((row, idx) => (
+              <Link
+                key={row.ticker}
+                to={`/stocks/${row.ticker}/chart`}
+                className="all-stocks-columns stock-table-row"
+                style={{
+                  borderTop: '1px solid #f1f5f9',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  background: idx % 2 ? '#ffffff' : '#fcfcfd',
+                  transition: 'all 0.2s ease-in-out',
+                  transform: 'translateY(0)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#fafcff'
+                  e.currentTarget.style.boxShadow = 'inset 0 0 0 1px #e5e7eb'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = idx % 2 ? '#ffffff' : '#fcfcfd'
+                  e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                }}
+              >
+                {/* 순위 */}
+                <div className="rank-cell" style={{
+                  textAlign: 'center',
+                  fontSize: 14,
+                  fontWeight: idx < 3 ? 800 : 600,
+                  color: idx < 3 ? (idx === 0 ? '#dc2626' : idx === 1 ? '#f59e0b' : '#2563eb') : '#6b7280'
+                }}>
+                  {idx + 1}
+                </div>
+                <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span className="name-text" style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</span>
+                  <span className="ticker-text" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{row.ticker}</span>
+                </div>
+                <div className="price-cell" style={{
+                  textAlign: 'right',
+                  fontVariantNumeric: 'tabular-nums',
+                  fontWeight: 700,
+                  color: '#000000',
+                  transition: 'color 0.3s ease'
+                }}>
+                  {row.price != null ? `${row.price.toLocaleString()}원` : '-'}
+                </div>
+                <div className="change-cell" style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end' }}>
+                  {row.changeRate != null ? (
+                    <span
+                      className="change-rate-badge"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '4px 10px',
+                        borderRadius: 999,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        color: row.changeRate > 0 ? '#b91c1c' : row.changeRate < 0 ? '#1d4ed8' : '#374151',
+                        background: row.changeRate > 0 ? '#fee2e2' : row.changeRate < 0 ? '#dbeafe' : '#f3f4f6',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      {row.changeRate > 0 ? '▲' : row.changeRate < 0 ? '▼' : ''} {row.changeRate.toFixed(2)}%
+                    </span>
+                  ) : (
+                    '-'
+                  )}
+                </div>
+                <div className="volume-cell" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#334155' }}>
+                  {row.volume != null ? `${row.volume.toLocaleString()}주` : '-'}
+                </div>
+              </Link>
+            ))}
+            <div ref={loaderRef} style={{ height: 24 }} />
           </div>
-          {rows.map((row, idx) => (
-            <Link
-              key={row.ticker}
-              to={`/stocks/${row.ticker}/chart`}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '50px 56px 1fr 120px 120px 120px',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 14px',
-                borderTop: '1px solid #f1f5f9',
-                textDecoration: 'none',
-                color: 'inherit',
-                background: idx % 2 ? '#ffffff' : '#fcfcfd',
-                transition: 'all 0.2s ease-in-out',
-                transform: 'translateY(0)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#fafcff'
-                e.currentTarget.style.boxShadow = 'inset 0 0 0 1px #e5e7eb'
-                e.currentTarget.style.transform = 'translateY(-1px)'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = idx % 2 ? '#ffffff' : '#fcfcfd'
-                e.currentTarget.style.boxShadow = 'none'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}
-            >
-              {/* 순위 */}
-              <div style={{ 
-                textAlign: 'center',
-                fontSize: 14,
-                fontWeight: idx < 3 ? 800 : 600,
-                color: idx < 3 ? (idx === 0 ? '#dc2626' : idx === 1 ? '#f59e0b' : '#2563eb') : '#6b7280'
-              }}>
-                {idx + 1}
-              </div>
-              <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 700, color: '#0f172a' }}>{row.name}</span>
-                <span style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{row.ticker}</span>
-              </div>
-              <div style={{ 
-                textAlign: 'right', 
-                fontVariantNumeric: 'tabular-nums', 
-                fontWeight: 700, 
-                color: '#000000',
-                transition: 'color 0.3s ease'
-              }}>
-                {row.price != null ? `${row.price.toLocaleString()}원` : '-'}
-              </div>
-              <div style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end' }}>
-                {row.changeRate != null ? (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      fontWeight: 700,
-                      fontSize: 12,
-                      color: row.changeRate > 0 ? '#b91c1c' : row.changeRate < 0 ? '#1d4ed8' : '#374151',
-                      background: row.changeRate > 0 ? '#fee2e2' : row.changeRate < 0 ? '#dbeafe' : '#f3f4f6',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    {row.changeRate > 0 ? '▲' : row.changeRate < 0 ? '▼' : ''} {row.changeRate.toFixed(2)}%
-                  </span>
-                ) : (
-                  '-'
-                )}
-              </div>
-              <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#334155' }}>
-                {row.volume != null ? `${row.volume.toLocaleString()}주` : '-'}
-              </div>
-            </Link>
-          ))}
-          <div ref={loaderRef} style={{ height: 24 }} />
         </div>
       </div>
 
@@ -1048,30 +1010,30 @@ export default function Home() {
         marginTop: '60px',
         textAlign: 'center'
       }}>
-        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
+        <div className="container">
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             gap: 8,
             marginBottom: 16
           }}>
-            <img 
-              src="/logos/Stock King2.jpg" 
-              alt="Stock King Logo" 
-              style={{ 
-                width: 32, 
-                height: 32, 
+            <img
+              src="/logos/Stock King2.jpg"
+              alt="Stock King Logo"
+              style={{
+                width: 32,
+                height: 32,
                 objectFit: 'contain',
                 background: 'transparent'
-              }} 
+              }}
               onError={(e) => {
                 e.currentTarget.style.display = 'none'
               }}
             />
-            <span style={{ 
-              fontSize: 18, 
-              fontWeight: 700, 
+            <span style={{
+              fontSize: 18,
+              fontWeight: 700,
               background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
@@ -1080,9 +1042,9 @@ export default function Home() {
               Stock King
             </span>
           </div>
-          <p style={{ 
-            fontSize: 14, 
-            color: '#6b7280', 
+          <p style={{
+            fontSize: 14,
+            color: '#6b7280',
             margin: '8px 0 16px',
             lineHeight: 1.6
           }}>
@@ -1090,8 +1052,8 @@ export default function Home() {
             <br />
             실시간 차트와 주문 시스템을 통해 전문가 수준의 트레이딩 경험을 제공합니다.
           </p>
-          <div style={{ 
-            paddingTop: '20px', 
+          <div style={{
+            paddingTop: '20px',
             borderTop: '1px solid #e5e7eb',
             fontSize: 12,
             color: '#9ca3b8'
@@ -1100,7 +1062,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
-    </div>
+    </div >
   )
 }
 
@@ -1164,7 +1126,7 @@ function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; log
 
 function FeatureCard({ title, desc, emoji }: { title: string; desc: string; emoji: string }) {
   return (
-    <div 
+    <div
       style={{
         border: '1px solid #e5e7eb',
         borderRadius: 14,
@@ -1189,14 +1151,14 @@ function FeatureCard({ title, desc, emoji }: { title: string; desc: string; emoj
         e.currentTarget.style.borderColor = '#e5e7eb'
       }}
     >
-      <div style={{ 
-        width: 48, 
-        height: 48, 
-        borderRadius: 999, 
-        background: '#eef2ff', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
+      <div style={{
+        width: 48,
+        height: 48,
+        borderRadius: 999,
+        background: '#eef2ff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         fontSize: 22,
         transition: 'transform 0.3s ease'
       }}>
@@ -1214,8 +1176,8 @@ function StatisticsSection({ rows }: { rows: Row[] }) {
   const totalStocks = rows.length
   const risingCount = rows.filter(r => r.changeRate > 0).length
   const fallingCount = rows.filter(r => r.changeRate < 0).length
-  const avgChangeRate = rows.length > 0 
-    ? rows.reduce((sum, r) => sum + (r.changeRate || 0), 0) / rows.length 
+  const avgChangeRate = rows.length > 0
+    ? rows.reduce((sum, r) => sum + (r.changeRate || 0), 0) / rows.length
     : 0
   const totalVolume = rows.reduce((sum, r) => sum + (r.volume || 0), 0)
 
@@ -1227,60 +1189,30 @@ function StatisticsSection({ rows }: { rows: Row[] }) {
   ]
 
   return (
-    <div style={{ 
+    <div style={{
       background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #cbd5e1 100%)',
       borderRadius: 16,
       padding: '24px',
       boxShadow: '0 8px 24px rgba(148, 163, 184, 0.2)'
     }}>
-      <h3 style={{ 
-        margin: '0 0 20px', 
-        fontSize: 20, 
-        fontWeight: 700, 
+      <h3 style={{
+        margin: '0 0 20px',
+        fontSize: 20,
+        fontWeight: 700,
         color: '#0f172a',
-        textAlign: 'center'
+        textAlign: 'center',
+        whiteSpace: 'nowrap'
       }}>
         📊 실시간 시장 현황
       </h3>
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(4, 1fr)', 
-        gap: 16 
-      }}>
+      <div className="stats-grid">
         {stats.map((stat, idx) => (
-          <div
-            key={idx}
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: 12,
-              padding: '20px',
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-              cursor: 'default'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.transform = 'translateY(-4px)'
-              e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)'
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = 'none'
-            }}
-          >
+          <div key={idx} className="stat-card">
             <div style={{ fontSize: 28, marginBottom: 8 }}>{stat.icon}</div>
-            <div style={{ 
-              fontSize: 24, 
-              fontWeight: 800, 
-              color: stat.color,
-              marginBottom: 4
-            }}>
+            <div className="stat-value" style={{ color: stat.color }}>
               {stat.value}
             </div>
-            <div style={{ 
-              fontSize: 13, 
-              color: '#6b7280',
-              fontWeight: 600
-            }}>
+            <div className="stat-label">
               {stat.label}
             </div>
           </div>
@@ -1312,10 +1244,10 @@ function TopStockCard({ title, rows, color }: { title: string; rows: Row[]; colo
         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
       }}
     >
-      <h3 style={{ 
-        margin: '0 0 16px', 
-        fontSize: 18, 
-        fontWeight: 800, 
+      <h3 style={{
+        margin: '0 0 16px',
+        fontSize: 18,
+        fontWeight: 800,
         color: '#0f172a',
         display: 'flex',
         alignItems: 'center',
@@ -1373,9 +1305,9 @@ function TopStockCard({ title, rows, color }: { title: string; rows: Row[]; colo
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ 
-                fontSize: 16, 
-                fontWeight: 800, 
+              <div style={{
+                fontSize: 16,
+                fontWeight: 800,
                 color: color,
                 marginBottom: 2
               }}>
