@@ -241,10 +241,9 @@ export default function OrderManagement() {
       background: '#f8fafc',
       padding: '20px 0'
     }}>
-      <div style={{
+      <div className="container" style={{
         maxWidth: 1000,
-        margin: '0 auto',
-        padding: '0 16px'
+        margin: '0 auto'
       }}>
         {/* 헤더 */}
         <div style={{
@@ -324,7 +323,7 @@ export default function OrderManagement() {
               예약 주문 내역이 없습니다.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-wrapper">
               <table style={{
                 width: '100%',
                 borderCollapse: 'collapse',
@@ -443,7 +442,7 @@ export default function OrderManagement() {
               일반 주문 내역이 없습니다.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-wrapper">
               <table style={{
                 width: '100%',
                 borderCollapse: 'collapse',
