@@ -957,7 +957,7 @@ export default function Home() {
                   {idx + 1}
                 </div>
                 <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 4 }}>
                   <span className="name-text" style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</span>
                   <span className="ticker-text" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{row.ticker}</span>
                 </div>

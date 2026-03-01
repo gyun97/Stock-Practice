@@ -20,10 +20,10 @@ public class WebSocketConnectionInterceptor implements ChannelInterceptor {
     private final WebSocketSessionManager sessionManager;
     @Lazy
     private final SimpMessagingTemplate messagingTemplate;
-    
+
     // 생성자에서 MessagingTemplate 설정
-    public WebSocketConnectionInterceptor(JwtUtil jwtUtil, WebSocketSessionManager sessionManager, 
-                                        @Lazy SimpMessagingTemplate messagingTemplate) {
+    public WebSocketConnectionInterceptor(JwtUtil jwtUtil, WebSocketSessionManager sessionManager,
+            @Lazy SimpMessagingTemplate messagingTemplate) {
         this.jwtUtil = jwtUtil;
         this.sessionManager = sessionManager;
         this.messagingTemplate = messagingTemplate;
@@ -41,13 +41,20 @@ public class WebSocketConnectionInterceptor implements ChannelInterceptor {
             String authHeader = accessor.getFirstNativeHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
+
+                // "null" 또는 "undefined" 문자열이 들어오는 경우 예외 처리
+                if ("null".equals(token) || "undefined".equals(token)) {
+                    log.debug("비로그인 상태의 WebSocket 연결 시도 (토큰 없음)");
+                    return message;
+                }
+
                 try {
                     Long userId = jwtUtil.getUserIdFromToken(token);
                     String sessionId = accessor.getSessionId();
-                    
+
                     // 사용자 세션 등록
                     sessionManager.addUserSession(userId, sessionId);
-                    
+
                     log.info("WebSocket 연결 성공 - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
                 } catch (Exception e) {
                     log.error("WebSocket 연결 실패 - JWT 토큰 검증 오류", e);
@@ -68,5 +75,3 @@ public class WebSocketConnectionInterceptor implements ChannelInterceptor {
         return message;
     }
 }
-
-
