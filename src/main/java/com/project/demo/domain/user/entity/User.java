@@ -56,6 +56,7 @@ public class User extends TimeStamped {
     @Column(length = 100, unique = true, nullable = false)
     private String email;
 
+    @Column(columnDefinition = "MEDIUMTEXT")
     private String profileImage;
 
     @OneToMany(mappedBy = "user")
@@ -117,6 +118,8 @@ public class User extends TimeStamped {
             this.email = request.getNewEmail();
         if (request.getNewName() != null)
             this.name = request.getNewName();
+        if (request.getNewProfileImage() != null)
+            this.profileImage = request.getNewProfileImage();
     }
 
     /**
@@ -139,6 +142,13 @@ public class User extends TimeStamped {
      */
     public void changePassword(String newPassword) {
         this.password = newPassword;
+    }
+
+    /**
+     * 프로필 이미지 업데이트
+     */
+    public void updateProfileImage(String profileImage) {
+        this.profileImage = profileImage;
     }
 
     /*

@@ -11,5 +11,10 @@ public class UpdateUserInfoRequest {
 
     private String newEmail;
     private String newName;
+    private String newProfileImage;
 
+    public UpdateUserInfoRequest(String newEmail, String newName) {
+        this.newEmail = newEmail;
+        this.newName = newName;
+    }
 }
