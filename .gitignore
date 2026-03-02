@@ -38,6 +38,7 @@ out/
 
 ### env ###
 .env
+.env.local
 .env.prod
 
 ### Node.js ###
