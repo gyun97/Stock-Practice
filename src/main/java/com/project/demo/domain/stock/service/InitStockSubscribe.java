@@ -88,29 +88,37 @@ public class InitStockSubscribe {
         log.info("서버 가동: 고정 종목 40개 정보 초기화 시작");
         for (String ticker : FIXED_TICKERS) {
             try {
-                // RDB에 종목 기본 정보 저장 (없을 경우)
-                if (!stockRepository.existsByTicker(ticker)) {
-                    String outline = stockOutlineService.getOutline(ticker);
+                // RDB에 종목 기본 정보 저장 및 갱신
+                Stock stock = stockRepository.findByTicker(ticker).orElse(null);
+                String name = TICKER_NAME_MAP.getOrDefault(ticker, "알 수 없는 종목");
+                String outline = stockOutlineService.getOutline(ticker);
 
-                    String name = TICKER_NAME_MAP.getOrDefault(ticker, "알 수 없는 종목");
-                    Stock stock = Stock.builder()
+                if (stock == null) {
+                    stock = Stock.builder()
                             .ticker(ticker)
                             .name(name)
                             .market(Market.KOSPI)
                             .volume(0L)
+                            .outline(outline)
                             .build();
-
+                } else {
+                    // 기존 종목이 있다면 이름과 개요 최신화
+                    stock.setName(name);
                     if (outline != null) {
                         stock.setOutline(outline);
                     }
-                    stockRepository.save(stock);
                 }
+                stockRepository.save(stock);
 
                 // 최신 데이터(가격 등) 가져오기 및 Redis 저장
                 getStockInfoRest(ticker);
-                Thread.sleep(1000); // KIS API 초당 호출 제한(TPS) 방지를 위해 1초 대기
             } catch (Exception e) {
                 log.warn("종목 초기화 실패: {}", ticker, e);
+            }
+            try {
+                Thread.sleep(1000); // KIS API 초당 호출 제한(TPS) 방지를 위해 무조건 1초 대기
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
             }
         }
         log.info("서버 가동: 고정 종목 40개 정보 초기화 완료");
@@ -155,7 +163,7 @@ public class InitStockSubscribe {
                     continue;
                 }
                 getStockInfoRest(ticker); // Rest API로 종가 가져오기
-                Thread.sleep(200);
+                Thread.sleep(1000); // TPS 제한 고려하여 1초 대기
             }
         }
     }

@@ -46,15 +46,21 @@ public class Stock extends TimeStamped {
     @OneToMany(mappedBy = "stock")
     private List<UserStock> userStocks = new ArrayList<>();
 
-
     @Builder
-    public Stock(Long id, String ticker, String name, Market market, Long volume) {
+    public Stock(Long id, String ticker, String name, Market market, Long volume, String outline) {
         this.id = id;
         this.ticker = ticker;
         this.name = name;
         this.market = market;
         this.volume = volume;
-        this.outline = null;
+        this.outline = outline;
+    }
+
+    /**
+     * 종목명 설정
+     */
+    public void setName(String name) {
+        this.name = name;
     }
 
     /**
