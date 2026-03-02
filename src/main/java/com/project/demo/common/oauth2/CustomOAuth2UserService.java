@@ -73,8 +73,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private void getOrSavePortfolio(User createdUser) {
         Portfolio portfolio = portfolioRepository.findByUser(createdUser)
                 .orElseGet(() -> Portfolio.builder()
-                        .balance(10000000)
-                        .totalAsset(10000000)
+                        .balance(100000000)
+                        .totalAsset(100000000)
                         .totalQuantity(0)
                         // .avgReturnRate(0)
                         .holdCount(0)

@@ -756,7 +756,7 @@ export default function Home() {
       {/* 보유 종목 섹션 */}
       {userInfo && userStocks.length > 0 && (
         <div className="container" style={{ margin: '32px auto' }}>
-          <div style={{
+          <div className="section-header" style={{
             display: 'flex',
             alignItems: 'center',
             gap: 12,
@@ -779,14 +779,14 @@ export default function Home() {
               💼
             </div>
             <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
                 내 보유 종목
               </h2>
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>
                 보유 종목의 실시간 시세를 확인하세요
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="sort-buttons" style={{ display: 'flex', gap: 8 }}>
               {[
                 { key: 'quantity', label: '보유량' },
                 { key: 'changeRate', label: '등락률' }
@@ -847,14 +847,20 @@ export default function Home() {
                   }}
                 >
                   <LogoCell name={stock.companyName} ticker={stock.ticker} logoUrl={stock.logoUrl} />
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontWeight: 700, color: '#0f172a' }}>{stock.companyName}</span>
-                    <span style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{stock.ticker}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 4 }}>
+                    <span className="name-text" style={{
+                      fontWeight: 700,
+                      color: '#0f172a',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>{stock.companyName}</span>
+                    <span className="ticker-text" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{stock.ticker}</span>
                   </div>
                   <div className="optional-col" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#334155', fontWeight: 600 }}>
                     {stock.totalQuantity.toLocaleString()}주
                   </div>
-                  <div style={{
+                  <div className="price-cell" style={{
                     textAlign: 'right',
                     fontVariantNumeric: 'tabular-nums',
                     fontWeight: 700,
@@ -863,9 +869,10 @@ export default function Home() {
                   }}>
                     {stock.currentPrice != null ? `${stock.currentPrice.toLocaleString()}원` : '-'}
                   </div>
-                  <div style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div className="change-cell" style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end' }}>
                     {changeRate != null ? (
                       <span
+                        className="change-rate-badge"
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
