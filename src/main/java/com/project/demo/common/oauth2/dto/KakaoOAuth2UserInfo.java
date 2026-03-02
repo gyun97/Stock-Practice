@@ -37,7 +37,7 @@ public class KakaoOAuth2UserInfo extends OAuth2UserInfo {
 
         String nickname = (String) profile.get("nickname");
         log.info("카카오에서 받은 닉네임: '{}' (길이: {})", nickname, nickname != null ? nickname.length() : 0);
-        
+
         return nickname;
     }
 
@@ -56,5 +56,16 @@ public class KakaoOAuth2UserInfo extends OAuth2UserInfo {
         }
 
         return (String) profile.get("thumbnail_image_url");
+    }
+
+    @Override
+    public String getEmail() {
+        Map<String, Object> account = (Map<String, Object>) attributes.get("kakao_account");
+
+        if (account == null) {
+            return null;
+        }
+
+        return (String) account.get("email");
     }
 }

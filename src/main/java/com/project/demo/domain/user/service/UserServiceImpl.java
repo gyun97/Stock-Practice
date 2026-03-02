@@ -27,7 +27,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -44,7 +43,7 @@ public class UserServiceImpl implements UserService {
     private String ADMIN_TOKEN; // 관리자가 맞는지 확인 토큰
 
     /*
-    회원가입 메서드
+     * 회원가입 메서드
      */
     @Transactional
     public LoginResponse signUp(SignUpRequest signUpRequest) {
@@ -66,7 +65,6 @@ public class UserServiceImpl implements UserService {
         if (!signUpRequest.getAdminToken().equals("")) {
             validateAdminToken(signUpRequest, signUpRequest.getUserRole());
         }
-
 
         User user;
 
@@ -97,7 +95,7 @@ public class UserServiceImpl implements UserService {
                     .balance(10000000)
                     .totalAsset(10000000)
                     .totalQuantity(0)
-//                .avgReturnRate(0)
+                    // .avgReturnRate(0)
                     .holdCount(0)
                     .stockAsset(0)
                     .user(savedUser)
@@ -117,7 +115,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    로그인 처리 메서드
+     * 로그인 처리 메서드
      */
     @Transactional
     public LoginResponse login(LoginRequest loginRequest) {
@@ -148,11 +146,12 @@ public class UserServiceImpl implements UserService {
                 .userId(user.getId())
                 .email(user.getEmail())
                 .name(user.getName())
+                .profileImage(user.getProfileImage())
                 .build(); // Access Token, Refresh Token, 사용자 정보 반환
     }
 
     /*
-    유저 로그아웃
+     * 유저 로그아웃
      */
     @Transactional
     public void logout(Long userId) {
@@ -160,7 +159,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    유저 회원 탈퇴
+     * 유저 회원 탈퇴
      */
     @Transactional
     public String deleteUser(Long userId) {
@@ -177,7 +176,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    비밀번호 변경
+     * 비밀번호 변경
      */
     @Transactional
     public String updatePassword(AuthUser authUser, PasswordUpdateRequest request) {
@@ -205,15 +204,16 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    로그인, 회원가입한 유저에게 JWT 토큰 발급
+     * 로그인, 회원가입한 유저에게 JWT 토큰 발급
      */
     @Transactional
     public TokensResponse issueTokens(User savedUser) {
-        String accessToken = jwtUtil.createAccessToken(savedUser.getId(), savedUser.getEmail(), savedUser.getUserRole(), savedUser.getName());
+        String accessToken = jwtUtil.createAccessToken(savedUser.getId(), savedUser.getEmail(), savedUser.getUserRole(),
+                savedUser.getName());
         String refreshTokenValue = jwtUtil.createRefreshToken(savedUser.getId());
 
         refreshTokenRepository.deleteById(savedUser.getId()); // 기존 Refresh Token 존재하면 삭제
-        refreshTokenRepository.save(RefreshToken.builder() //새 Refresh Token 저장
+        refreshTokenRepository.save(RefreshToken.builder() // 새 Refresh Token 저장
                 .key(savedUser.getId())
                 .value(refreshTokenValue)
                 .build());
@@ -225,7 +225,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    유저 개인정보 조회
+     * 유저 개인정보 조회
      */
     public GetUserResponse getUserInfo(Long userId) {
         User user = getUserById(userId);
@@ -234,7 +234,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    유저 개인 정보 수정
+     * 유저 개인 정보 수정
      */
     @Transactional
     public GetUserResponse updateUserInfo(Long userId, UpdateUserInfoRequest request) {
@@ -247,7 +247,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    ID로 유저 객체 가져오기
+     * ID로 유저 객체 가져오기
      */
     private User getUserById(Long userId) {
         User user = userRepository.findById(userId)
@@ -256,8 +256,8 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-       이미 회원가입되어 활동하고 있는 이메일인지 검증
-    */
+     * 이미 회원가입되어 활동하고 있는 이메일인지 검증
+     */
     public boolean validateDuplicateEmail(String email) {
         if (userRepository.existsByEmail(email)) {
             return true;
@@ -266,19 +266,20 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-        이미 사용하고 있는 이름(닉네임)인지 확인
+     * 이미 사용하고 있는 이름(닉네임)인지 확인
      */
     public void validateDuplicateName(String name) {
 
         if (userRepository.existsByName(name)) {
             User user = userRepository.findByName(name).get();
 
-            if (!user.isDeleted()) throw new DuplicateNameException();
+            if (!user.isDeleted())
+                throw new DuplicateNameException();
         }
     }
 
     /*
-    회원가입시 해당 계정이 관리자 계정으로 가입하는지 확인
+     * 회원가입시 해당 계정이 관리자 계정으로 가입하는지 확인
      */
     public void validateAdminToken(SignUpRequest signUpRequest, String userRole) {
         if (signUpRequest.getUserRole().equals("ROLE_ADMIN") && !(ADMIN_TOKEN.equals(signUpRequest.getAdminToken()))) {
@@ -287,11 +288,11 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    Refresh Token을 이용한 Aceess Token 재발급 메서드
-    */
+     * Refresh Token을 이용한 Aceess Token 재발급 메서드
+     */
     public String refreshAccessToken(String refreshToken) {
 
-        // 1.  Refresh Token 유효성(유효 기간 및 서명) 검증
+        // 1. Refresh Token 유효성(유효 기간 및 서명) 검증
         if (!jwtUtil.validateToken(refreshToken)) {
             throw new InvalidTokenException();
         }
@@ -300,16 +301,17 @@ public class UserServiceImpl implements UserService {
         Long userId = Long.parseLong(jwtUtil.extractClaims(refreshToken).getSubject());
         isValid(userId, refreshToken);
 
-        // 3. 새 Access Token 발급
-        String email = jwtUtil.extractClaims(refreshToken).get("email", String.class);
-        String role = jwtUtil.extractClaims(refreshToken).get("userRole", String.class);
-        String name = jwtUtil.extractClaims(refreshToken).get("name", String.class);
+        // 3. 새 Access Token 발급 (DB에서 최신 정보 조회)
+        User user = getUserById(userId);
+        String email = user.getEmail();
+        UserRole userRole = user.getUserRole();
+        String name = user.getName();
 
-        return jwtUtil.createAccessToken(userId, email, UserRole.of(role), name);
+        return jwtUtil.createAccessToken(userId, email, userRole, name);
     }
 
     /*
-    DB에 있는 Refresh Token과 클라이언트의 Refresh Token 비교 검증
+     * DB에 있는 Refresh Token과 클라이언트의 Refresh Token 비교 검증
      */
     public void isValid(Long userId, String refreshToken) {
         RefreshToken existingToken = refreshTokenRepository.findById(userId)
@@ -321,7 +323,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    비밀번호 검증
+     * 비밀번호 검증
      */
     public void validateCorrectPassword(String inputPassword, String correctPassword) {
         log.info("입력 비밀번호: {}", inputPassword);
@@ -332,11 +334,11 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-    탈퇴한 계정인지 확인
+     * 탈퇴한 계정인지 확인
      */
     public void checkDeletedUser(User user) {
-        if (user.isDeleted()) throw new NotFoundUserException();
+        if (user.isDeleted())
+            throw new NotFoundUserException();
     }
-
 
 }

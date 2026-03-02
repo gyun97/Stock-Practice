@@ -25,29 +25,28 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
-    
+
     private static final String NAVER = "naver";
     private static final String KAKAO = "kakao";
     private static final String GOOGLE = "google";
 
-
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        
+
         log.info("CustomOAuth2UserService.loadUser() 실행 - OAuth2 로그인 요청 진입");
-        
+
         // 기본 로직: access token으로 유저 정보 요청
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
         log.info("OAuth2User Attributes: {}", oAuth2User.getAttributes());
 
-        //로그인 진행중인 서비스를 구분하는 ID -> 여러 개의 소셜 로그인할 때 사용하는 ID
+        // 로그인 진행중인 서비스를 구분하는 ID -> 여러 개의 소셜 로그인할 때 사용하는 ID
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         SocialType socialType = getSocialType(registrationId);
 
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
-        //OAuth2 로그인 진행 시 키가 되는 필드값(Primary Key)
+        // OAuth2 로그인 진행 시 키가 되는 필드값(Primary Key)
         // OAuth 로그인 시 키 값. 구글, 네이버, 카카오 등 각 다르기 때문에 변수로 받아서 넣음
         String userNameAttributeName = userRequest.getClientRegistration().getProviderDetails()
                 .getUserInfoEndpoint().getUserNameAttributeName();
@@ -55,7 +54,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // socialType에 따라 유저 정보를 통해 OAuthAttributes 객체 생성
         OAuthAttributes extractAttributes = OAuthAttributes.of(socialType, userNameAttributeName, attributes);
 
-        // 유저 등록 or 로그인
+        // 유저 등록 or 로그인 (이메일 기준 통합 로직 포함)
         User createdUser = getUser(extractAttributes, socialType);
 
         getOrSavePortfolio(createdUser);
@@ -64,11 +63,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
                 attributes,
                 extractAttributes.getNameAttributeKey(),
+                createdUser.getId(),
                 createdUser.getEmail(),
-                createdUser.getName()
-        );
-
-
+                createdUser.getName(),
+                createdUser.getProfileImage());
     }
 
     @Transactional
@@ -78,7 +76,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                         .balance(10000000)
                         .totalAsset(10000000)
                         .totalQuantity(0)
-//                        .avgReturnRate(0)
+                        // .avgReturnRate(0)
                         .holdCount(0)
                         .stockAsset(0)
                         .user(createdUser)
@@ -89,12 +87,42 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Transactional
     private User getUser(OAuthAttributes attributes, SocialType socialType) {
-        User findUser = userRepository.findBySocialTypeAndSocialId(socialType,
-                attributes.getOauth2UserInfo().getId()).orElse(null);
+        String socialId = attributes.getOauth2UserInfo().getId();
+        String email = attributes.getOauth2UserInfo().getEmail();
 
-        if(findUser == null) {
+        // 1. 소셜 타입 + 소셜 ID로 사용자 찾기
+        User findUser = userRepository.findBySocialTypeAndSocialId(socialType, socialId).orElse(null);
+
+        if (findUser == null) {
+            // 2. 소셜 ID로 못 찾았다면, 이메일로 기존 사용자 찾기 (계정 통합)
+            if (email != null && !email.isBlank()) {
+                findUser = userRepository.findByEmail(email).orElse(null);
+            }
+
+            if (findUser != null) {
+                // 이메일이 같은 기존 사용자가 있다면, 현재 소셜 정보를 연결(Link) 및 프로필 이미지 동기화
+                log.info("기존 이메일 계정 발견 ({}). 새로운 소셜 정보 연결: {}", email, socialType);
+                findUser.updateSocialInfo(socialType, socialId);
+
+                // 프로필 이미지 동기화 (기존 이미지가 없거나 소셜 이미지가 다를 경우)
+                String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
+                if (socialProfileImage != null && !socialProfileImage.isBlank()) {
+                    findUser.updateProfileImage(socialProfileImage);
+                }
+
+                return findUser; // @Transactional에 의해 변경사항 자동 반영
+            }
+
+            // 3. 기존 주체도, 이메일도 없다면 신규 가입
             return saveUser(attributes, socialType);
         }
+
+        // 이미 소셜 연동된 유저의 경우에도 프로필 이미지 최신화
+        String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
+        if (socialProfileImage != null && !socialProfileImage.isBlank()) {
+            findUser.updateProfileImage(socialProfileImage);
+        }
+
         return findUser;
     }
 
@@ -104,10 +132,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private SocialType getSocialType(String registrationId) {
-        if(NAVER.equals(registrationId)) {
+        if (NAVER.equals(registrationId)) {
             return SocialType.NAVER;
         }
-        if(KAKAO.equals(registrationId)) {
+        if (KAKAO.equals(registrationId)) {
             return SocialType.KAKAO;
         }
         return SocialType.GOOGLE;

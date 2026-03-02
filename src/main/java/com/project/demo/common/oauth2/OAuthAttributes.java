@@ -28,15 +28,17 @@ public class OAuthAttributes {
 
     /**
      * SocialType에 맞는 메소드 호출하여 OAuthAttributes 객체 반환
-     * 파라미터 : userNameAttributeName -> OAuth2 로그인 시 키(PK)가 되는 값 / attributes : OAuth 서비스의 유저 정보들
+     * 파라미터 : userNameAttributeName -> OAuth2 로그인 시 키(PK)가 되는 값 / attributes : OAuth
+     * 서비스의 유저 정보들
      * 소셜별 of 메소드(ofGoogle, ofKaKao, ofNaver)들은 각각 소셜 로그인 API에서 제공하는
      * 회원의 식별값(id), attributes, nameAttributeKey를 추출하여 build
      */
-    public static OAuthAttributes of(SocialType socialType, String userNameAttributeName, Map<String, Object> attributes) {
-        if(socialType == SocialType.NAVER){
+    public static OAuthAttributes of(SocialType socialType, String userNameAttributeName,
+            Map<String, Object> attributes) {
+        if (socialType == SocialType.NAVER) {
             return ofNaver(userNameAttributeName, attributes);
         }
-        if(socialType == SocialType.KAKAO){
+        if (socialType == SocialType.KAKAO) {
             return ofKakao(userNameAttributeName, attributes);
         }
         return ofGoogle(userNameAttributeName, attributes);
@@ -70,10 +72,17 @@ public class OAuthAttributes {
      */
     public User toEntity(SocialType socialType, OAuth2UserInfo oauth2UserInfo) {
         log.info("Creating new user entity for social type: {}", socialType);
+
+        String email = oauth2UserInfo.getEmail();
+        if (email == null || email.isBlank()) {
+            email = UUID.randomUUID() + "@socialUser.com";
+            log.warn("OAuth provider didn't return an email. Using random UUID email: {}", email);
+        }
+
         return User.builder()
                 .socialType(socialType)
                 .socialId(oauth2UserInfo.getId())
-                .email(UUID.randomUUID() + "@socialUser.com")
+                .email(email)
                 .name(oauth2UserInfo.getNickname())
                 .profileImage(oauth2UserInfo.getImageUrl())
                 .userRole(UserRole.ROLE_USER)

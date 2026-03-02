@@ -7,16 +7,19 @@ export type StompMessageHandler = (data: any, raw: string) => void
 export function createStompClient(onMessage: StompMessageHandler) {
   // 토큰 가져오기
   const token = tokenManager.getAccessToken()
-  // 이미 "Bearer "로 시작하면 그대로 사용, 아니면 추가
-  const authHeader = token?.startsWith('Bearer ') ? token : `Bearer ${token}`
-  
+
+  // 토큰이 유효한 경우에만 헤더 구성
+  const connectHeaders: Record<string, string> = {}
+  if (token && token !== 'null' && token !== 'undefined') {
+    const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+    connectHeaders['Authorization'] = authHeader
+  }
+
   const client = new Client({
     webSocketFactory: () => new SockJS('/ws'),
     reconnectDelay: 3000,
     debug: (str) => console.log(str),
-    connectHeaders: {
-      Authorization: authHeader
-    }
+    connectHeaders: connectHeaders
   })
   client.onConnect = () => {
     const handle = (msg: IMessage) => {
@@ -44,7 +47,7 @@ function parseCaretPayload(raw: string) {
     return {
       ticker: fields[0],
       tradeTime: fields[1],
-//       curTime: fields[1],
+      //       curTime: fields[1],
       price: fields[2],
       volume: fields[8] ?? undefined,
       accumulatedVolume: fields[9] ?? undefined,
