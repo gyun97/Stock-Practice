@@ -16,14 +16,22 @@ public class GetUserResponse {
     private String name;
     private String email;
     private double balance;
+    private String profileImage;
+
+    public GetUserResponse(Long userId, String name, String email, double balance) {
+        this.userId = userId;
+        this.name = name;
+        this.email = email;
+        this.balance = balance;
+    }
 
     public static GetUserResponse of(User user) {
         return new GetUserResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getBalance()
-        );
+                user.getBalance(),
+                user.getProfileImage());
     }
 
 }

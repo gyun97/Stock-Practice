@@ -8,6 +8,7 @@ type UserInfo = {
   email: string
   name: string
   balance: number
+  profileImage?: string
 }
 
 type PortfolioInfo = {
@@ -42,7 +43,7 @@ export default function MyPage() {
   const [pwSubmitting, setPwSubmitting] = useState(false)
   const [pwMessage, setPwMessage] = useState('')
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ newEmail: '', newName: '' })
+  const [editForm, setEditForm] = useState({ newEmail: '', newName: '', newProfileImage: '' as string | undefined })
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editMessage, setEditMessage] = useState('')
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
@@ -460,7 +461,11 @@ export default function MyPage() {
   const openEditModal = () => {
     if (userInfo) {
       setEditMessage('')
-      setEditForm({ newEmail: userInfo.email, newName: userInfo.name })
+      setEditForm({
+        newEmail: userInfo.email,
+        newName: userInfo.name,
+        newProfileImage: userInfo.profileImage
+      })
       setEditModalOpen(true)
     }
   }
@@ -474,6 +479,22 @@ export default function MyPage() {
     setEditForm(prev => ({ ...prev, [name]: value }))
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 1024 * 1024) { // 1MB 제한
+      setEditMessage('이미지 크기는 1MB 이하여야 합니다.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setEditForm(prev => ({ ...prev, newProfileImage: reader.result as string }))
+    }
+    reader.readAsDataURL(file)
+  }
+
   const submitUserInfoUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setEditMessage('')
@@ -484,12 +505,15 @@ export default function MyPage() {
     }
 
     // 빈 값이면 null로 전송 (백엔드에서 기존 값 유지)
-    const requestBody: { newEmail?: string; newName?: string } = {}
+    const requestBody: { newEmail?: string; newName?: string; newProfileImage?: string } = {}
     if (editForm.newEmail && editForm.newEmail.trim() !== '') {
       requestBody.newEmail = editForm.newEmail.trim()
     }
     if (editForm.newName && editForm.newName.trim() !== '') {
       requestBody.newName = editForm.newName.trim()
+    }
+    if (editForm.newProfileImage !== userInfo.profileImage) {
+      requestBody.newProfileImage = editForm.newProfileImage
     }
 
     // 둘 다 비어있으면 수정할 내용이 없음
@@ -511,20 +535,27 @@ export default function MyPage() {
       if (res.ok) {
         const result = await res.json()
         const updatedUser = result.data
-        // 사용자 정보 업데이트
+
+        // userInfo state 업데이트 (모든 필드 포함)
         setUserInfo(prev => prev ? {
           ...prev,
           email: updatedUser.email,
-          name: updatedUser.name
+          name: updatedUser.name,
+          profileImage: updatedUser.profileImage
         } : null)
-        // localStorage도 업데이트
+
+        // localStorage 업데이트
         const storedUserInfo = localStorage.getItem('userInfo')
         if (storedUserInfo) {
           const parsed = JSON.parse(storedUserInfo)
           parsed.email = updatedUser.email
           parsed.name = updatedUser.name
+          parsed.profileImage = updatedUser.profileImage
           localStorage.setItem('userInfo', JSON.stringify(parsed))
         }
+
+        // 전역 이벤트를 발생시켜 헤더 등 다른 컴포넌트에도 알림
+        window.dispatchEvent(new Event('storage'))
 
         setEditMessage('정보가 수정되었습니다.')
         setTimeout(() => {
@@ -935,6 +966,44 @@ export default function MyPage() {
             }}>
               내 정보
             </h2>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              marginBottom: 32,
+              position: 'relative'
+            }}>
+              <div style={{
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                backgroundColor: '#f3f4f6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 48,
+                color: '#9ca3af',
+                overflow: 'hidden',
+                border: '4px solid white',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                position: 'relative'
+              }}>
+                {userInfo?.profileImage ? (
+                  <img
+                    src={userInfo.profileImage}
+                    alt="Profile"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                ) : (
+                  '👤'
+                )}
+              </div>
+            </div>
 
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={{
@@ -1517,7 +1586,56 @@ export default function MyPage() {
               )}
 
               <form onSubmit={submitUserInfoUpdate}>
-                <div style={{ display: 'grid', gap: 12 }}>
+                <div style={{ display: 'grid', gap: 16 }}>
+                  {/* 프로필 이미지 수정 기 구 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <div style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: '50%',
+                      backgroundColor: '#f3f4f6',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 32,
+                      color: '#9ca3af',
+                      overflow: 'hidden',
+                      border: '2px solid #e5e7eb'
+                    }}>
+                      {editForm.newProfileImage ? (
+                        <img
+                          src={editForm.newProfileImage}
+                          alt="Preview"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        '👤'
+                      )}
+                    </div>
+                    <label style={{
+                      padding: '8px 16px',
+                      background: 'white',
+                      border: '1px solid #d1d5db',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      fontWeight: '500',
+                      color: '#374151',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                      onMouseOver={(e) => e.currentTarget.style.background = '#f9fafb'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                    >
+                      사진 변경
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </div>
+
                   <div>
                     <label style={{ display: 'block', fontSize: 13, color: '#374151', marginBottom: 6 }}>이메일 (선택)</label>
                     <input

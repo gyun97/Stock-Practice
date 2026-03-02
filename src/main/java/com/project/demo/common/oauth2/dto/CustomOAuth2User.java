@@ -18,13 +18,15 @@ public class CustomOAuth2User extends DefaultOAuth2User {
     private Long id;
     private String email;
     private String name;
+    private String profileImage;
 
     public CustomOAuth2User(Collection<? extends GrantedAuthority> authorities,
             Map<String, Object> attributes, String nameAttributeKey,
-            Long id, String email, String name) {
+            Long id, String email, String name, String profileImage) {
         super(authorities, attributes, nameAttributeKey);
         this.id = id;
         this.email = email;
         this.name = name;
+        this.profileImage = profileImage;
     }
 }

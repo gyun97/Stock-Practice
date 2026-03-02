@@ -65,7 +65,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 extractAttributes.getNameAttributeKey(),
                 createdUser.getId(),
                 createdUser.getEmail(),
-                createdUser.getName());
+                createdUser.getName(),
+                createdUser.getProfileImage());
     }
 
     @Transactional
@@ -99,14 +100,27 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             }
 
             if (findUser != null) {
-                // 이메일이 같은 기존 사용자가 있다면, 현재 소셜 정보를 연결(Link)
+                // 이메일이 같은 기존 사용자가 있다면, 현재 소셜 정보를 연결(Link) 및 프로필 이미지 동기화
                 log.info("기존 이메일 계정 발견 ({}). 새로운 소셜 정보 연결: {}", email, socialType);
                 findUser.updateSocialInfo(socialType, socialId);
+
+                // 프로필 이미지 동기화 (기존 이미지가 없거나 소셜 이미지가 다를 경우)
+                String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
+                if (socialProfileImage != null && !socialProfileImage.isBlank()) {
+                    findUser.updateProfileImage(socialProfileImage);
+                }
+
                 return findUser; // @Transactional에 의해 변경사항 자동 반영
             }
 
             // 3. 기존 주체도, 이메일도 없다면 신규 가입
             return saveUser(attributes, socialType);
+        }
+
+        // 이미 소셜 연동된 유저의 경우에도 프로필 이미지 최신화
+        String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
+        if (socialProfileImage != null && !socialProfileImage.isBlank()) {
+            findUser.updateProfileImage(socialProfileImage);
         }
 
         return findUser;
