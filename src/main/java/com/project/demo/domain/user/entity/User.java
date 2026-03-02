@@ -91,7 +91,7 @@ public class User extends TimeStamped {
                 .name(name)
                 .password(encodedPassword)
                 .userRole(role)
-                .balance(10000000)
+                .balance(100000000)
                 .isDeleted(false)
                 .socialType(socialType)
                 .profileImage(profileImage)
