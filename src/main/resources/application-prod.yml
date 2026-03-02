@@ -93,12 +93,8 @@ spring:
 
   data:
     redis:
-      sentinel:
-        master: mymaster
-        nodes:
-          - ${REDIS_SENTINEL_NODE1:127.0.0.1:26379}
-          - ${REDIS_SENTINEL_NODE2:127.0.0.1:26380}
-          - ${REDIS_SENTINEL_NODE3:127.0.0.1:26381}
+      host: redis
+      port: 6379
 
 
   flyway:
