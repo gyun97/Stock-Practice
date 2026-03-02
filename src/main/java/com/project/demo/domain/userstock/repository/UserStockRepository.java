@@ -4,9 +4,11 @@ import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.userstock.entity.UserStock;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface UserStockRepository extends JpaRepository<UserStock, Long> {
 

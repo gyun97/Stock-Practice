@@ -26,7 +26,7 @@ export default function Home() {
   const [rows, setRows] = useState<Row[]>([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
-  const [userInfo, setUserInfo] = useState<{ userId: string, email: string, name: string } | null>(null)
+  const [userInfo, setUserInfo] = useState<{ userId: string, email: string, name: string, profileImage?: string } | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [userStocks, setUserStocks] = useState<UserStock[]>([])
   const [sortBy, setSortBy] = useState<'volume' | 'price' | 'rise' | 'fall'>('volume')
@@ -36,6 +36,23 @@ export default function Home() {
   const stompRef = useRef<ReturnType<typeof createStompClient> | null>(null)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
+
+  // JWT 페이로드를 UTF-8로 안전하게 디코딩
+  const decodeJwtPayload = (token: string): any => {
+    try {
+      const part = token.split('.')[1]
+      const b64 = part.replace(/-/g, '+').replace(/_/g, '/')
+      const padLen = (4 - (b64.length % 4)) % 4
+      const padded = b64 + '='.repeat(padLen)
+      const binary = atob(padded)
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+      const json = new TextDecoder('utf-8').decode(bytes)
+      return JSON.parse(json)
+    } catch (e) {
+      console.error('JWT 디코딩 실패:', e)
+      return null
+    }
+  }
 
   // OAuth 토큰 처리
   useEffect(() => {
@@ -47,29 +64,31 @@ export default function Home() {
       localStorage.removeItem('accessToken')
       tokenManager.setTokens(token)
 
-      // 사용자 정보를 토큰에서 추출 (JWT 디코딩)
-      try {
-        const payload = decodeJwtPayload(token)
-        console.log('JWT 페이로드:', payload)
-        console.log('JWT에서 추출한 name:', payload.name, '(타입:', typeof payload.name, ', 길이:', payload.name ? payload.name.length : 0, ')')
-
-        const userInfo = {
-          userId: payload.sub,
-          email: payload.email,
-          name: payload.name
+      // 사용자 정보를 서버에서 가져와 저장
+      const fetchUserInfo = async () => {
+        try {
+          const response = await tokenManager.authenticatedFetch('/api/v1/users/me')
+          if (response.ok) {
+            const result = await response.json()
+            const data = result.data || result
+            const userInfo = {
+              userId: String(data.userId || ''),
+              email: data.email || '',
+              name: data.name || '',
+              profileImage: data.profileImage || ''
+            }
+            localStorage.setItem('userInfo', JSON.stringify(userInfo))
+            localStorage.setItem('loginMethod', 'oauth')
+            setUserInfo(userInfo)
+            console.log('OAuth 로그인 및 정보 로드 완료:', userInfo)
+          }
+        } catch (error) {
+          console.error('사용자 정보 로드 실패:', error)
         }
-
-        localStorage.setItem('userInfo', JSON.stringify(userInfo))
-        localStorage.setItem('loginMethod', 'oauth')
-        setUserInfo(userInfo)
-
-        console.log('OAuth 로그인 완료:', userInfo)
-
-        // URL에서 토큰 파라미터 제거
-        setSearchParams({})
-      } catch (error) {
-        console.error('토큰 파싱 오류:', error)
       }
+
+      fetchUserInfo()
+      setSearchParams({})
     }
   }, [searchParams, setSearchParams])
 
@@ -374,8 +393,8 @@ export default function Home() {
             <button
               onClick={() => setShowDropdown(!showDropdown)}
               style={{
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 borderRadius: '50%',
                 background: showDropdown ? '#f9fafb' : 'white',
                 color: '#111827',
@@ -384,8 +403,10 @@ export default function Home() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 20,
-                cursor: 'pointer'
+                fontSize: 22,
+                cursor: 'pointer',
+                overflow: 'hidden',
+                padding: 0
               }}
               onMouseOver={(e) => {
                 if (!showDropdown) {
@@ -403,7 +424,25 @@ export default function Home() {
               }}
               title="메뉴"
             >
-              👤
+              {userInfo.profileImage ? (
+                <img
+                  src={userInfo.profileImage}
+                  alt="프로필"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const parent = e.currentTarget.parentElement
+                    if (parent) parent.innerHTML = '👤'
+                  }}
+                />
+              ) : (
+                '👤'
+              )}
             </button>
 
             {showDropdown && (
@@ -744,7 +783,7 @@ export default function Home() {
                 내 보유 종목
               </h2>
               <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
-                보유하고 있는 종목의 실시간 시세를 확인하세요
+                보유 종목의 실시간 시세를 확인하세요
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -957,7 +996,7 @@ export default function Home() {
                   {idx + 1}
                 </div>
                 <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 4 }}>
                   <span className="name-text" style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</span>
                   <span className="ticker-text" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{row.ticker}</span>
                 </div>

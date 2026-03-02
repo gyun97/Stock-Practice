@@ -9,7 +9,7 @@ services:
     image: mysql:8
     container_name: stock-mysql
     environment:
-#      MYSQL_USER: "${MYSQL_NAME}"
+      #      MYSQL_USER: "${MYSQL_NAME}"
       MYSQL_ROOT_PASSWORD: "${MYSQL_PASSWORD}"
       MYSQL_DATABASE: "${MYSQL_DATABASE}"
     ports:
@@ -107,10 +107,10 @@ services:
   # Spring Boot App
   # -----------------
   app:
-#    entrypoint: [ "sh", "-c" ]
-#    command: "sleep 300"
+    #    entrypoint: [ "sh", "-c" ]
+    #    command: "sleep 300"
     env_file:
-      - .env
+      - .env.local
     build: .
     container_name: stock-app
     depends_on:
@@ -120,13 +120,10 @@ services:
         condition: service_started
       redis-sentinel-1:
         condition: service_started
-#    restart: always
+    #    restart: always
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stock
-#      SPRING_DATASOURCE_URL: jdbc:mysql://stock-mysql:3306/stock?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
-#      MYSQL_HOST: mysql
-#      MYSQL_DATABASE: "${MYSQL_DATABASE}"
-#      MYSQL_NAME: "${MYSQL_NAME}"
-#      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+
     ports:
       - "8080:8080"

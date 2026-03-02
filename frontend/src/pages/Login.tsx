@@ -70,7 +70,8 @@ export default function Login() {
             const userInfo = {
               userId: String(payload.sub ?? data?.userId ?? ''),
               email: String(payload.email ?? data?.email ?? ''),
-              name: String(payload.name ?? data?.name ?? '')
+              name: String(payload.name ?? data?.name ?? ''),
+              profileImage: String(data?.profileImage ?? '')
             }
             localStorage.setItem('userInfo', JSON.stringify(userInfo))
           } else {

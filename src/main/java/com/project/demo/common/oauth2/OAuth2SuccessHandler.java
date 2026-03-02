@@ -24,60 +24,56 @@ import java.io.IOException;
 @Slf4j
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
+        private final JwtUtil jwtUtil;
+        private final UserRepository userRepository;
+        private final RefreshTokenRepository refreshTokenRepository;
 
-    @Value("${FRONTEND_URL}")
-    private String frontEnd;
-    
-    @Value("${cookie.secure:false}")
-    private boolean cookieSecure;
-    
-    @Value("${cookie.domain:null}")
-    private String cookieDomain;
+        @Value("${FRONTEND_URL}")
+        private String frontEnd;
 
-    @Override
-    public void onAuthenticationSuccess(HttpServletRequest request,
-                                        HttpServletResponse response,
-                                        Authentication authentication) throws IOException {
+        @Value("${cookie.secure:false}")
+        private boolean cookieSecure;
 
-        CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
-        String email = oAuth2User.getEmail();
-        String name = oAuth2User.getName();
-        
-        log.info("OAuth 사용자 정보 - Email: {}, Name: '{}' (길이: {})", email, name, name != null ? name.length() : 0);
+        @Value("${cookie.domain:null}")
+        private String cookieDomain;
 
-        // 사용자 찾기 또는 자동 회원가입
-        User user = userRepository.findByEmail(email).orElseGet(() -> {
-            log.info("새로운 사용자 자동 회원가입: {}", email);
-            User newUser = User.builder()
-                    .email(email)
-                    .name(oAuth2User.getName())
-                    .userRole(com.project.demo.domain.user.enums.UserRole.ROLE_USER)
-                    .balance(10000000)
-                    .isDeleted(false)
-                    .build();
-            return userRepository.save(newUser);
-        });
+        @Override
+        public void onAuthenticationSuccess(HttpServletRequest request,
+                        HttpServletResponse response,
+                        Authentication authentication) throws IOException {
 
-        String accessToken = jwtUtil.createAccessToken(user.getId(), user.getEmail(), user.getUserRole(), user.getName());
-        String refreshToken = jwtUtil.createRefreshToken(user.getId());
+                CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
+                String email = oAuth2User.getEmail();
+                String name = oAuth2User.getName();
 
-        // Refresh Token 저장 또는 업데이트
-        refreshTokenRepository.findById(user.getId())
-                .ifPresentOrElse(
-                        rt -> rt.updateValue(refreshToken), // 이미 존재하면 업데이트
-                        () -> refreshTokenRepository.save(new RefreshToken(user.getId(), refreshToken)) // 없으면 새로 저장
-                );
+                log.info("OAuth 사용자 정보 - Email: {}, Name: '{}' (길이: {})", email, name,
+                                name != null ? name.length() : 0);
 
-        // 리프레시 토큰을 쿠키에 저장
-        jwtUtil.addRefreshTokenToCookie(refreshToken, response, cookieSecure, cookieDomain);
+                // CustomOAuth2UserService에서 이미 DB 저장/연결이 완료되었으므로 ID로 조회만 함
+                User user = userRepository.findById(oAuth2User.getId())
+                                .orElseThrow(() -> new IllegalStateException("사용자를 찾을 수 없습니다: " + email));
 
-        // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
-        String redirectUrl = frontEnd + "?token=" + accessToken;
-        log.info("리다이렉트 URL: {}", redirectUrl);
-        getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+                String accessToken = jwtUtil.createAccessToken(user.getId(), user.getEmail(), user.getUserRole(),
+                                user.getName());
+                String refreshToken = jwtUtil.createRefreshToken(user.getId());
 
-    }
+                // Refresh Token 저장 또는 업데이트
+                refreshTokenRepository.findById(user.getId())
+                                .ifPresentOrElse(
+                                                rt -> rt.updateValue(refreshToken), // 이미 존재하면 업데이트
+                                                () -> refreshTokenRepository
+                                                                .save(new RefreshToken(user.getId(), refreshToken)) // 없으면
+                                                                                                                    // 새로
+                                                                                                                    // 저장
+                                );
+
+                // 리프레시 토큰을 쿠키에 저장
+                jwtUtil.addRefreshTokenToCookie(refreshToken, response, cookieSecure, cookieDomain);
+
+                // 프론트엔드로 리다이렉트 (토큰을 URL 파라미터로 전달)
+                String redirectUrl = frontEnd + "?token=" + accessToken;
+                log.info("리다이렉트 URL: {}", redirectUrl);
+                getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+
+        }
 }
