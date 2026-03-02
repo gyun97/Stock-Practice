@@ -85,6 +85,9 @@ public class InitStockSubscribe {
         approvalKey = approvalKeyService.getApprovalKey();
         accessToken = kisApiAccessTokenService.getAccessToken();
 
+        log.info("서버 가동: Redis 정렬 키 초기화");
+        redisTemplate.delete(List.of("stock:rank:volume", "stock:rank:price", "stock:rank:changeRate"));
+
         log.info("서버 가동: 고정 종목 40개 정보 초기화 시작");
         for (String ticker : FIXED_TICKERS) {
             try {

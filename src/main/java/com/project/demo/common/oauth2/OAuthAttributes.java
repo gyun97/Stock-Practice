@@ -86,7 +86,7 @@ public class OAuthAttributes {
                 .name(oauth2UserInfo.getNickname())
                 .profileImage(oauth2UserInfo.getImageUrl())
                 .userRole(UserRole.ROLE_USER)
-                .balance(10000000) // 기본 잔액 설정
+                .balance(100000000) // 기본 잔액 설정
                 .isDeleted(false)
                 .build();
     }
