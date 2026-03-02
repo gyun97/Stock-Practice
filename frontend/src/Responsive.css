@@ -250,7 +250,14 @@
     }
 
     .user-stocks-columns {
-        grid-template-columns: 48px 1fr 80px 80px;
+        grid-template-columns: 32px 1fr 75px 72px !important;
+        gap: 2px !important;
+        padding: 8px 4px !important;
+    }
+
+    .price-cell,
+    .change-cell {
+        white-space: nowrap !important;
     }
 
     .ranking-columns {
@@ -283,7 +290,12 @@
     .section-header {
         flex-wrap: wrap !important;
         height: auto !important;
-        gap: 16px !important;
+        gap: 8px !important;
+        padding: 12px 14px !important;
+    }
+
+    .user-stocks-columns>div {
+        transform: none !important;
     }
 
     .sort-buttons {
