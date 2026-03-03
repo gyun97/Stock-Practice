@@ -220,12 +220,19 @@ public class InitStockSubscribe {
 
         try {
             Map body = response.getBody();
-            if (body == null)
+            if (body == null) {
+                log.warn("KIS API 응답 바디가 비어 있음 (티커: {})", trKey);
                 return;
+            }
 
             Object output = body.get("output");
-            Map<String, Object> om = (Map<String, Object>) output;
+            if (output == null) {
+                log.warn("KIS API 호출 실패 (티커: {}) - 메시지: [{}], 사유: [{}]", 
+                        trKey, body.get("msg_cd"), body.get("msg1"));
+                return;
+            }
 
+            Map<String, Object> om = (Map<String, Object>) output;
             int price = Integer.parseInt(Optional.ofNullable(om.get("stck_prpr")).orElse("0").toString());
             long changeAmount = Long.parseLong(Optional.ofNullable(om.get("prdy_vrss")).orElse("0").toString());
             double changeRate = Double.parseDouble(Optional.ofNullable(om.get("prdy_ctrt")).orElse("0").toString());
