@@ -1,6 +1,7 @@
 package com.project.demo.common.config;
 
 import io.netty.channel.ChannelOption;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -13,6 +14,9 @@ import java.time.Duration;
 @Configuration
 public class WebClientConfig {
 
+    @Value("${kis.url.rest}")
+    private String baseUrl;
+
     @Bean
     public WebClient webClient(WebClient.Builder builder) {
         // 타임아웃 설정
@@ -22,9 +26,9 @@ public class WebClientConfig {
                 .doOnConnected(conn -> conn
                         .addHandlerLast(new io.netty.handler.timeout.ReadTimeoutHandler(30)) // 읽기 타임아웃: 30초
                         .addHandlerLast(new io.netty.handler.timeout.WriteTimeoutHandler(30))); // 쓰기 타임아웃: 30초
-        
+
         return builder
-                .baseUrl("https://openapi.koreainvestment.com:9443")
+                .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, "application/json; charset=utf-8")
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();

@@ -27,7 +27,7 @@ public class KisApiAccessTokenService {
     @Value("${kis.app.secret}")
     private String appSecret;
 
-    @Value("${kis.domain.real}")
+    @Value("${kis.url.rest}")
     private String baseUrl;
 
     private String accessToken;
@@ -48,8 +48,7 @@ public class KisApiAccessTokenService {
         Map<String, String> body = Map.of(
                 "grant_type", "client_credentials",
                 "appkey", appKey,
-                "appsecret", appSecret
-        );
+                "appsecret", appSecret);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

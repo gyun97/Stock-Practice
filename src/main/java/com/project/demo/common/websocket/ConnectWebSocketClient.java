@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -27,11 +28,20 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderService orderService;
 
+    @Value("${kis.url.ws}")
+    private static String wsUrlPlaceholder; // We need to handle constructor injection
+
     private String iv;
     private String key;
 
-    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService) throws Exception {
-        super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
+    public ConnectWebSocketClient(
+            @Value("${kis.url.ws}") String wsUrl,
+            ObjectMapper objectMapper,
+            StringRedisTemplate redisTemplate,
+            StockRepository stockRepository,
+            SimpMessagingTemplate messagingTemplate,
+            OrderService orderService) throws Exception {
+        super(new URI(wsUrl));
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
         this.stockRepository = stockRepository;
@@ -82,7 +92,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
             if (message.startsWith("{")) {
                 var json = objectMapper.readTree(message);
                 if (json.has("body") && json.get("body").has("output")) {
-                    this.iv = json.get("body").get("output").get("iv").asText(); // iv: 실시간 결과 복호화에 필요한 AES256((Initialize Vector))
+                    this.iv = json.get("body").get("output").get("iv").asText(); // iv: 실시간 결과 복호화에 필요한
+                                                                                 // AES256((Initialize Vector))
                     this.key = json.get("body").get("output").get("key").asText(); // key: 실시간 결과 복호화에 필요한 AES256 Key
                     log.info("iv={}, key={}", iv, key);
                 }
@@ -134,7 +145,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
             messagingTemplate.convertAndSend("/topic/stocks", json);
 
             log.info("Redis 저장 & STOMP 직접 전송(WS) → {}", json);
-            
+
             // 이벤트 기반 예약 주문 체결 (주가 업데이트 시 해당 종목의 예약 주문만 체크)
             try {
                 orderService.executeReservedOrdersForTicker(ticker, price);
