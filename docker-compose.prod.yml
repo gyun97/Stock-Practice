@@ -74,7 +74,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    #    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
     ports:
       - "8080:8080"
 
