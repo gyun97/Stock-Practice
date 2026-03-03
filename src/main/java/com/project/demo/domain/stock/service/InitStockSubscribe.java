@@ -44,13 +44,13 @@ public class InitStockSubscribe {
     private final SimpMessagingTemplate messagingTemplate;
     private final StockOutlineService stockOutlineService;
 
-    @Value("${KIS_APP_KEY}")
+    @Value("${kis.app.key}")
     private String appKey;
 
-    @Value("${KIS_APP_SECRET}")
+    @Value("${kis.app.secret}")
     private String appSecret;
 
-    @Value("${REAL_BASE_URL}")
+    @Value("${kis.url.rest}")
     private String baseUrl;
 
     private String approvalKey;

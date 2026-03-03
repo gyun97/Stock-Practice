@@ -27,7 +27,7 @@ public class KisApiAccessTokenService {
     @Value("${kis.app.secret}")
     private String appSecret;
 
-    @Value("${kis.domain.real}")
+    @Value("${kis.url.rest}")
     private String baseUrl;
 
     private String accessToken;

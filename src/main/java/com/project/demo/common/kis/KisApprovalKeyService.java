@@ -23,7 +23,7 @@ public class KisApprovalKeyService {
     @Value("${kis.app.secret}")
     private String appSecret;
 
-    @Value("${kis.domain.virtual}")
+    @Value("${kis.url.rest}")
     private String baseUrl;
 
     private String approvalKey;

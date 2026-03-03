@@ -25,6 +25,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ import jakarta.persistence.PersistenceContext;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -78,6 +80,9 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
 
         @Autowired
         private JwtUtil jwtUtil;
+
+        @Autowired
+        private StringRedisTemplate redisTemplate;
 
         @PersistenceContext
         private EntityManager entityManager;
@@ -133,6 +138,9 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
         @Transactional
         @Commit
         void cleanupDatabase() {
+                // Redis 초기화 추가
+                redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+                
                 // Native SQL을 사용하여 더 확실하게 삭제
                 entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
                 executionRepository.deleteAll();
@@ -233,6 +241,9 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .user(user2)
                                 .build();
                 portfolioRepository.save(portfolio2);
+                
+                entityManager.flush();
+                entityManager.clear();
 
                 // When & Then
                 String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(),
@@ -240,6 +251,7 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                 mockMvc.perform(get("/api/v1/portfolios/ranking")
                                 .param("limit", "10")
                                 .header("Authorization", accessToken))
+                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.data").isArray())
                                 .andExpect(jsonPath("$.data.length()").value(greaterThanOrEqualTo(2)));

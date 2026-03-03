@@ -2,9 +2,9 @@ kis:
   app:
     key: ${KIS_APP_KEY}
     secret: ${KIS_APP_SECRET}
-  domain:
-    real: ${REAL_BASE_URL}
-    virtual: ${VIRTUAL_BASE_URL}
+  url:
+    rest: ${KIS_REST_URL:https://openapivts.koreainvestment.com:29443}
+    ws: ${KIS_WS_URL:ws://ops.koreainvestment.com:31000}
 
 
 management:
