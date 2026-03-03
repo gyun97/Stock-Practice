@@ -6,8 +6,8 @@ kis:
     key: ${KIS_APP_KEY}
     secret: ${KIS_APP_SECRET}
   url:
-    rest: ${KIS_REST_URL:https://openapi.koreainvestment.com:9443} 
-    ws: ${KIS_WS_URL:ws://ops.koreainvestment.com:21000}
+    rest: ${KIS_REST_URL:https://openapi.koreainvestment.com:29443} 
+    ws: ${KIS_WS_URL:ws://ops.koreainvestment.com:31000}
 
 jwt:
   secret:

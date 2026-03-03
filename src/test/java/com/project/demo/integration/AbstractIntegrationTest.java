@@ -65,8 +65,6 @@ public abstract class AbstractIntegrationTest {
         registry.add("REDIS_SENTINEL_PORT3", () -> "26381");
         registry.add("KIS_APP_KEY", () -> "test-key");
         registry.add("KIS_APP_SECRET", () -> "test-secret");
-        registry.add("REAL_BASE_URL", () -> "https://test-api.com");
-        registry.add("VIRTUAL_BASE_URL", () -> "https://test-api.com");
         registry.add("KAKAO_CLIENT_ID", () -> "test-kakao-id");
         registry.add("KAKAO_CLIENT_SECRET", () -> "test-kakao-secret");
         registry.add("KAKAO_REDIRECT_URL", () -> "http://localhost:8080/login/oauth2/code/kakao");

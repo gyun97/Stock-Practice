@@ -70,8 +70,8 @@ kis:
   app:
     key: ${KIS_APP_KEY:test-key}
     secret: ${KIS_APP_SECRET:test-secret}
-  domain:
-    real: ${REAL_BASE_URL:https://test-api.com}
-    virtual: ${VIRTUAL_BASE_URL:https://test-api.com}
+  url:
+    rest: https://test-api.com
+    ws: ws://test-api.com
 
 

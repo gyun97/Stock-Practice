@@ -102,7 +102,6 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
 
                 // 사용자 생성
                 testUser = User.builder()
-                                .id(1L)
                                 .password(passwordEncoder.encode("Test123!@#"))
                                 .name("주문 테스트 사용자")
                                 .userRole(UserRole.ROLE_USER)
@@ -125,7 +124,6 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
 
                 // 포트폴리오 생성
                 testPortfolio = Portfolio.builder()
-                                .id(1L)
                                 .balance(20000000L) // 충분한 잔액 설정
                                 .totalAsset(20000000L)
                                 .totalQuantity(0L)
@@ -134,6 +132,7 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
                                 .user(testUser)
                                 .build();
                 testPortfolio = portfolioRepository.save(testPortfolio);
+
 
                 // 인증 설정
                 authUser = new AuthUser(testUser.getId(), testUser.getEmail(), testUser.getUserRole(),
