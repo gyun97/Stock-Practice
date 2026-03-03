@@ -10,6 +10,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -31,9 +32,10 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private String key;
 
     public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate,
-            StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService)
+            StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService,
+            @Value("${kis.url.ws}") String wsUrl)
             throws Exception {
-        super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
+        super(new URI(wsUrl));
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
         this.stockRepository = stockRepository;

@@ -208,13 +208,15 @@ public class InitStockSubscribe {
         headers.set("tr_id", "FHKST01010100");
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
-                .queryParam("fid_cond_mrkt_div_code", "J")
-                .queryParam("fid_input_iscd", trKey);
+                .queryParam("FID_COND_MRKT_DIV_CODE", "J")
+                .queryParam("FID_INPUT_ISCD", trKey);
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<Map> response = restTemplate.exchange(
                 builder.toUriString(), HttpMethod.GET, entity, Map.class);
+
+        log.info("KIS API 상세 응답 (티커: {}): {}", trKey, response.getBody());
 
         try {
             Map body = response.getBody();
