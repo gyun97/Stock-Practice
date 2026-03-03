@@ -1,10 +1,12 @@
 package com.project.demo.integration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.jwt.JwtAuthenticationToken;
 import com.project.demo.common.jwt.JwtUtil;
 import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.domain.portfolio.entity.Portfolio;
 import com.project.demo.domain.portfolio.repository.PortfolioRepository;
+import com.project.demo.domain.stock.dto.response.StockData;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.stock.enums.Market;
 import com.project.demo.domain.stock.repository.StockRepository;
@@ -84,6 +86,9 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
         @Autowired
         private StringRedisTemplate redisTemplate;
 
+        @Autowired
+        private ObjectMapper objectMapper;
+
         @PersistenceContext
         private EntityManager entityManager;
 
@@ -127,6 +132,19 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .user(testUser)
                                 .build();
                 testPortfolio = portfolioRepository.save(testPortfolio);
+
+                // Redis에 주식 가격 데이터 추가 (삼성전자 005930)
+                StockData stockData = StockData.builder()
+                                .ticker("005930")
+                                .price(70000)
+                                .companyName("삼성전자")
+                                .volume(1000000L)
+                                .build();
+                try {
+                        redisTemplate.opsForValue().set("stock:data:005930", objectMapper.writeValueAsString(stockData));
+                } catch (Exception e) {
+                        e.printStackTrace();
+                }
 
                 // 인증 설정
                 authUser = new AuthUser(testUser.getId(), testUser.getEmail(), testUser.getUserRole(),
