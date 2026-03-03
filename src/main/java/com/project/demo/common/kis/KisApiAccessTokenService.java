@@ -33,6 +33,15 @@ public class KisApiAccessTokenService {
     private String accessToken;
 
     public synchronized String getAccessToken() {
+        return getAccessToken(false);
+    }
+
+    public synchronized String getAccessToken(boolean forceRefresh) {
+        if (forceRefresh) {
+            redisTemplate.delete("kis:access_token");
+            accessToken = null;
+        }
+
         accessToken = redisTemplate.opsForValue().get("kis:access_token");
         if (accessToken == null) {
             requestAccessToken();
@@ -40,6 +49,10 @@ public class KisApiAccessTokenService {
             log.info("유효 기간이 지나지 않은 토큰 존재");
         }
         return accessToken;
+    }
+
+    public synchronized void refreshAccessToken() {
+        getAccessToken(true);
     }
 
     private void requestAccessToken() {

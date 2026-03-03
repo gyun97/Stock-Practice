@@ -207,10 +207,14 @@ public class InitStockSubscribe {
 
     // 서버 가동시 사이트에서 다룰 40개 주식 종목 최초 정보 가져오기
     public void getStockInfoRest(String trKey) {
+        getStockInfoRest(trKey, false);
+    }
+
+    private void getStockInfoRest(String trKey, boolean isRetry) {
         String sanitizedBaseUrl = (baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl);
         String url = sanitizedBaseUrl + "/uapi/domestic-stock/v1/quotations/inquire-price";
 
-        log.info("KIS GET 요청 중... URL: {}", url);
+        log.info("KIS GET 요청 중... (티커: {}, 재시도: {}) URL: {}", trKey, isRetry, url);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(accessToken);
@@ -223,8 +227,22 @@ public class InitStockSubscribe {
                 .queryParam("FID_INPUT_ISCD", trKey);
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
-        ResponseEntity<Map> response = restTemplate.exchange(
-                builder.toUriString(), HttpMethod.GET, entity, Map.class);
+        
+        ResponseEntity<Map> response;
+        try {
+            response = restTemplate.exchange(
+                    builder.toUriString(), HttpMethod.GET, entity, Map.class);
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            String errorBody = e.getResponseBodyAsString();
+            if (errorBody.contains("EGW00123") && !isRetry) {
+                log.warn("[TOKEN EXPIRED] EGW00123 감지 → 토큰 재발급 후 재시도 (티커: {})", trKey);
+                accessToken = kisApiAccessTokenService.getAccessToken(true);
+                getStockInfoRest(trKey, true); // 재시도
+                return;
+            }
+            log.error("KIS API 호출 실패 (HTTP {}): {}", e.getStatusCode(), errorBody);
+            return;
+        }
 
         log.info("KIS API 상세 응답 (티커: {}): {}", trKey, response.getBody());
 
@@ -237,6 +255,13 @@ public class InitStockSubscribe {
 
             Object output = body.get("output");
             if (output == null) {
+                String msgCd = Optional.ofNullable(body.get("rt_cd")).orElse("").toString();
+                if (msgCd.equals("1") && body.get("msg_cd").equals("EGW00123") && !isRetry) {
+                    log.warn("[TOKEN EXPIRED] EGW00123 감지(body) → 토큰 재발급 후 재시도 (티커: {})", trKey);
+                    accessToken = kisApiAccessTokenService.getAccessToken(true);
+                    getStockInfoRest(trKey, true);
+                    return;
+                }
                 log.warn("KIS API 호출 실패 (티커: {}) - 메시지: [{}], 사유: [{}]", 
                         trKey, body.get("msg_cd"), body.get("msg1"));
                 return;
