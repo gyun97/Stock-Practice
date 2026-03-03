@@ -40,15 +40,30 @@ public class KisApprovalKeyService {
     }
 
     private void requestApprovalKey() {
-        Map<String, Object> response = restTemplate.postForObject(
-                "https://openapivts.koreainvestment.com:29443/oauth2/Approval",
-                requestBody(),
-                Map.class);
+        String url = baseUrl + "/oauth2/Approval";
+        try {
+            Map<String, Object> response = restTemplate.postForObject(
+                    url,
+                    requestBody(),
+                    Map.class);
 
-        approvalKey = (String) response.get("approval_key");
-        log.info("approvalKey={}", approvalKey);
-        // 하루짜리라서 안전하게 23시간으로 설정
-        expiredAt = LocalDateTime.now().plusHours(23);
+            if (response == null || response.get("approval_key") == null) {
+                log.error("Approval Key 응답이 올바르지 않음: {}", response);
+                throw new RuntimeException("Approval Key 발급 실패");
+            }
+
+            approvalKey = (String) response.get("approval_key");
+            log.info("approvalKey 발급 완료");
+            // 하루짜리라서 안전하게 23시간으로 설정
+            expiredAt = LocalDateTime.now().plusHours(23);
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            log.error("KIS Approval Key 발급 실패! URL: {}, 상태코드: {}, 응답바디: {}", 
+                    url, e.getStatusCode(), e.getResponseBodyAsString());
+            throw e;
+        } catch (Exception e) {
+            log.error("KIS Approval Key 발급 중 알 수 없는 오류 발생", e);
+            throw e;
+        }
     }
 
     private Map<String, String> requestBody() {

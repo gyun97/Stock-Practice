@@ -56,12 +56,19 @@ public class KisApiAccessTokenService {
 
         HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, headers);
 
-        Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-
-        log.info("Access Token 발급 완료: {}", response);
-
-        this.accessToken = (String) response.get("access_token");
-        redisTemplate.opsForValue()
-                .set("kis:access_token", this.accessToken, Duration.ofHours(24));
+        try {
+            Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
+            log.info("Access Token 발급 완료: {}", response);
+            this.accessToken = (String) response.get("access_token");
+            redisTemplate.opsForValue()
+                    .set("kis:access_token", this.accessToken, Duration.ofHours(24));
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            log.error("KIS Access Token 발급 실패! 상태코드: {}, 응답바디: {}", 
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw e;
+        } catch (Exception e) {
+            log.error("KIS Access Token 발급 중 알 수 없는 오류 발생", e);
+            throw e;
+        }
     }
 }
