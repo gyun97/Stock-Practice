@@ -18,7 +18,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KisApiAccessTokenService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final StringRedisTemplate redisTemplate;
 
     @Value("${kis.app.key}")
@@ -44,6 +44,7 @@ public class KisApiAccessTokenService {
 
     private void requestAccessToken() {
         String url = baseUrl + "/oauth2/tokenP";
+        log.info("KIS Access Token 발급 요청 중... URL: {}", url);
 
         Map<String, String> body = Map.of(
                 "grant_type", "client_credentials",

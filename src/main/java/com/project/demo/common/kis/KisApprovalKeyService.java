@@ -14,7 +14,7 @@ import java.util.Map;
 @Slf4j
 public class KisApprovalKeyService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final KisApiAccessTokenService kisApiAccessTokenService;
 
     @Value("${kis.app.key}")
@@ -40,7 +40,8 @@ public class KisApprovalKeyService {
     }
 
     private void requestApprovalKey() {
-        String url = baseUrl + "/oauth2/Approval";
+        String url = (baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl) + "/oauth2/Approval";
+        log.info("KIS Approval Key 발급 요청 중... URL: {}", url);
         try {
             Map<String, Object> response = restTemplate.postForObject(
                     url,

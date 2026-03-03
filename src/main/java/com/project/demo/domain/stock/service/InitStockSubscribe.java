@@ -43,6 +43,7 @@ public class InitStockSubscribe {
     private final StringRedisTemplate redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
     private final StockOutlineService stockOutlineService;
+    private final RestTemplate restTemplate;
 
     @Value("${kis.app.key}")
     private String appKey;
@@ -82,49 +83,54 @@ public class InitStockSubscribe {
     @EventListener(ApplicationReadyEvent.class)
     @Order(1)
     public void saveFixedStocks() {
-        approvalKey = approvalKeyService.getApprovalKey();
-        accessToken = kisApiAccessTokenService.getAccessToken();
-
-        log.info("서버 가동: Redis 정렬 키 초기화");
-        redisTemplate.delete(List.of("stock:rank:volume", "stock:rank:price", "stock:rank:changeRate"));
-
-        log.info("서버 가동: 고정 종목 40개 정보 초기화 시작");
-        for (String ticker : FIXED_TICKERS) {
+        new Thread(() -> {
             try {
-                // RDB에 종목 기본 정보 저장 및 갱신
-                Stock stock = stockRepository.findByTicker(ticker).orElse(null);
-                String name = TICKER_NAME_MAP.getOrDefault(ticker, "알 수 없는 종목");
-                String outline = stockOutlineService.getOutline(ticker);
+                log.info("[ASYNC INIT] 고정 종목 40개 정보 초기화 시작...");
+                approvalKey = approvalKeyService.getApprovalKey();
+                accessToken = kisApiAccessTokenService.getAccessToken();
 
-                if (stock == null) {
-                    stock = Stock.builder()
-                            .ticker(ticker)
-                            .name(name)
-                            .market(Market.KOSPI)
-                            .volume(0L)
-                            .outline(outline)
-                            .build();
-                } else {
-                    // 기존 종목이 있다면 이름과 개요 최신화
-                    stock.setName(name);
-                    if (outline != null) {
-                        stock.setOutline(outline);
+                log.info("서버 가동: Redis 정렬 키 초기화");
+                redisTemplate.delete(List.of("stock:rank:volume", "stock:rank:price", "stock:rank:changeRate"));
+
+                for (String ticker : FIXED_TICKERS) {
+                    try {
+                        // RDB에 종목 기본 정보 저장 및 갱신
+                        Stock stock = stockRepository.findByTicker(ticker).orElse(null);
+                        String name = TICKER_NAME_MAP.getOrDefault(ticker, "알 수 없는 종목");
+                        String outline = stockOutlineService.getOutline(ticker);
+
+                        if (stock == null) {
+                            stock = Stock.builder()
+                                    .ticker(ticker)
+                                    .name(name)
+                                    .market(Market.KOSPI)
+                                    .volume(0L)
+                                    .outline(outline)
+                                    .build();
+                        } else {
+                            stock.setName(name);
+                            if (outline != null) {
+                                stock.setOutline(outline);
+                            }
+                        }
+                        stockRepository.save(stock);
+
+                        // 최신 데이터(가격 등) 가져오기 및 Redis 저장
+                        getStockInfoRest(ticker);
+                    } catch (Exception e) {
+                        log.warn("종목 초기화 실패: {}", ticker, e);
+                    }
+                    try {
+                        Thread.sleep(1000); // TPS 제한 고려
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
                     }
                 }
-                stockRepository.save(stock);
-
-                // 최신 데이터(가격 등) 가져오기 및 Redis 저장
-                getStockInfoRest(ticker);
+                log.info("[ASYNC INIT] 고정 종목 40개 정보 초기화 완료");
             } catch (Exception e) {
-                log.warn("종목 초기화 실패: {}", ticker, e);
+                log.error("[ASYNC INIT] 치명적 오류 발생", e);
             }
-            try {
-                Thread.sleep(1000); // KIS API 초당 호출 제한(TPS) 방지를 위해 무조건 1초 대기
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        log.info("서버 가동: 고정 종목 40개 정보 초기화 완료");
+        }).start();
     }
 
     // 메인 화면에 표기될 전체 주식들 정보 얻기 위해 구독
@@ -197,9 +203,10 @@ public class InitStockSubscribe {
 
     // 서버 가동시 사이트에서 다룰 40개 주식 종목 최초 정보 가져오기
     public void getStockInfoRest(String trKey) {
-        String url = baseUrl + "/uapi/domestic-stock/v1/quotations/inquire-price";
+        String sanitizedBaseUrl = (baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl);
+        String url = sanitizedBaseUrl + "/uapi/domestic-stock/v1/quotations/inquire-price";
 
-        log.info("url: {}", url);
+        log.info("KIS GET 요청 중... URL: {}", url);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(accessToken);
@@ -212,7 +219,6 @@ public class InitStockSubscribe {
                 .queryParam("FID_INPUT_ISCD", trKey);
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
-        RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<Map> response = restTemplate.exchange(
                 builder.toUriString(), HttpMethod.GET, entity, Map.class);
 
