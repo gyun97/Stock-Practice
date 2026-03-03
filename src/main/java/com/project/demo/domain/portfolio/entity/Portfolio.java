@@ -5,6 +5,7 @@ import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.userstock.entity.UserStock;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,8 @@ import java.util.List;
 @Table(name = "portfolios")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 public class Portfolio extends TimeStamped {
 
     @Id
@@ -26,20 +29,19 @@ public class Portfolio extends TimeStamped {
     private long balance; // 가용 자산(잔액)
 
     @Column(nullable = false)
-    private int stockAsset; // 보유 주식 총액
+    private long stockAsset; // 보유 주식 총액
 
     @Column(nullable = false)
     private long totalAsset; // 총 자산(가용 금액(balance) + 보유 주식 총액(stockAsset))
 
     @Column(nullable = false)
-    private int holdCount; // 보유 종목 수
+    private long holdCount; // 보유 종목 수
 
     @Column(nullable = false)
-    private int totalQuantity; // 보유 주식 수량
+    private long totalQuantity; // 보유 주식 수량
 
-//    @Column(nullable = false)
-//    private double returnRate; // 수익률
-
+    // @Column(nullable = false)
+    // private double returnRate; // 수익률
 
     // 단방향
     @OneToOne(fetch = FetchType.LAZY)
@@ -47,33 +49,20 @@ public class Portfolio extends TimeStamped {
     private User user;
 
     @OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<UserStock> userStocks = new java.util.ArrayList<>();
 
+    // -----------------------------매수 ----------------------------
 
-    @Builder
-    public Portfolio(Long id, long balance, long totalAsset, int totalQuantity, int stockAsset, int holdCount, User user) {
-        this.id = id;
-        this.balance = balance;
-        this.totalAsset = totalAsset;
-        this.totalQuantity = totalQuantity;
-        this.stockAsset = stockAsset;
-//        this.returnRate = avgReturnRate;
-        this.holdCount = holdCount;
-        this.user = user;
-    }
-
-
-// -----------------------------매수 ----------------------------
-
-    public void increaseStockAsset(int amount) {
+    public void increaseStockAsset(long amount) {
         this.stockAsset += amount;
     }
 
-    public void decreaseBalance(int amount) {
+    public void decreaseBalance(long amount) {
         this.balance -= amount;
     }
 
-    public void increaseTotalQuantity(int quantity) {
+    public void increaseTotalQuantity(long quantity) {
         this.totalQuantity += quantity;
     }
 
@@ -83,39 +72,37 @@ public class Portfolio extends TimeStamped {
 
     // -----------------------------매도 ----------------------------
     /*
-    주식 매도로 인한 주식 자산 감소 반영
+     * 주식 매도로 인한 주식 자산 감소 반영
      */
-    public void decreaseStockAsset(int amount) {
+    public void decreaseStockAsset(long amount) {
         this.stockAsset = Math.max(0, this.stockAsset - amount);
     }
 
     /*
-    주식 매도로 인한 보유 현금 증가 반영
+     * 주식 매도로 인한 보유 현금 증가 반영
      */
-    public void increaseBalance(int amount) {
+    public void increaseBalance(long amount) {
         this.balance += amount;
     }
 
     /*
-    주식 매도로 인한 주식 수량 감소 반영
+     * 주식 매도로 인한 주식 수량 감소 반영
      */
-    public void decreaseTotalQuantity(int quantity) {
+    public void decreaseTotalQuantity(long quantity) {
         this.totalQuantity = Math.max(0, this.totalQuantity - quantity);
     }
 
-
     /*
-    총 자산 변화 반영
+     * 총 자산 변화 반영
      */
     public void recalculateTotalAsset() {
         this.totalAsset = this.balance + this.stockAsset;
     }
 
-
     /*
-    수익률 변화 반영
+     * 수익률 변화 반영
      */
-//    public void updateReturnRate() {
-//        this.returnRate = ((double) (this.totalAsset - PRINCIPAL) / PRINCIPAL) * 100;
-//    }
+    // public void updateReturnRate() {
+    // this.returnRate = ((double) (this.totalAsset - PRINCIPAL) / PRINCIPAL) * 100;
+    // }
 }

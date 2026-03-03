@@ -25,12 +25,12 @@ public class GetUserResponse {
         this.balance = balance;
     }
 
-    public static GetUserResponse of(User user) {
+    public static GetUserResponse of(User user, long balance) {
         return new GetUserResponse(
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getBalance(),
+                balance,
                 user.getProfileImage());
     }
 

@@ -42,7 +42,11 @@ import static org.mockito.Mockito.*;
 /**
  * OrderServiceImpl 단위 테스트
  */
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class OrderServiceImplTest {
 
     @Mock
@@ -81,16 +85,20 @@ class OrderServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        testUser = User.createNewUser(
-                "test@example.com",
-                "테스트 사용자",
-                "password",
-                UserRole.ROLE_USER,
-                SocialType.LOCAL,
-                ""
-        );
-        ReflectionTestUtils.setField(testUser, "id", 1L);
-        ReflectionTestUtils.setField(testUser, "balance", 10000000L);
+        testUser = User.builder()
+                .id(1L)
+                .password("password")
+                .name("테스트 사용자")
+                .isDeleted(false)
+                .withdrawalAt(null)
+                .userRole(UserRole.ROLE_USER)
+                .socialType(SocialType.LOCAL)
+                .socialId(null)
+                .email("test@example.com")
+                .profileImage("")
+                .orders(new ArrayList<>())
+                .userStocks(new ArrayList<>())
+                .build();
         ReflectionTestUtils.setField(testUser, "userStocks", new ArrayList<>());
 
         testStock = Stock.builder()
@@ -102,14 +110,15 @@ class OrderServiceImplTest {
         ReflectionTestUtils.setField(testStock, "userStocks", new ArrayList<>());
 
         testPortfolio = Portfolio.builder()
-                .balance(10000000)
-                .totalAsset(10000000)
-                .totalQuantity(0)
-                .holdCount(0)
-                .stockAsset(0)
+                .id(1L)
+                .balance(20000000L) // 충분한 잔액 설정 (2000만원)
+                .stockAsset(700000L)
+                .totalAsset(20000000L)
+                .holdCount(1L)
+                .totalQuantity(10L)
                 .user(testUser)
+                .userStocks(new ArrayList<>())
                 .build();
-        ReflectionTestUtils.setField(testPortfolio, "id", 1L);
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
     }
 
@@ -122,20 +131,20 @@ class OrderServiceImplTest {
         int stockPrice = 70000;
         int totalPrice = stockPrice * quantity;
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + stockPrice + "}");
         // getStockPrice에서 ObjectMapper 사용
-        com.project.demo.domain.stock.dto.response.StockData stockData = 
-                com.project.demo.domain.stock.dto.response.StockData.builder()
-                        .price(stockPrice)
-                        .build();
+        com.project.demo.domain.stock.dto.response.StockData stockData = com.project.demo.domain.stock.dto.response.StockData
+                .builder()
+                .price(stockPrice)
+                .build();
         try {
-            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"), 
+            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"),
                     eq(com.project.demo.domain.stock.dto.response.StockData.class)))
                     .thenReturn(stockData);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -199,22 +208,23 @@ class OrderServiceImplTest {
         String ticker = "005930";
         int quantity = 1000; // 매우 큰 수량
         int stockPrice = 70000;
-        ReflectionTestUtils.setField(testUser, "balance", 1000L); // 잔액 부족
+        ReflectionTestUtils.setField(testPortfolio, "balance", 1000L); // 잔액 부족
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
+        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + stockPrice + "}");
         // getStockPrice에서 ObjectMapper 사용
-        com.project.demo.domain.stock.dto.response.StockData stockData2 = 
-                com.project.demo.domain.stock.dto.response.StockData.builder()
-                        .price(stockPrice)
-                        .build();
+        com.project.demo.domain.stock.dto.response.StockData stockData2 = com.project.demo.domain.stock.dto.response.StockData
+                .builder()
+                .price(stockPrice)
+                .build();
         try {
-            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"), 
+            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"),
                     eq(com.project.demo.domain.stock.dto.response.StockData.class)))
                     .thenReturn(stockData2);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -242,6 +252,19 @@ class OrderServiceImplTest {
                 .stock(testStock)
                 .build();
         ReflectionTestUtils.setField(order, "id", orderId);
+
+        // 테스트용 Portfolio 생성
+        Portfolio testPortfolio = Portfolio.builder()
+                .id(1L)
+                .balance(10000000L)
+                .stockAsset(0L)
+                .totalAsset(10000000L)
+                .holdCount(0L)
+                .totalQuantity(0L)
+                .user(testUser)
+                .userStocks(new ArrayList<>())
+                .build();
+        lenient().when(portfolioRepository.findByUser(any(User.class))).thenReturn(Optional.of(testPortfolio));
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
@@ -333,20 +356,20 @@ class OrderServiceImplTest {
                 .build();
         ReflectionTestUtils.setField(userStock, "id", 1L);
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
         when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.of(userStock));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + stockPrice + "}");
-        com.project.demo.domain.stock.dto.response.StockData stockData = 
-                com.project.demo.domain.stock.dto.response.StockData.builder()
-                        .price(stockPrice)
-                        .build();
+        com.project.demo.domain.stock.dto.response.StockData stockData = com.project.demo.domain.stock.dto.response.StockData
+                .builder()
+                .price(stockPrice)
+                .build();
         try {
-            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"), 
+            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"),
                     eq(com.project.demo.domain.stock.dto.response.StockData.class)))
                     .thenReturn(stockData);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -358,7 +381,8 @@ class OrderServiceImplTest {
             return order;
         });
         when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
-        lenient().when(userStockRepository.save(any(UserStock.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(userStockRepository.save(any(UserStock.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
@@ -426,6 +450,7 @@ class OrderServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
+        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order order = invocation.getArgument(0);
             ReflectionTestUtils.setField(order, "id", 1L);
@@ -448,10 +473,11 @@ class OrderServiceImplTest {
         String ticker = "005930";
         int quantity = 1000;
         int targetPrice = 70000;
-        ReflectionTestUtils.setField(testUser, "balance", 1000L); // 잔액 부족
+        ReflectionTestUtils.setField(testPortfolio, "balance", 1000L); // 잔액 부족
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
+        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
 
         // When & Then
         assertThrows(NotEnoughMoneyException.class, () -> {
@@ -479,7 +505,9 @@ class OrderServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
-        when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.of(userStock));
+        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        when(userStockRepository.findByUserAndStock(any(User.class), any(Stock.class)))
+                .thenReturn(Optional.of(userStock));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order order = invocation.getArgument(0);
             ReflectionTestUtils.setField(order, "id", 1L);
@@ -515,7 +543,7 @@ class OrderServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
-        when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.of(userStock));
+        when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.empty()); // 보유 주식 없음
 
         // When & Then
         assertThrows(NotEnoughStockException.class, () -> {
@@ -650,11 +678,11 @@ class OrderServiceImplTest {
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeBuy(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance - totalPrice, testUser.getBalance()); // 잔액 차감 확인
+        assertEquals(initialBalance - totalPrice, testPortfolio.getBalance()); // 잔액 차감 확인
         verify(executionRepository, times(1)).save(any());
         verify(userStockRepository, times(1)).save(any(UserStock.class));
     }
@@ -693,15 +721,16 @@ class OrderServiceImplTest {
         when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(userStockRepository.findByUserAndStock(testUser, testStock))
                 .thenReturn(Optional.of(existingUserStock));
-        lenient().when(userStockRepository.save(any(UserStock.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(userStockRepository.save(any(UserStock.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeBuy(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance - totalPrice, testUser.getBalance()); // 잔액 차감 확인
+        assertEquals(initialBalance - totalPrice, testPortfolio.getBalance()); // 잔액 차감 확인
         verify(executionRepository, times(1)).save(any());
         assertEquals(15, existingUserStock.getTotalQuantity()); // 10 + 5
     }
@@ -743,11 +772,11 @@ class OrderServiceImplTest {
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeSell(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance + totalPrice, testUser.getBalance()); // 잔액 증가 확인
+        assertEquals(initialBalance + totalPrice, testPortfolio.getBalance()); // 잔액 증가 확인
         verify(executionRepository, times(1)).save(any());
         assertEquals(5, userStock.getTotalQuantity()); // 10 - 5
         verify(userStockRepository, never()).delete(any(UserStock.class));
@@ -791,11 +820,11 @@ class OrderServiceImplTest {
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeSell(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance + totalPrice, testUser.getBalance()); // 잔액 증가 확인
+        assertEquals(initialBalance + totalPrice, testPortfolio.getBalance()); // 잔액 증가 확인
         verify(executionRepository, times(1)).save(any());
         verify(userStockRepository, times(1)).delete(userStock);
     }
@@ -872,4 +901,3 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).findReservationOrdersByUser(userId);
     }
 }
-

@@ -229,8 +229,10 @@ public class UserServiceImpl implements UserService {
      */
     public GetUserResponse getUserInfo(Long userId) {
         User user = getUserById(userId);
+        Portfolio portfolio = portfolioRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalStateException("포트폴리오를 찾을 수 없습니다."));
 
-        return GetUserResponse.of(user);
+        return GetUserResponse.of(user, portfolio.getBalance());
     }
 
     /*
@@ -243,7 +245,10 @@ public class UserServiceImpl implements UserService {
         // 유저 정보 수정
         user.updateUserInfo(request);
 
-        return GetUserResponse.of(user);
+        Portfolio portfolio = portfolioRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalStateException("포트폴리오를 찾을 수 없습니다."));
+
+        return GetUserResponse.of(user, portfolio.getBalance());
     }
 
     /*

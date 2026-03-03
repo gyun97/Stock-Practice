@@ -10,6 +10,7 @@ import com.project.demo.domain.user.enums.UserRole;
 import com.project.demo.domain.userstock.entity.UserStock;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -24,6 +25,8 @@ import java.util.List;
 @Entity
 @Table(name = "users")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 @Getter
 public class User extends TimeStamped {
 
@@ -37,10 +40,8 @@ public class User extends TimeStamped {
     @Column(nullable = false, unique = true)
     private String name;
 
-    @Column(nullable = false)
-    private long balance; // 가용 자산(잔액)
-
     @Column(name = "is_deleted", nullable = false)
+    @Builder.Default
     private boolean isDeleted = false; // 탈퇴 여부
 
     private LocalDateTime withdrawalAt; // 탈퇴일
@@ -60,30 +61,16 @@ public class User extends TimeStamped {
     private String profileImage;
 
     @OneToMany(mappedBy = "user")
-    private List<Order> orders;
+    @Builder.Default
+    private List<Order> orders = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
+    @Builder.Default
     private List<UserStock> userStocks = new ArrayList<>();
-
-    @Builder
-    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted,
-            SocialType socialType, String socialId, String profileImage) {
-        this.id = id;
-        this.password = password;
-        this.name = name;
-        this.balance = balance;
-        this.userRole = userRole;
-        this.email = email;
-        this.isDeleted = isDeleted;
-        this.socialType = socialType;
-        this.socialId = socialId;
-        this.profileImage = profileImage;
-    }
 
     /*
      * 유저 회원가입시 새 유저 객체 생성
      */
-    @Builder
     public static User createNewUser(String email, String name, String encodedPassword, UserRole role,
             SocialType socialType, String profileImage) {
         return User.builder()
@@ -91,7 +78,6 @@ public class User extends TimeStamped {
                 .name(name)
                 .password(encodedPassword)
                 .userRole(role)
-                .balance(100000000)
                 .isDeleted(false)
                 .socialType(socialType)
                 .profileImage(profileImage)
@@ -107,7 +93,6 @@ public class User extends TimeStamped {
         this.userRole = newRole;
         this.isDeleted = false;
         this.withdrawalAt = null;
-        // balance는 기존 값 유지 (초기화하지 않음)
     }
 
     /*
@@ -149,20 +134,6 @@ public class User extends TimeStamped {
      */
     public void updateProfileImage(String profileImage) {
         this.profileImage = profileImage;
-    }
-
-    /*
-     * 보유 잔액 차감
-     */
-    public void deductBalance(int price) {
-        this.balance -= price;
-    }
-
-    /*
-     * 보유 잔액 증감
-     */
-    public void addBalance(int price) {
-        this.balance += price;
     }
 
     /*

@@ -23,6 +23,7 @@ import com.project.demo.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import java.util.ArrayList;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -37,10 +38,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
 /**
  * UserServiceImpl 단위 테스트
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class UserServiceImplTest {
 
     @Mock
@@ -71,15 +76,20 @@ class UserServiceImplTest {
         ReflectionTestUtils.setField(userService, "ADMIN_TOKEN", "admin-secret-token");
 
         // 테스트용 User 생성
-        testUser = User.createNewUser(
-                "test@example.com",
-                "테스트 사용자",
-                "encodedPassword",
-                UserRole.ROLE_USER,
-                SocialType.LOCAL,
-                ""
-        );
-        ReflectionTestUtils.setField(testUser, "id", 1L);
+        testUser = User.builder()
+                .id(1L)
+                .password("encodedPassword")
+                .name("테스트 사용자")
+                .isDeleted(false)
+                .withdrawalAt(null)
+                .userRole(UserRole.ROLE_USER)
+                .socialType(SocialType.LOCAL)
+                .socialId(null)
+                .email("test@example.com")
+                .profileImage("")
+                .orders(new ArrayList<>())
+                .userStocks(new ArrayList<>())
+                .build();
 
         // 테스트용 SignUpRequest
         signUpRequest = new SignUpRequest(
@@ -87,11 +97,24 @@ class UserServiceImplTest {
                 "테스트 사용자",
                 "test@example.com",
                 "ROLE_USER",
-                ""
-        );
+                "");
 
         // 테스트용 LoginRequest
         loginRequest = new LoginRequest("test@example.com", "password123!");
+
+        // 테스트용 Portfolio 생성
+        Portfolio testPortfolio = Portfolio.builder()
+                .id(1L)
+                .balance(10000000L)
+                .stockAsset(0L)
+                .totalAsset(10000000L)
+                .holdCount(0L)
+                .totalQuantity(0L)
+                .user(testUser)
+                .userStocks(new ArrayList<>())
+                .build();
+        lenient().when(portfolioRepository.findByUser(any(User.class))).thenReturn(Optional.of(testPortfolio));
+        lenient().when(portfolioRepository.findByUserId(anyLong())).thenReturn(Optional.of(testPortfolio));
     }
 
     @Test
@@ -99,6 +122,7 @@ class UserServiceImplTest {
         // Given
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByName(anyString())).thenReturn(false);
+        when(portfolioRepository.findByUser(any(User.class))).thenReturn(Optional.empty()); // 신규 가입 시 포트폴리오 없음
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         // save()가 호출될 때 전달된 User 객체에 id를 설정하고 반환
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
@@ -147,7 +171,7 @@ class UserServiceImplTest {
         assertThrows(DuplicateNameException.class, () -> {
             userService.signUp(signUpRequest);
         });
-        
+
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -228,8 +252,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "oldPassword",
                 "newPassword123!",
-                "newPassword123!"
-        );
+                "newPassword123!");
 
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("oldPassword", "encodedPassword")).thenReturn(true);
@@ -250,8 +273,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "oldPassword",
                 "newPassword123!",
-                "differentPassword"
-        );
+                "differentPassword");
 
         // When & Then
         assertThrows(NewPasswordMismatch.class, () -> {
@@ -266,8 +288,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "wrongPassword",
                 "newPassword123!",
-                "newPassword123!"
-        );
+                "newPassword123!");
 
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("wrongPassword", "encodedPassword")).thenReturn(false);
@@ -352,8 +373,7 @@ class UserServiceImplTest {
                 "encodedPassword",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         ReflectionTestUtils.setField(deletedUser, "id", 1L);
         deletedUser.updateIsDeleted(); // 탈퇴 처리
 
@@ -389,8 +409,7 @@ class UserServiceImplTest {
                 "관리자",
                 "admin@example.com",
                 "ROLE_ADMIN",
-                "admin-secret-token"
-        );
+                "admin-secret-token");
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByName(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -421,8 +440,7 @@ class UserServiceImplTest {
                 "관리자",
                 "admin@example.com",
                 "ROLE_ADMIN",
-                "wrong-token"
-        );
+                "wrong-token");
         lenient().when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByName(anyString())).thenReturn(false);
 
@@ -476,8 +494,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "oldPassword",
                 "oldPassword", // 새 비밀번호가 기존과 동일
-                "oldPassword"
-        );
+                "oldPassword");
 
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("oldPassword", "encodedPassword")).thenReturn(true);
@@ -498,8 +515,7 @@ class UserServiceImplTest {
                 "encodedPassword",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         ReflectionTestUtils.setField(deletedUser, "id", 1L);
         deletedUser.updateIsDeleted(); // 탈퇴 처리
 
@@ -520,8 +536,7 @@ class UserServiceImplTest {
                 "encodedPassword",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         deletedUser.updateIsDeleted(); // 탈퇴 처리
 
         when(userRepository.existsByName("기존 닉네임")).thenReturn(true);
@@ -570,8 +585,7 @@ class UserServiceImplTest {
                 "테스트 사용자",
                 "new@example.com",
                 "", // 빈 역할
-                ""
-        );
+                "");
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByName(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -698,4 +712,3 @@ class UserServiceImplTest {
         verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
     }
 }
-

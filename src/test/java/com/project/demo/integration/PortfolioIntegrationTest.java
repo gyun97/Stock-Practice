@@ -49,199 +49,211 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class PortfolioIntegrationTest extends AbstractIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @Autowired
-    private UserRepository userRepository;
+        @Autowired
+        private UserRepository userRepository;
 
-    @Autowired
-    private PortfolioRepository portfolioRepository;
+        @Autowired
+        private PortfolioRepository portfolioRepository;
 
-    @Autowired
-    private StockRepository stockRepository;
+        @Autowired
+        private StockRepository stockRepository;
 
-    @Autowired
-    private UserStockRepository userStockRepository;
+        @Autowired
+        private UserStockRepository userStockRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+        @Autowired
+        private PasswordEncoder passwordEncoder;
 
-    @Autowired
-    private ExecutionRepository executionRepository;
+        @Autowired
+        private ExecutionRepository executionRepository;
 
-    @Autowired
-    private OrderRepository orderRepository;
+        @Autowired
+        private OrderRepository orderRepository;
 
-    @Autowired
-    private RefreshTokenRepository refreshTokenRepository;
+        @Autowired
+        private RefreshTokenRepository refreshTokenRepository;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+        @Autowired
+        private JwtUtil jwtUtil;
 
-    @PersistenceContext
-    private EntityManager entityManager;
+        @PersistenceContext
+        private EntityManager entityManager;
 
-    private User testUser;
-    private Stock testStock;
-    private Portfolio testPortfolio;
-    private AuthUser authUser;
+        private User testUser;
+        private Stock testStock;
+        private Portfolio testPortfolio;
+        private AuthUser authUser;
 
-    @BeforeEach
-    void setUp() {
-        // 테스트 데이터 초기화
-        cleanupDatabase();
+        @BeforeEach
+        void setUp() {
+                // 테스트 데이터 초기화
+                cleanupDatabase();
 
-        // 사용자 생성
-        testUser = User.builder()
-                .email("portfolio@example.com")
-                .password(passwordEncoder.encode("Test123!@#"))
-                .name("포트폴리오 테스트 사용자")
-                .userRole(UserRole.ROLE_USER)
-                .balance(10000000L)
-                .socialType(SocialType.LOCAL)
-                .isDeleted(false)
-                .build();
-        testUser = userRepository.save(testUser);
+                // 사용자 생성
+                testUser = User.builder()
+                                .id(1L)
+                                .password(passwordEncoder.encode("Test123!@#"))
+                                .name("포트폴리오 테스트 사용자")
+                                .userRole(UserRole.ROLE_USER)
+                                .email("portfolio@example.com")
+                                .isDeleted(false)
+                                .socialType(SocialType.LOCAL)
+                                .socialId(null)
+                                .profileImage("")
+                                .build();
+                testUser = userRepository.save(testUser);
 
-        // 주식 생성
-        testStock = Stock.builder()
-                .ticker("005930")
-                .name("삼성전자")
-                .market(Market.KOSPI)
-                .volume(1000000L)
-                .build();
-        testStock = stockRepository.save(testStock);
+                // 주식 생성
+                testStock = Stock.builder()
+                                .ticker("005930")
+                                .name("삼성전자")
+                                .market(Market.KOSPI)
+                                .volume(1000000L)
+                                .build();
+                testStock = stockRepository.save(testStock);
 
-        // 포트폴리오 생성
-        testPortfolio = Portfolio.builder()
-                .balance(10000000L)
-                .totalAsset(10000000L)
-                .totalQuantity(0)
-                .stockAsset(0)
-                .holdCount(0)
-                .user(testUser)
-                .build();
-        testPortfolio = portfolioRepository.save(testPortfolio);
+                // 포트폴리오 생성
+                testPortfolio = Portfolio.builder()
+                                .id(1L)
+                                .balance(10000000L)
+                                .totalAsset(10000000L)
+                                .totalQuantity(0L)
+                                .stockAsset(0L)
+                                .holdCount(0L)
+                                .user(testUser)
+                                .build();
+                testPortfolio = portfolioRepository.save(testPortfolio);
 
-        // 인증 설정
-        authUser = new AuthUser(testUser.getId(), testUser.getEmail(), testUser.getUserRole(), testUser.getName());
-        JwtAuthenticationToken authentication = new JwtAuthenticationToken(authUser);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-    }
+                // 인증 설정
+                authUser = new AuthUser(testUser.getId(), testUser.getEmail(), testUser.getUserRole(),
+                                testUser.getName());
+                JwtAuthenticationToken authentication = new JwtAuthenticationToken(authUser);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+        }
 
-    @Transactional
-    @Commit
-    void cleanupDatabase() {
-        // Native SQL을 사용하여 더 확실하게 삭제
-        entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
-        executionRepository.deleteAll();
-        orderRepository.deleteAll();
-        userStockRepository.deleteAll();
-        portfolioRepository.deleteAll();
-        refreshTokenRepository.deleteAll();
-        userRepository.deleteAll();
-        stockRepository.deleteAll();
-        entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
-        entityManager.flush();
-        entityManager.clear();
-    }
+        @Transactional
+        @Commit
+        void cleanupDatabase() {
+                // Native SQL을 사용하여 더 확실하게 삭제
+                entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
+                executionRepository.deleteAll();
+                orderRepository.deleteAll();
+                userStockRepository.deleteAll();
+                portfolioRepository.deleteAll();
+                refreshTokenRepository.deleteAll();
+                userRepository.deleteAll();
+                stockRepository.deleteAll();
+                entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 1").executeUpdate();
+                entityManager.flush();
+                entityManager.clear();
+        }
 
-    @AfterEach
-    void tearDown() {
-        SecurityContextHolder.clearContext();
-    }
+        @AfterEach
+        void tearDown() {
+                SecurityContextHolder.clearContext();
+        }
 
-    @Test
-    void 포트폴리오_조회_테스트() throws Exception {
-        // When & Then
-        String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(), testUser.getUserRole(), testUser.getName());
-        mockMvc.perform(get("/api/v1/portfolios/users/{userId}", testUser.getId())
-                        .header("Authorization", accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.balance").exists())
-                .andExpect(jsonPath("$.data.totalAsset").exists());
-    }
+        @Test
+        void 포트폴리오_조회_테스트() throws Exception {
+                // When & Then
+                String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(),
+                                testUser.getUserRole(), testUser.getName());
+                mockMvc.perform(get("/api/v1/portfolios/users/{userId}", testUser.getId())
+                                .header("Authorization", accessToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.balance").exists())
+                                .andExpect(jsonPath("$.data.totalAsset").exists());
+        }
 
-    @Test
-    void 주식_매수_후_포트폴리오_업데이트_테스트() throws Exception {
-        // Given - 주식 매수
-        String ticker = "005930";
-        int quantity = 10;
+        @Test
+        void 주식_매수_후_포트폴리오_업데이트_테스트() throws Exception {
+                // Given - 주식 매수
+                String ticker = "005930";
+                int quantity = 10;
 
-        String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(), testUser.getUserRole(), testUser.getName());
-        mockMvc.perform(post("/api/v1/orders/buying/{ticker}", ticker)
-                        .param("quantity", String.valueOf(quantity))
-                        .header("Authorization", accessToken))
-                .andExpect(status().isOk());
+                String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(),
+                                testUser.getUserRole(), testUser.getName());
+                mockMvc.perform(post("/api/v1/orders/buying/{ticker}", ticker)
+                                .param("quantity", String.valueOf(quantity))
+                                .header("Authorization", accessToken))
+                                .andExpect(status().isOk());
 
-        // When - 포트폴리오 조회
-        mockMvc.perform(get("/api/v1/portfolios/users/{userId}", testUser.getId())
-                        .header("Authorization", accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.holdCount").value(1))
-                .andExpect(jsonPath("$.data.totalQuantity").value(quantity));
+                // When - 포트폴리오 조회
+                mockMvc.perform(get("/api/v1/portfolios/users/{userId}", testUser.getId())
+                                .header("Authorization", accessToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data.holdCount").value(1))
+                                .andExpect(jsonPath("$.data.totalQuantity").value(quantity));
 
-        // Then - 데이터베이스 확인
-        Portfolio updatedPortfolio = portfolioRepository.findByUser(testUser).orElseThrow();
-        assertEquals(1, updatedPortfolio.getHoldCount());
-        assertEquals(quantity, updatedPortfolio.getTotalQuantity());
-        assertTrue(updatedPortfolio.getStockAsset() > 0);
-    }
+                // Then - 데이터베이스 확인
+                Portfolio updatedPortfolio = portfolioRepository.findByUser(testUser).orElseThrow();
+                assertEquals(1, updatedPortfolio.getHoldCount());
+                assertEquals(quantity, updatedPortfolio.getTotalQuantity());
+                assertTrue(updatedPortfolio.getStockAsset() > 0);
+        }
 
-    @Test
-    void 랭킹_조회_테스트() throws Exception {
-        // Given - 여러 사용자 생성
-        User user1 = User.builder()
-                .email("user1@example.com")
-                .password(passwordEncoder.encode("Test123!@#"))
-                .name("사용자1")
-                .userRole(UserRole.ROLE_USER)
-                .balance(10000000L)
-                .socialType(SocialType.LOCAL)
-                .isDeleted(false)
-                .build();
-        user1 = userRepository.save(user1);
+        @Test
+        void 랭킹_조회_테스트() throws Exception {
+                // Given - 여러 사용자 생성
+                User user1 = User.builder()
+                                .id(2L)
+                                .password(passwordEncoder.encode("Test123!@#"))
+                                .name("사용자1")
+                                .userRole(UserRole.ROLE_USER)
+                                .email("user1@example.com")
+                                .isDeleted(false)
+                                .socialType(SocialType.LOCAL)
+                                .socialId(null)
+                                .profileImage("")
+                                .build();
+                user1 = userRepository.save(user1);
 
-        Portfolio portfolio1 = Portfolio.builder()
-                .balance(5000000L)
-                .totalAsset(20000000L)
-                .totalQuantity(0)
-                .stockAsset(15000000)
-                .holdCount(0)
-                .user(user1)
-                .build();
-        portfolioRepository.save(portfolio1);
+                Portfolio portfolio1 = Portfolio.builder()
+                                .id(2L)
+                                .balance(5000000L)
+                                .totalAsset(20000000L)
+                                .totalQuantity(0L)
+                                .stockAsset(15000000L)
+                                .holdCount(0L)
+                                .user(user1)
+                                .build();
+                portfolioRepository.save(portfolio1);
 
-        User user2 = User.builder()
-                .email("user2@example.com")
-                .password(passwordEncoder.encode("Test123!@#"))
-                .name("사용자2")
-                .userRole(UserRole.ROLE_USER)
-                .balance(10000000L)
-                .socialType(SocialType.LOCAL)
-                .isDeleted(false)
-                .build();
-        user2 = userRepository.save(user2);
+                User user2 = User.builder()
+                                .id(3L)
+                                .password(passwordEncoder.encode("Test123!@#"))
+                                .name("사용자2")
+                                .userRole(UserRole.ROLE_USER)
+                                .email("user2@example.com")
+                                .isDeleted(false)
+                                .socialType(SocialType.LOCAL)
+                                .socialId(null)
+                                .profileImage("")
+                                .build();
+                user2 = userRepository.save(user2);
 
-        Portfolio portfolio2 = Portfolio.builder()
-                .balance(5000000L)
-                .totalAsset(15000000L)
-                .totalQuantity(0)
-                .stockAsset(10000000)
-                .holdCount(0)
-                .user(user2)
-                .build();
-        portfolioRepository.save(portfolio2);
+                Portfolio portfolio2 = Portfolio.builder()
+                                .id(3L)
+                                .balance(5000000L)
+                                .totalAsset(15000000L)
+                                .totalQuantity(0L)
+                                .stockAsset(10000000L)
+                                .holdCount(0L)
+                                .user(user2)
+                                .build();
+                portfolioRepository.save(portfolio2);
 
-        // When & Then
-        String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(), testUser.getUserRole(), testUser.getName());
-        mockMvc.perform(get("/api/v1/portfolios/ranking")
-                        .param("limit", "10")
-                        .header("Authorization", accessToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data.length()").value(greaterThanOrEqualTo(2)));
-    }
+                // When & Then
+                String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(),
+                                testUser.getUserRole(), testUser.getName());
+                mockMvc.perform(get("/api/v1/portfolios/ranking")
+                                .param("limit", "10")
+                                .header("Authorization", accessToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.data").isArray())
+                                .andExpect(jsonPath("$.data.length()").value(greaterThanOrEqualTo(2)));
+        }
 }
-

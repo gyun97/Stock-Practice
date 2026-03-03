@@ -13,8 +13,8 @@ public class PortfolioResponse {
     private long balance; // 현금 잔액(가용 자산)
     private long stockAsset; // 보유 주식 총액
     private long totalAsset; // 총 자산
-    private int holdCount; // 보유 종목 수
-    private int totalQuantity; // 보유 주식 수량
+    private long holdCount; // 보유 종목 수
+    private long totalQuantity; // 보유 주식 수량
     private double returnRate; // 수익률
 
     public static PortfolioResponse of(Portfolio portfolio) {
@@ -27,7 +27,7 @@ public class PortfolioResponse {
                 0.0 // returnRate는 calculateReturnRate에서 계산
         );
     }
-    
+
     public static PortfolioResponse of(Portfolio portfolio, long stockAsset, long totalAsset, double returnRate) {
         return new PortfolioResponse(
                 portfolio.getBalance(),
@@ -35,7 +35,6 @@ public class PortfolioResponse {
                 totalAsset,
                 portfolio.getHoldCount(),
                 portfolio.getTotalQuantity(),
-                returnRate
-        );
+                returnRate);
     }
 }
