@@ -1,6 +1,7 @@
 package com.project.demo.common.config;
 
 import org.junit.jupiter.api.Test;
+import com.project.demo.integration.AbstractIntegrationTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -15,9 +16,13 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.springframework.context.annotation.Import;
+import com.project.demo.integration.TestConfig;
+
 @SpringBootTest
-@ActiveProfiles("dev")
-class WebClientConfigTest {
+@ActiveProfiles("test")
+@Import(TestConfig.class)
+class WebClientConfigTest extends AbstractIntegrationTest {
 
     @Autowired
     private WebClient webClient;
@@ -45,7 +50,8 @@ class WebClientConfigTest {
                 .header("tr_id", "FHPST01740000")
                 .header("custtype", "P")
                 .retrieve()
-                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {})
+                .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {
+                })
                 .timeout(Duration.ofSeconds(35)) // 타임아웃 설정보다 약간 긴 시간
                 .doOnError(error -> {
                     System.out.println("에러 발생: " + error.getClass().getSimpleName());
@@ -62,7 +68,7 @@ class WebClientConfigTest {
         // block()으로 결과 확인 (타임아웃 설정이 적용되었는지만 확인)
         Map<String, Object> result = responseMono.block(Duration.ofSeconds(40));
         assertNotNull(result, "응답이 null이면 안 됩니다");
-        
+
         if (result.containsKey("error")) {
             System.out.println("에러 발생했지만 타임아웃 설정은 정상 작동");
         } else {
@@ -104,7 +110,7 @@ class WebClientConfigTest {
         System.out.println("테스트 결과: '" + result + "'");
         System.out.println("결과 길이: " + result.length());
         System.out.println("'에러 발생' 포함 여부: " + result.contains("에러 발생"));
-        
+
         // 에러가 발생했는지 확인
         // onErrorResume이 실행되면 "에러 발생: " + 에러클래스명 형태로 반환됨
         // 만약 에러가 발생하지 않았다면 다른 형태의 응답이 올 수 있음
@@ -112,9 +118,9 @@ class WebClientConfigTest {
             System.out.println("경고: 예상한 에러 메시지가 포함되지 않았습니다.");
             System.out.println("실제 반환된 값: " + result);
         }
-        
+
         // 에러가 발생했거나 응답이 있는지 확인 (에러 발생 시 "에러 발생" 포함, 정상 응답 시 다른 내용)
-        assertTrue(result.contains("에러 발생") || (result.length() > 0 && !result.trim().isEmpty()), 
+        assertTrue(result.contains("에러 발생") || (result.length() > 0 && !result.trim().isEmpty()),
                 "에러 메시지('에러 발생')가 포함되어야 하거나 유효한 응답이 있어야 합니다. 실제 결과: '" + result + "'");
     }
 
@@ -124,8 +130,8 @@ class WebClientConfigTest {
      */
     @Test
     void 여러_요청_연속_전송_테스트() {
-        String[] testTickers = {"005930", "000660", "035420"}; // 삼성전자, SK하이닉스, NAVER
-        
+        String[] testTickers = { "005930", "000660", "035420" }; // 삼성전자, SK하이닉스, NAVER
+
         for (String ticker : testTickers) {
             Mono<Map<String, Object>> responseMono = webClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -138,7 +144,8 @@ class WebClientConfigTest {
                     .header("appsecret", "test-secret")
                     .header("tr_id", "FHKST01010100")
                     .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
+                    })
                     .timeout(Duration.ofSeconds(30))
                     .doOnError(error -> {
                         System.out.println("종목 " + ticker + " 요청 실패: " + error.getClass().getSimpleName());
@@ -153,7 +160,7 @@ class WebClientConfigTest {
 
             Map<String, Object> result = responseMono.block();
             assertNotNull(result, "응답이 null이면 안 됩니다");
-            
+
             // 다음 요청 전 딜레이 (KIS API 제한 고려)
             try {
                 Thread.sleep(500);
@@ -171,11 +178,11 @@ class WebClientConfigTest {
     void WebClient_설정_확인_테스트() {
         // WebClient가 제대로 설정되었는지 확인
         assertNotNull(webClient);
-        
+
         // 기본 헤더 확인
         WebClient.RequestHeadersSpec<?> request = webClient.get().uri("/test");
         assertNotNull(request);
-        
+
         System.out.println("WebClient 설정 확인 완료");
         System.out.println("   - Base URL: https://openapi.koreainvestment.com:9443");
         System.out.println("   - 연결 타임아웃: 10초");
@@ -184,4 +191,3 @@ class WebClientConfigTest {
         System.out.println("   - 쓰기 타임아웃: 30초");
     }
 }
-

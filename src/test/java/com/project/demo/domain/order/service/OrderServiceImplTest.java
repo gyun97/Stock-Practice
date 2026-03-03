@@ -87,10 +87,8 @@ class OrderServiceImplTest {
                 "password",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         ReflectionTestUtils.setField(testUser, "id", 1L);
-        ReflectionTestUtils.setField(testUser, "balance", 10000000L);
         ReflectionTestUtils.setField(testUser, "userStocks", new ArrayList<>());
 
         testStock = Stock.builder()
@@ -102,8 +100,8 @@ class OrderServiceImplTest {
         ReflectionTestUtils.setField(testStock, "userStocks", new ArrayList<>());
 
         testPortfolio = Portfolio.builder()
-                .balance(10000000)
-                .totalAsset(10000000)
+                .balance(10000000L)
+                .totalAsset(10000000L)
                 .totalQuantity(0)
                 .holdCount(0)
                 .stockAsset(0)
@@ -111,6 +109,9 @@ class OrderServiceImplTest {
                 .build();
         ReflectionTestUtils.setField(testPortfolio, "id", 1L);
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
+
+        lenient().when(portfolioRepository.findWithLockByUser(any(User.class)))
+                .thenReturn(Optional.of(testPortfolio));
     }
 
     @Test
@@ -122,20 +123,20 @@ class OrderServiceImplTest {
         int stockPrice = 70000;
         int totalPrice = stockPrice * quantity;
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + stockPrice + "}");
         // getStockPrice에서 ObjectMapper 사용
-        com.project.demo.domain.stock.dto.response.StockData stockData = 
-                com.project.demo.domain.stock.dto.response.StockData.builder()
-                        .price(stockPrice)
-                        .build();
+        com.project.demo.domain.stock.dto.response.StockData stockData = com.project.demo.domain.stock.dto.response.StockData
+                .builder()
+                .price(stockPrice)
+                .build();
         try {
-            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"), 
+            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"),
                     eq(com.project.demo.domain.stock.dto.response.StockData.class)))
                     .thenReturn(stockData);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -146,7 +147,7 @@ class OrderServiceImplTest {
             ReflectionTestUtils.setField(order, "id", 1L);
             return order;
         });
-        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.empty());
         when(userStockRepository.save(any(UserStock.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -199,22 +200,21 @@ class OrderServiceImplTest {
         String ticker = "005930";
         int quantity = 1000; // 매우 큰 수량
         int stockPrice = 70000;
-        ReflectionTestUtils.setField(testUser, "balance", 1000L); // 잔액 부족
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + stockPrice + "}");
         // getStockPrice에서 ObjectMapper 사용
-        com.project.demo.domain.stock.dto.response.StockData stockData2 = 
-                com.project.demo.domain.stock.dto.response.StockData.builder()
-                        .price(stockPrice)
-                        .build();
+        com.project.demo.domain.stock.dto.response.StockData stockData2 = com.project.demo.domain.stock.dto.response.StockData
+                .builder()
+                .price(stockPrice)
+                .build();
         try {
-            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"), 
+            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"),
                     eq(com.project.demo.domain.stock.dto.response.StockData.class)))
                     .thenReturn(stockData2);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -333,20 +333,20 @@ class OrderServiceImplTest {
                 .build();
         ReflectionTestUtils.setField(userStock, "id", 1L);
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
         when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.of(userStock));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + stockPrice + "}");
-        com.project.demo.domain.stock.dto.response.StockData stockData = 
-                com.project.demo.domain.stock.dto.response.StockData.builder()
-                        .price(stockPrice)
-                        .build();
+        com.project.demo.domain.stock.dto.response.StockData stockData = com.project.demo.domain.stock.dto.response.StockData
+                .builder()
+                .price(stockPrice)
+                .build();
         try {
-            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"), 
+            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"),
                     eq(com.project.demo.domain.stock.dto.response.StockData.class)))
                     .thenReturn(stockData);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -357,8 +357,9 @@ class OrderServiceImplTest {
             ReflectionTestUtils.setField(order, "id", 1L);
             return order;
         });
-        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
-        lenient().when(userStockRepository.save(any(UserStock.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        lenient().when(userStockRepository.save(any(UserStock.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
@@ -448,7 +449,6 @@ class OrderServiceImplTest {
         String ticker = "005930";
         int quantity = 1000;
         int targetPrice = 70000;
-        ReflectionTestUtils.setField(testUser, "balance", 1000L); // 잔액 부족
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
@@ -640,7 +640,7 @@ class OrderServiceImplTest {
         int quantity = 10;
         int totalPrice = 700000;
 
-        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.empty());
         when(userStockRepository.save(any(UserStock.class))).thenAnswer(invocation -> {
             UserStock userStock = invocation.getArgument(0);
@@ -650,11 +650,11 @@ class OrderServiceImplTest {
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeBuy(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance - totalPrice, testUser.getBalance()); // 잔액 차감 확인
+        assertEquals(initialBalance - totalPrice, testPortfolio.getBalance()); // 잔액 차감 확인
         verify(executionRepository, times(1)).save(any());
         verify(userStockRepository, times(1)).save(any(UserStock.class));
     }
@@ -690,18 +690,19 @@ class OrderServiceImplTest {
                 .build();
         ReflectionTestUtils.setField(existingUserStock, "id", 1L);
 
-        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(userStockRepository.findByUserAndStock(testUser, testStock))
                 .thenReturn(Optional.of(existingUserStock));
-        lenient().when(userStockRepository.save(any(UserStock.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(userStockRepository.save(any(UserStock.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeBuy(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance - totalPrice, testUser.getBalance()); // 잔액 차감 확인
+        assertEquals(initialBalance - totalPrice, testPortfolio.getBalance()); // 잔액 차감 확인
         verify(executionRepository, times(1)).save(any());
         assertEquals(15, existingUserStock.getTotalQuantity()); // 10 + 5
     }
@@ -737,17 +738,17 @@ class OrderServiceImplTest {
                 .build();
         ReflectionTestUtils.setField(userStock, "id", 1L);
 
-        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(userStockRepository.findByUserAndStock(testUser, testStock))
                 .thenReturn(Optional.of(userStock));
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeSell(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance + totalPrice, testUser.getBalance()); // 잔액 증가 확인
+        assertEquals(initialBalance + totalPrice, testPortfolio.getBalance()); // 잔액 증가 확인
         verify(executionRepository, times(1)).save(any());
         assertEquals(5, userStock.getTotalQuantity()); // 10 - 5
         verify(userStockRepository, never()).delete(any(UserStock.class));
@@ -784,18 +785,18 @@ class OrderServiceImplTest {
                 .build();
         ReflectionTestUtils.setField(userStock, "id", 1L);
 
-        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(userStockRepository.findByUserAndStock(testUser, testStock))
                 .thenReturn(Optional.of(userStock));
         doNothing().when(userStockRepository).delete(userStock);
         when(executionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
-        long initialBalance = testUser.getBalance();
+        long initialBalance = testPortfolio.getBalance();
         orderService.executeSell(order, testUser, testStock, price, quantity, totalPrice);
 
         // Then
-        assertEquals(initialBalance + totalPrice, testUser.getBalance()); // 잔액 증가 확인
+        assertEquals(initialBalance + totalPrice, testPortfolio.getBalance()); // 잔액 증가 확인
         verify(executionRepository, times(1)).save(any());
         verify(userStockRepository, times(1)).delete(userStock);
     }
@@ -818,7 +819,7 @@ class OrderServiceImplTest {
         int quantity = 5;
         int totalPrice = 375000;
 
-        lenient().when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+        lenient().when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
         when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.empty());
 
         // When & Then
@@ -872,4 +873,3 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).findReservationOrdersByUser(userId);
     }
 }
-

@@ -37,9 +37,6 @@ public class User extends TimeStamped {
     @Column(nullable = false, unique = true)
     private String name;
 
-    @Column(nullable = false)
-    private long balance; // 가용 자산(잔액)
-
     @Column(name = "is_deleted", nullable = false)
     private boolean isDeleted = false; // 탈퇴 여부
 
@@ -66,12 +63,11 @@ public class User extends TimeStamped {
     private List<UserStock> userStocks = new ArrayList<>();
 
     @Builder
-    public User(Long id, String password, String name, long balance, UserRole userRole, String email, boolean isDeleted,
+    public User(Long id, String password, String name, UserRole userRole, String email, boolean isDeleted,
             SocialType socialType, String socialId, String profileImage) {
         this.id = id;
         this.password = password;
         this.name = name;
-        this.balance = balance;
         this.userRole = userRole;
         this.email = email;
         this.isDeleted = isDeleted;
@@ -91,7 +87,6 @@ public class User extends TimeStamped {
                 .name(name)
                 .password(encodedPassword)
                 .userRole(role)
-                .balance(100000000)
                 .isDeleted(false)
                 .socialType(socialType)
                 .profileImage(profileImage)
@@ -149,20 +144,6 @@ public class User extends TimeStamped {
      */
     public void updateProfileImage(String profileImage) {
         this.profileImage = profileImage;
-    }
-
-    /*
-     * 보유 잔액 차감
-     */
-    public void deductBalance(int price) {
-        this.balance -= price;
-    }
-
-    /*
-     * 보유 잔액 증감
-     */
-    public void addBalance(int price) {
-        this.balance += price;
     }
 
     /*

@@ -27,7 +27,7 @@ import com.project.demo.domain.userstock.repository.UserStockRepository;
 import com.project.demo.common.websocket.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate; 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class OrderServiceImpl implements OrderService{
+public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -55,7 +55,7 @@ public class OrderServiceImpl implements OrderService{
     private final WebSocketSessionManager sessionManager;
 
     /*
-    주식 즉시 매수
+     * 주식 즉시 매수
      */
     @Transactional
     public String buyingStock(Long userId, String ticker, int quantity) {
@@ -63,6 +63,9 @@ public class OrderServiceImpl implements OrderService{
         // 유저
         User user = userRepository.findById(userId)
                 .orElseThrow(NotFoundUserException::new);
+
+        Portfolio portfolio = portfolioRepository.findWithLockByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
 
         Stock stock = stockRepository.findByTicker(ticker)
                 .orElseThrow(NotFoundStockException::new);
@@ -74,7 +77,7 @@ public class OrderServiceImpl implements OrderService{
         int totalPrice = stockPrice * quantity;
 
         // 보유금이 모자르다면
-        if (user.getBalance() < totalPrice) {
+        if (portfolio.getBalance() < totalPrice) {
             throw new NotEnoughMoneyException();
         }
 
@@ -101,12 +104,12 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    매수 주문 체결
+     * 매수 주문 체결
      */
     @Transactional
     public void executeBuy(Order order, User user, Stock stock, int price, int quantity, int totalPrice) {
-        // 유저 보유액 차감
-        user.deductBalance(totalPrice);
+        Portfolio portfolio = portfolioRepository.findWithLockByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
 
         // 체결 생성
         Execution execution = Execution.builder()
@@ -118,10 +121,6 @@ public class OrderServiceImpl implements OrderService{
                 .build();
 
         executionRepository.save(execution);
-
-        // 해당 유저의 포토폴리오 가져오기
-        Portfolio portfolio = portfolioRepository.findByUser(user)
-                .orElseThrow(NotFoundPortfolioException::new);
 
         // 기존 보유 주식(UserStock) 확인
         Optional<UserStock> optionalUserStock = userStockRepository.findByUserAndStock(user, stock);
@@ -148,8 +147,8 @@ public class OrderServiceImpl implements OrderService{
                     .avgPrice(price)
                     .totalQuantity(quantity)
                     .ticker(stock.getTicker())
-//                    .totalAsset(price * quantity)
-//                    .avgReturnRate(0.0)
+                    // .totalAsset(price * quantity)
+                    // .avgReturnRate(0.0)
                     .portfolio(portfolio)
                     .userName(user.getName())
                     .stockName(stock.getName())
@@ -170,14 +169,17 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    주식 즉시 매도
-    */
+     * 주식 즉시 매도
+     */
     @Transactional
     public String sellingStock(Long userId, String ticker, int quantity) {
 
         // 유저
         User user = userRepository.findById(userId)
                 .orElseThrow(NotFoundUserException::new);
+
+        Portfolio portfolio = portfolioRepository.findWithLockByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
 
         // 주식
         Stock stock = stockRepository.findByTicker(ticker)
@@ -220,12 +222,10 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    주문 체결 (매도)
-    */
+     * 주문 체결 (매도)
+     */
     @Transactional
     public void executeSell(Order order, User user, Stock stock, int price, int quantity, int totalPrice) {
-        user.addBalance(totalPrice);
-
         Execution execution = Execution.builder()
                 .order(order)
                 .type(OrderType.SELL)
@@ -234,6 +234,9 @@ public class OrderServiceImpl implements OrderService{
                 .totalPrice(totalPrice)
                 .build();
         executionRepository.save(execution);
+
+        Portfolio portfolio = portfolioRepository.findWithLockByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
 
         UserStock userStock = userStockRepository.findByUserAndStock(user, stock)
                 .orElseThrow(NotEnoughStockException::new);
@@ -246,9 +249,6 @@ public class OrderServiceImpl implements OrderService{
         double returnRate = ((double) profit / (avgPrice * quantity)) * 100; // 수익률 계산
 
         log.info("[매도체결] {} 매도 수익: {}원 (수익률: {}%)", stock.getName(), profit, returnRate);
-
-        Portfolio portfolio = portfolioRepository.findByUser(user)
-                .orElseThrow(NotFoundPortfolioException::new);
 
         if (remainingQuantity > 0) { // 아직 남은 주식이 있다면
             userStock.updateQuantity(remainingQuantity); // 수량 업데이트
@@ -287,7 +287,7 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    주식 매도로 인한 포토폴리오 업데이트
+     * 주식 매도로 인한 포토폴리오 업데이트
      */
     @Transactional
     private void updatePortfolioAfterSell(Portfolio portfolio, int sellPrice, int quantity) {
@@ -306,25 +306,29 @@ public class OrderServiceImpl implements OrderService{
         portfolio.recalculateTotalAsset();
 
         // 수익률 업데이트
-//        portfolio.updateReturnRate();
+        // portfolio.updateReturnRate();
 
         portfolio.updateHoldCount();
     }
 
     /*
-    예약 매수 등록 (특정 가격 이하로 떨어지면 매수)
-    */
+     * 예약 매수 등록 (특정 가격 이하로 떨어지면 매수)
+     */
     @Transactional
     public String reserveBuy(Long userId, String ticker, int quantity, int targetPrice) {
         User user = userRepository.findById(userId)
                 .orElseThrow(NotFoundUserException::new);
+
+        Portfolio portfolio = portfolioRepository.findWithLockByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
 
         Stock stock = stockRepository.findByTicker(ticker)
                 .orElseThrow(NotFoundStockException::new);
 
         int totalPrice = targetPrice * quantity;
 
-        if (user.getBalance() < totalPrice) throw new NotEnoughMoneyException();
+        if (portfolio.getBalance() < totalPrice)
+            throw new NotEnoughMoneyException();
 
         Order reservedOrder = Order.builder()
                 .type(OrderType.BUY)
@@ -343,12 +347,15 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    예약 매도 등록 (특정 가격 이상 시 매도)
-    */
+     * 예약 매도 등록 (특정 가격 이상 시 매도)
+     */
     @Transactional
     public String reserveSell(Long userId, String ticker, int quantity, int targetPrice) {
         User user = userRepository.findById(userId)
                 .orElseThrow(NotFoundUserException::new);
+
+        Portfolio portfolio = portfolioRepository.findWithLockByUser(user)
+                .orElseThrow(NotFoundPortfolioException::new);
 
         Stock stock = stockRepository.findByTicker(ticker)
                 .orElseThrow(NotFoundStockException::new);
@@ -356,7 +363,8 @@ public class OrderServiceImpl implements OrderService{
         UserStock userStock = userStockRepository.findByUserAndStock(user, stock)
                 .orElseThrow(NotEnoughStockException::new);
 
-        if (userStock.getTotalQuantity() < quantity) throw new NotEnoughStockException();
+        if (userStock.getTotalQuantity() < quantity)
+            throw new NotEnoughStockException();
 
         int totalPrice = targetPrice * quantity;
 
@@ -377,12 +385,12 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    특정 종목의 예약 주문 체결 (이벤트 기반 - 주가 업데이트 시 호출)
+     * 특정 종목의 예약 주문 체결 (이벤트 기반 - 주가 업데이트 시 호출)
      */
     @Transactional
     public void executeReservedOrdersForTicker(String ticker, int currentPrice) {
         List<Order> reservedOrders = orderRepository.findReservedOrdersByTicker(ticker);
-        
+
         if (reservedOrders.isEmpty()) {
             return;
         }
@@ -392,19 +400,19 @@ public class OrderServiceImpl implements OrderService{
         for (Order order : reservedOrders) {
             // 예약 매수 조건: 현재가 <= 예약가
             if (order.getType() == OrderType.BUY && currentPrice <= order.getPrice()) {
-                log.info("[예약매수체결조건만족] 주문 ID: {}, 종목: {}, 현재가: {} <= 예약가: {}", 
-                    order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
+                log.info("[예약매수체결조건만족] 주문 ID: {}, 종목: {}, 현재가: {} <= 예약가: {}",
+                        order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
                 executeBuy(order, order.getUser(), order.getStock(), currentPrice,
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted(); // 체결 완료로 갱신
                 log.info("[예약매수체결] {}: {}원", order.getStock().getName(), currentPrice);
-                
+
                 // 주문 체결 알림 전송
                 try {
                     Map<String, Object> notification = new HashMap<>();
                     notification.put("type", "BUY");
-                    notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)", 
-                        order.getStock().getName(), currentPrice));
+                    notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)",
+                            order.getStock().getName(), currentPrice));
                     notification.put("stockName", order.getStock().getName());
                     notification.put("stockTicker", order.getStock().getTicker());
                     notification.put("executionPrice", currentPrice);
@@ -412,26 +420,26 @@ public class OrderServiceImpl implements OrderService{
                     sessionManager.sendOrderNotification(order.getUser().getId(), notification);
                     log.info("[예약매수알림전송] 사용자 ID: {}, 종목: {}", order.getUser().getId(), order.getStock().getName());
                 } catch (Exception e) {
-                    log.error("[예약매수알림전송실패] 사용자 ID: {}, 종목: {}, 오류: {}", 
-                        order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                    log.error("[예약매수알림전송실패] 사용자 ID: {}, 종목: {}, 오류: {}",
+                            order.getUser().getId(), order.getStock().getName(), e.getMessage());
                 }
             }
 
             // 예약 매도 조건: 현재가 >= 예약가
             if (order.getType() == OrderType.SELL && currentPrice >= order.getPrice()) {
-                log.info("[예약매도체결조건만족] 주문 ID: {}, 종목: {}, 현재가: {} >= 예약가: {}", 
-                    order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
+                log.info("[예약매도체결조건만족] 주문 ID: {}, 종목: {}, 현재가: {} >= 예약가: {}",
+                        order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
                 executeSell(order, order.getUser(), order.getStock(), currentPrice,
                         order.getQuantity(), currentPrice * order.getQuantity());
                 order.markExecuted();
                 log.info("[예약매도체결] {}: {}원", order.getStock().getName(), currentPrice);
-                
+
                 // 주문 체결 알림 전송
                 try {
                     Map<String, Object> notification = new HashMap<>();
                     notification.put("type", "SELL");
-                    notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)", 
-                        order.getStock().getName(), currentPrice));
+                    notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)",
+                            order.getStock().getName(), currentPrice));
                     notification.put("stockName", order.getStock().getName());
                     notification.put("stockTicker", order.getStock().getTicker());
                     notification.put("executionPrice", currentPrice);
@@ -439,94 +447,94 @@ public class OrderServiceImpl implements OrderService{
                     sessionManager.sendOrderNotification(order.getUser().getId(), notification);
                     log.info("[예약매도알림전송] 사용자 ID: {}, 종목: {}", order.getUser().getId(), order.getStock().getName());
                 } catch (Exception e) {
-                    log.error("[예약매도알림전송실패] 사용자 ID: {}, 종목: {}, 오류: {}", 
-                        order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                    log.error("[예약매도알림전송실패] 사용자 ID: {}, 종목: {}, 오류: {}",
+                            order.getUser().getId(), order.getStock().getName(), e.getMessage());
                 }
             }
         }
     }
 
     /*
-    예약 주문 자동 체결 스케줄러 (백업용 - 10초마다 실행)
-    주가 업데이트가 없는 경우를 대비한 안전장치
+     * 예약 주문 자동 체결 스케줄러 (백업용 - 10초마다 실행)
+     * 주가 업데이트가 없는 경우를 대비한 안전장치
      */
     @Scheduled(fixedDelay = 10000) // 10초마다 반복 (백업용)
     @Transactional
     public void executeReservedOrders() {
         List<Order> reservedOrders = orderRepository.findAllByIsReservedTrueAndIsExecutedFalse();
-        
+
         if (reservedOrders.isEmpty()) {
             return;
         }
-        
+
         log.debug("예약 주문 체결 확인 중 (스케줄러) - 대기 중인 예약 주문 수: {}", reservedOrders.size());
 
         for (Order order : reservedOrders) {
             try {
                 int currentPrice = getStockPrice(order.getStock().getTicker());
-                log.debug("예약 주문 체결 확인 - 주문 ID: {}, 종목: {}, 현재가: {}, 예약가: {}, 주문타입: {}", 
-                    order.getId(), order.getStock().getName(), currentPrice, order.getPrice(), order.getType());
+                log.debug("예약 주문 체결 확인 - 주문 ID: {}, 종목: {}, 현재가: {}, 예약가: {}, 주문타입: {}",
+                        order.getId(), order.getStock().getName(), currentPrice, order.getPrice(), order.getType());
 
                 // 예약 매수 조건: 현재가 <= 예약가
                 if (order.getType() == OrderType.BUY && currentPrice <= order.getPrice()) {
-                    log.info("[예약매수체결조건만족-스케줄러] 주문 ID: {}, 종목: {}, 현재가: {} <= 예약가: {}", 
-                        order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
+                    log.info("[예약매수체결조건만족-스케줄러] 주문 ID: {}, 종목: {}, 현재가: {} <= 예약가: {}",
+                            order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
                     executeBuy(order, order.getUser(), order.getStock(), currentPrice,
                             order.getQuantity(), currentPrice * order.getQuantity());
                     order.markExecuted();
                     log.info("[예약매수체결-스케줄러] {}: {}원", order.getStock().getName(), currentPrice);
-                    
+
                     // 주문 체결 알림 전송
                     try {
                         Map<String, Object> notification = new HashMap<>();
                         notification.put("type", "BUY");
-                        notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)", 
-                            order.getStock().getName(), currentPrice));
+                        notification.put("message", String.format("%s 주식 예약 매수 체결 (체결가: %,d원)",
+                                order.getStock().getName(), currentPrice));
                         notification.put("stockName", order.getStock().getName());
                         notification.put("stockTicker", order.getStock().getTicker());
                         notification.put("executionPrice", currentPrice);
                         notification.put("quantity", order.getQuantity());
                         sessionManager.sendOrderNotification(order.getUser().getId(), notification);
                     } catch (Exception e) {
-                        log.error("[예약매수알림전송실패-스케줄러] 사용자 ID: {}, 종목: {}, 오류: {}", 
-                            order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                        log.error("[예약매수알림전송실패-스케줄러] 사용자 ID: {}, 종목: {}, 오류: {}",
+                                order.getUser().getId(), order.getStock().getName(), e.getMessage());
                     }
                 }
 
                 // 예약 매도 조건: 현재가 >= 예약가
                 if (order.getType() == OrderType.SELL && currentPrice >= order.getPrice()) {
-                    log.info("[예약매도체결조건만족-스케줄러] 주문 ID: {}, 종목: {}, 현재가: {} >= 예약가: {}", 
-                        order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
+                    log.info("[예약매도체결조건만족-스케줄러] 주문 ID: {}, 종목: {}, 현재가: {} >= 예약가: {}",
+                            order.getId(), order.getStock().getName(), currentPrice, order.getPrice());
                     executeSell(order, order.getUser(), order.getStock(), currentPrice,
                             order.getQuantity(), currentPrice * order.getQuantity());
                     order.markExecuted();
                     log.info("[예약매도체결-스케줄러] {}: {}원", order.getStock().getName(), currentPrice);
-                    
+
                     // 주문 체결 알림 전송
                     try {
                         Map<String, Object> notification = new HashMap<>();
                         notification.put("type", "SELL");
-                        notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)", 
-                            order.getStock().getName(), currentPrice));
+                        notification.put("message", String.format("%s 주식 예약 매도 체결 (체결가: %,d원)",
+                                order.getStock().getName(), currentPrice));
                         notification.put("stockName", order.getStock().getName());
                         notification.put("stockTicker", order.getStock().getTicker());
                         notification.put("executionPrice", currentPrice);
                         notification.put("quantity", order.getQuantity());
                         sessionManager.sendOrderNotification(order.getUser().getId(), notification);
                     } catch (Exception e) {
-                        log.error("[예약매도알림전송실패-스케줄러] 사용자 ID: {}, 종목: {}, 오류: {}", 
-                            order.getUser().getId(), order.getStock().getName(), e.getMessage());
+                        log.error("[예약매도알림전송실패-스케줄러] 사용자 ID: {}, 종목: {}, 오류: {}",
+                                order.getUser().getId(), order.getStock().getName(), e.getMessage());
                     }
                 }
             } catch (Exception e) {
-                log.error("예약 주문 체결 확인 중 오류 - 주문 ID: {}, 종목: {}, 오류: {}", 
-                    order.getId(), order.getStock().getName(), e.getMessage());
+                log.error("예약 주문 체결 확인 중 오류 - 주문 ID: {}, 종목: {}, 오류: {}",
+                        order.getId(), order.getStock().getName(), e.getMessage());
             }
         }
     }
 
     /*
-    내 주문 전체 내역 조회
+     * 내 주문 전체 내역 조회
      */
     public List<OrderResponse> getMyAllOrders(Long userId) {
         List<Order> myOrders = orderRepository.findByUserId(userId);
@@ -536,7 +544,7 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    내 일반 주문(즉시 주문) 내역 조회
+     * 내 일반 주문(즉시 주문) 내역 조회
      */
     public List<OrderResponse> getNormalOrders(Long userId) {
         List<Order> orders = orderRepository.findNormalOrdersByUser(userId);
@@ -547,7 +555,7 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    내 예약 주문 내역 조회
+     * 내 예약 주문 내역 조회
      */
     public List<OrderResponse> getReservationOrders(Long userId) {
         List<Order> orders = orderRepository.findReservationOrdersByUser(userId);
@@ -558,7 +566,7 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    예약 주문 취소
+     * 예약 주문 취소
      */
     @Transactional
     public OrderResponse cancelReservation(Long orderId) {
@@ -566,7 +574,8 @@ public class OrderServiceImpl implements OrderService{
                 .orElseThrow(NotFoundOrderException::new);
 
         // 이미 체결된 주문이라면
-        if (order.isExecuted() || !order.isReserved()) throw new ExecutedOrderException();
+        if (order.isExecuted() || !order.isReserved())
+            throw new ExecutedOrderException();
 
         // 주문 내역 삭제
         orderRepository.delete(order);
@@ -575,13 +584,14 @@ public class OrderServiceImpl implements OrderService{
     }
 
     /*
-    Redis에서 주식 실시간 현재가 꺼내기
+     * Redis에서 주식 실시간 현재가 꺼내기
      */
     public int getStockPrice(String ticker) {
         String key = "stock:data:" + ticker;
         String json = redisTemplate.opsForValue().get(key);
 
-        if (json == null) throw new IllegalStateException("데이터 없음");
+        if (json == null)
+            throw new IllegalStateException("데이터 없음");
 
         try {
             StockData data = objectMapper.readValue(json, StockData.class);
@@ -590,7 +600,5 @@ public class OrderServiceImpl implements OrderService{
             throw new RuntimeException(e);
         }
     }
-
-
 
 }
