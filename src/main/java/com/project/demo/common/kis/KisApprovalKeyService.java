@@ -23,7 +23,7 @@ public class KisApprovalKeyService {
     @Value("${kis.app.secret}")
     private String appSecret;
 
-    @Value("${kis.domain.virtual}")
+    @Value("${kis.url.rest}")
     private String baseUrl;
 
     private String approvalKey;
@@ -43,8 +43,7 @@ public class KisApprovalKeyService {
         Map<String, Object> response = restTemplate.postForObject(
                 "https://openapivts.koreainvestment.com:29443/oauth2/Approval",
                 requestBody(),
-                Map.class
-        );
+                Map.class);
 
         approvalKey = (String) response.get("approval_key");
         log.info("approvalKey={}", approvalKey);
@@ -56,34 +55,7 @@ public class KisApprovalKeyService {
         return Map.of(
                 "grant_type", "client_credentials",
                 "appkey", appKey,
-                "secretkey", appSecret
-        );
+                "secretkey", appSecret);
     }
 
-//    private void requestApprovalKey() {
-//        String url = baseUrl + "/oauth2/Approval";
-//
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//
-//        Map<String, String> body = Map.of(
-//                "grant_type", "client_credentials",
-//                "appkey", appKey,
-//                "secretkey", appSecret
-//        );
-//
-//        HttpEntity<Map<String, String>> entity = new HttpEntity<>(body, headers);
-//        Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-//
-//        log.info("Approval Key 발급 완료: {}", response);
-////        AesDecryptUtil.decrypt(response);
-//
-//        this.approvalKey = (String) response.get("approval_key");
-//
-//        String expired = (String) response.get("approval_key_expired");
-//    }
 }
-
-
-
-

@@ -149,7 +149,6 @@ class UserIntegrationTest extends AbstractIntegrationTest {
                 .password(passwordEncoder.encode("Test123!@#"))
                 .name("로그인 테스트")
                 .userRole(UserRole.ROLE_USER)
-                .balance(10000000L)
                 .isDeleted(false)
                 .socialType(SocialType.LOCAL)
                 .build();
@@ -174,7 +173,6 @@ class UserIntegrationTest extends AbstractIntegrationTest {
                 .password(passwordEncoder.encode("Test123!@#"))
                 .name("기존 사용자")
                 .userRole(UserRole.ROLE_USER)
-                .balance(10000000L)
                 .isDeleted(false)
                 .socialType(SocialType.LOCAL)
                 .build();
@@ -208,7 +206,6 @@ class UserIntegrationTest extends AbstractIntegrationTest {
                 .password(passwordEncoder.encode("Test123!@#"))
                 .name("테스트 사용자")
                 .userRole(UserRole.ROLE_USER)
-                .balance(10000000L)
                 .isDeleted(false)
                 .socialType(SocialType.LOCAL)
                 .build();

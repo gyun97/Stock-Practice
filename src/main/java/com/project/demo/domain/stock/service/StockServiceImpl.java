@@ -46,7 +46,7 @@ public class StockServiceImpl implements StockService {
     @Value("${kis.app.secret}")
     private String appSecret;
 
-    @Value("${REAL_BASE_URL}")
+    @Value("${kis.url.rest}")
     private String baseUrl;
 
     /*
