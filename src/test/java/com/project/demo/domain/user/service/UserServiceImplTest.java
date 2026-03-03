@@ -62,6 +62,7 @@ class UserServiceImplTest {
     private UserServiceImpl userService;
 
     private User testUser;
+    private Portfolio testPortfolio;
     private SignUpRequest signUpRequest;
     private LoginRequest loginRequest;
 
@@ -77,9 +78,19 @@ class UserServiceImplTest {
                 "encodedPassword",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         ReflectionTestUtils.setField(testUser, "id", 1L);
+
+        // 테스트용 Portfolio 생성
+        testPortfolio = Portfolio.builder()
+                .balance(100000000L)
+                .totalAsset(100000000L)
+                .totalQuantity(0)
+                .holdCount(0)
+                .stockAsset(0)
+                .user(testUser)
+                .build();
+        ReflectionTestUtils.setField(testPortfolio, "id", 1L);
 
         // 테스트용 SignUpRequest
         signUpRequest = new SignUpRequest(
@@ -87,8 +98,7 @@ class UserServiceImplTest {
                 "테스트 사용자",
                 "test@example.com",
                 "ROLE_USER",
-                ""
-        );
+                "");
 
         // 테스트용 LoginRequest
         loginRequest = new LoginRequest("test@example.com", "password123!");
@@ -147,7 +157,7 @@ class UserServiceImplTest {
         assertThrows(DuplicateNameException.class, () -> {
             userService.signUp(signUpRequest);
         });
-        
+
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -228,8 +238,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "oldPassword",
                 "newPassword123!",
-                "newPassword123!"
-        );
+                "newPassword123!");
 
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("oldPassword", "encodedPassword")).thenReturn(true);
@@ -250,8 +259,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "oldPassword",
                 "newPassword123!",
-                "differentPassword"
-        );
+                "differentPassword");
 
         // When & Then
         assertThrows(NewPasswordMismatch.class, () -> {
@@ -266,8 +274,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "wrongPassword",
                 "newPassword123!",
-                "newPassword123!"
-        );
+                "newPassword123!");
 
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("wrongPassword", "encodedPassword")).thenReturn(false);
@@ -283,6 +290,7 @@ class UserServiceImplTest {
         // Given
         Long userId = 1L;
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
 
         // When
         GetUserResponse response = userService.getUserInfo(userId);
@@ -298,6 +306,7 @@ class UserServiceImplTest {
         Long userId = 1L;
         UpdateUserInfoRequest request = new UpdateUserInfoRequest("new@example.com", "새 이름");
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
 
         // When
         GetUserResponse response = userService.updateUserInfo(userId, request);
@@ -352,8 +361,7 @@ class UserServiceImplTest {
                 "encodedPassword",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         ReflectionTestUtils.setField(deletedUser, "id", 1L);
         deletedUser.updateIsDeleted(); // 탈퇴 처리
 
@@ -389,8 +397,7 @@ class UserServiceImplTest {
                 "관리자",
                 "admin@example.com",
                 "ROLE_ADMIN",
-                "admin-secret-token"
-        );
+                "admin-secret-token");
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByName(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -421,8 +428,7 @@ class UserServiceImplTest {
                 "관리자",
                 "admin@example.com",
                 "ROLE_ADMIN",
-                "wrong-token"
-        );
+                "wrong-token");
         lenient().when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByName(anyString())).thenReturn(false);
 
@@ -476,8 +482,7 @@ class UserServiceImplTest {
         PasswordUpdateRequest request = new PasswordUpdateRequest(
                 "oldPassword",
                 "oldPassword", // 새 비밀번호가 기존과 동일
-                "oldPassword"
-        );
+                "oldPassword");
 
         when(userRepository.findById(anyLong())).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches("oldPassword", "encodedPassword")).thenReturn(true);
@@ -498,8 +503,7 @@ class UserServiceImplTest {
                 "encodedPassword",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         ReflectionTestUtils.setField(deletedUser, "id", 1L);
         deletedUser.updateIsDeleted(); // 탈퇴 처리
 
@@ -520,8 +524,7 @@ class UserServiceImplTest {
                 "encodedPassword",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         deletedUser.updateIsDeleted(); // 탈퇴 처리
 
         when(userRepository.existsByName("기존 닉네임")).thenReturn(true);
@@ -551,6 +554,7 @@ class UserServiceImplTest {
         Long userId = 1L;
         UpdateUserInfoRequest request = new UpdateUserInfoRequest("new@example.com", "새 이름");
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(portfolioRepository.findByUser(testUser)).thenReturn(Optional.of(testPortfolio));
 
         // When
         GetUserResponse response = userService.updateUserInfo(userId, request);
@@ -570,8 +574,7 @@ class UserServiceImplTest {
                 "테스트 사용자",
                 "new@example.com",
                 "", // 빈 역할
-                ""
-        );
+                "");
         when(userRepository.existsByEmail(anyString())).thenReturn(false);
         when(userRepository.existsByName(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -698,4 +701,3 @@ class UserServiceImplTest {
         verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
     }
 }
-

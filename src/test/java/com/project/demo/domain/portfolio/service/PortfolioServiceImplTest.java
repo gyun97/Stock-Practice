@@ -61,10 +61,8 @@ class PortfolioServiceImplTest {
                 "password",
                 UserRole.ROLE_USER,
                 SocialType.LOCAL,
-                ""
-        );
+                "");
         ReflectionTestUtils.setField(testUser, "id", 1L);
-        ReflectionTestUtils.setField(testUser, "balance", 10000000L);
 
         testPortfolio = Portfolio.builder()
                 .balance(10000000)
@@ -108,16 +106,16 @@ class PortfolioServiceImplTest {
         String cacheKey = "portfolio:data:" + userId;
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = 
-                mock(org.springframework.data.redis.core.ZSetOperations.class);
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
+                org.springframework.data.redis.core.ZSetOperations.class);
 
         when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(testPortfolio));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get(cacheKey)).thenReturn(null);
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
-        
+
         // calculateAndCacheReturnRate 내부 로직 Mock
         // userStocks가 비어있으므로 getStockPrice는 호출되지 않음
         // hasChanged가 true일 때만 set과 writeValueAsString이 호출됨
@@ -157,10 +155,10 @@ class PortfolioServiceImplTest {
         Set<String> topUserIds = new LinkedHashSet<>(Arrays.asList("1"));
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
 
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = 
-                mock(org.springframework.data.redis.core.ZSetOperations.class);
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
+        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
+                org.springframework.data.redis.core.ZSetOperations.class);
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
 
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
         when(zSetOps.reverseRange("user:rank:totalAsset", 0, limit - 1)).thenReturn(topUserIds);
@@ -170,7 +168,8 @@ class PortfolioServiceImplTest {
         when(zSetOps.score(anyString(), anyString())).thenReturn(15000000.0);
         lenient().when(zSetOps.add(anyString(), anyString(), anyDouble())).thenReturn(true);
         // set 메서드 Mock (캐시 저장) - 호출되지 않을 수 있음
-        lenient().doNothing().when(valueOps).set(anyString(), anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class));
+        lenient().doNothing().when(valueOps).set(anyString(), anyString(), anyLong(),
+                any(java.util.concurrent.TimeUnit.class));
         // objectMapper Mock - 호출되지 않을 수 있음
         try {
             lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"data\"}");
@@ -211,16 +210,17 @@ class PortfolioServiceImplTest {
         String invalidJson = "invalid-json";
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = 
-                mock(org.springframework.data.redis.core.ZSetOperations.class);
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
+                org.springframework.data.redis.core.ZSetOperations.class);
 
         when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(testPortfolio));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get(cacheKey)).thenReturn(invalidJson);
         when(objectMapper.readValue(invalidJson, Map.class))
-                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("파싱 실패") {});
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("파싱 실패") {
+                });
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
         when(zSetOps.add(anyString(), anyString(), anyDouble())).thenReturn(true);
         doNothing().when(valueOps).set(anyString(), anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class));
@@ -255,10 +255,10 @@ class PortfolioServiceImplTest {
                 .build();
         ReflectionTestUtils.setField(portfolio2, "id", 2L);
 
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = 
-                mock(org.springframework.data.redis.core.ZSetOperations.class);
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
+        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
+                org.springframework.data.redis.core.ZSetOperations.class);
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
 
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
         when(zSetOps.reverseRange("user:rank:totalAsset", 0, limit - 1)).thenReturn(topUserIds);
@@ -269,7 +269,8 @@ class PortfolioServiceImplTest {
         when(valueOps.get(anyString())).thenReturn(null);
         when(zSetOps.score(anyString(), anyString())).thenReturn(15000000.0);
         lenient().when(zSetOps.add(anyString(), anyString(), anyDouble())).thenReturn(true);
-        lenient().doNothing().when(valueOps).set(anyString(), anyString(), anyLong(), any(java.util.concurrent.TimeUnit.class));
+        lenient().doNothing().when(valueOps).set(anyString(), anyString(), anyLong(),
+                any(java.util.concurrent.TimeUnit.class));
         try {
             lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{\"test\":\"data\"}");
         } catch (Exception e) {
@@ -292,10 +293,10 @@ class PortfolioServiceImplTest {
         String cacheKey = "portfolio:data:" + userId;
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = 
-                mock(org.springframework.data.redis.core.ValueOperations.class);
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = 
-                mock(org.springframework.data.redis.core.ZSetOperations.class);
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
+                org.springframework.data.redis.core.ZSetOperations.class);
 
         when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(testPortfolio));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
@@ -317,4 +318,3 @@ class PortfolioServiceImplTest {
         assertEquals(0L, response.getStockAsset()); // 보유 주식 없음
     }
 }
-

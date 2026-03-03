@@ -30,7 +30,9 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private String iv;
     private String key;
 
-    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate, StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService) throws Exception {
+    public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate,
+            StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService)
+            throws Exception {
         super(new URI("ws://ops.koreainvestment.com:21000")); // 실전투자 도메인
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
@@ -82,7 +84,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
             if (message.startsWith("{")) {
                 var json = objectMapper.readTree(message);
                 if (json.has("body") && json.get("body").has("output")) {
-                    this.iv = json.get("body").get("output").get("iv").asText(); // iv: 실시간 결과 복호화에 필요한 AES256((Initialize Vector))
+                    this.iv = json.get("body").get("output").get("iv").asText(); // iv: 실시간 결과 복호화에 필요한
+                                                                                 // AES256((Initialize Vector))
                     this.key = json.get("body").get("output").get("key").asText(); // key: 실시간 결과 복호화에 필요한 AES256 Key
                     log.info("iv={}, key={}", iv, key);
                 }
@@ -130,11 +133,11 @@ public class ConnectWebSocketClient extends WebSocketClient {
             redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume); // 거래량 많은 순으로 정렬 redis 저장
             redisTemplate.opsForZSet().add("stock:rank:price", ticker, price); // 가격 높은 순으로 정렬 redis 저장
             redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate); // 등락률 높은 순으로 정렬 redis 저장
-            // STOMP로 직접 전송 (Redis Pub/Sub 제거)
+            // STOMP로 직접 전송
             messagingTemplate.convertAndSend("/topic/stocks", json);
 
             log.info("Redis 저장 & STOMP 직접 전송(WS) → {}", json);
-            
+
             // 이벤트 기반 예약 주문 체결 (주가 업데이트 시 해당 종목의 예약 주문만 체크)
             try {
                 orderService.executeReservedOrdersForTicker(ticker, price);
