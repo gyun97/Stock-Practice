@@ -654,6 +654,19 @@ export default function MyPage() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await tokenManager.authenticatedFetch('/api/v1/users/logout', {
+        method: 'POST'
+      })
+    } catch (err) {
+      console.error('로그아웃 오류:', err)
+    } finally {
+      tokenManager.clearTokens()
+      window.location.href = '/'
+    }
+  }
+
   const handleDeleteAccount = async () => {
     setDeleteMessage('')
 
@@ -868,16 +881,36 @@ export default function MyPage() {
                 </span>
               </div>
             </div>
-            <Link
-              to="/"
-              style={{
-                color: '#6b7280',
-                textDecoration: 'none',
-                fontSize: 14
-              }}
-            >
-              ← 메인으로 돌아가기
-            </Link>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <button
+                onClick={handleLogout}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#dc2626',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+                onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+              >
+                로그아웃
+              </button>
+              <Link
+                to="/"
+                style={{
+                  color: '#6b7280',
+                  textDecoration: 'none',
+                  fontSize: 14
+                }}
+                onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+              >
+                ← 메인으로 돌아가기
+              </Link>
+            </div>
           </div>
 
           {/* 주문 알림 표시 */}
