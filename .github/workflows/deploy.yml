@@ -86,8 +86,9 @@ jobs:
             # 5. 최신 도커 이미지 Pull
             docker-compose --env-file .env.prod -f docker-compose.prod.yml pull
             
-            # 6. 컨테이너 강제 재생성 (Pull 받은 새 이미지 반영)
-            docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d --force-recreate
+            # 6. 기존 컨테이너 중지 및 삭제 후 새 이미지로 다시 시작 (V1 버그 방지)
+            docker-compose --env-file .env.prod -f docker-compose.prod.yml down
+            docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d
             
             # 7. 정리
             docker image prune -f
