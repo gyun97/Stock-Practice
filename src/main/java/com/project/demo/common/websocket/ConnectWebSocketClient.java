@@ -118,7 +118,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
     /**
      * 장 마감 15:20에 1회 실행 → WebSocket 종료
      */
-    @Scheduled(cron = "0 20 15 * * MON-FRI", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 40 15 * * MON-FRI", zone = "Asia/Seoul")
     public void closeAtMarketClose() {
         if (this.isOpen()) {
             log.info("장 마감 시각 도달 → WebSocket 연결 종료");

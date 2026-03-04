@@ -946,74 +946,9 @@ export default function MyPage() {
             </div>
           )}
 
-          {/* 사용자 정보 카드 */}
-          <div className="info-card">
-            <h2 style={{
-              margin: '0 0 24px 0',
-              fontSize: 20,
-              fontWeight: '600',
-              color: '#1f2937'
-            }}>
-              내 정보
-            </h2>
-
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              marginBottom: 32,
-              position: 'relative'
-            }}>
-              <div style={{
-                width: 100,
-                height: 100,
-                borderRadius: '50%',
-                backgroundColor: '#f3f4f6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 48,
-                color: '#9ca3af',
-                overflow: 'hidden',
-                border: '4px solid white',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                position: 'relative'
-              }}>
-                {userInfo?.profileImage ? (
-                  <img
-                    src={userInfo.profileImage}
-                    alt="Profile"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover'
-                    }}
-                  />
-                ) : (
-                  '👤'
-                )}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gap: 16 }}>
-              <div className="info-row">
-                <span className="info-label">닉네임</span>
-                <span className="info-value">
-                  {userInfo?.name}
-                </span>
-              </div>
-
-              <div className="info-row" style={{ borderBottom: 'none' }}>
-                <span className="info-label">이메일</span>
-                <span className="info-value">
-                  {userInfo?.email}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* 포트폴리오 현황 카드 */}
-          {portfolioInfo && (
+          {/* 정보 그리드 (데스크탑 2열, 모바일 1열) */}
+          <div className="mypage-info-grid">
+            {/* 사용자 정보 카드 */}
             <div className="info-card">
               <h2 style={{
                 margin: '0 0 24px 0',
@@ -1021,89 +956,151 @@ export default function MyPage() {
                 fontWeight: '600',
                 color: '#1f2937'
               }}>
-                포트폴리오 현황
+                내 정보
               </h2>
 
-              {/* 총 자산과 수익률 */}
               <div style={{
-                background: '#f8fafc',
-                borderRadius: 8,
-                padding: 20,
-                marginBottom: 20,
-                border: '1px solid #e2e8f0'
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                marginBottom: 32,
+                position: 'relative'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ fontSize: 14, color: '#6b7280' }}>총 자산</span>
-                  <span style={{ fontSize: 24, fontWeight: 'bold', color: '#1f2937' }}>
-                    {(portfolioInfo.totalAsset || 0).toLocaleString()}원
-                  </span>
-                </div>
-                {/* 총 수익 */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 14, color: '#6b7280' }}>총 수익</span>
-                  <span style={{
-                    fontSize: 18,
-                    fontWeight: '600',
-                    color: calculateTotalProfit() >= 0 ? '#dc2626' : '#2563eb'
-                  }}>
-                    {calculateTotalProfit() >= 0 ? '+' : ''}{calculateTotalProfit().toLocaleString()}원
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                  <span style={{ fontSize: 14, color: '#6b7280' }}>수익률</span>
-                  <span style={{
-                    fontSize: 18,
-                    fontWeight: '600',
-                    color: (portfolioInfo.returnRate || 0) >= 0 ? '#dc2626' : '#2563eb'
-                  }}>
-                    {(portfolioInfo.returnRate || 0) >= 0 ? '+' : ''}{(portfolioInfo.returnRate || 0).toFixed(2)}%
-                  </span>
+                <div style={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: '50%',
+                  backgroundColor: '#f3f4f6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 48,
+                  color: '#9ca3af',
+                  overflow: 'hidden',
+                  border: '4px solid white',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  position: 'relative'
+                }}>
+                  {userInfo?.profileImage ? (
+                    <img
+                      src={userInfo.profileImage}
+                      alt="Profile"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    '👤'
+                  )}
                 </div>
               </div>
 
-              {/* 자산 구성 */}
-              <div style={{ display: 'grid', gap: 16 }}>
+              <div style={{ display: 'grid', gap: 4 }}>
                 <div className="info-row">
-                  <span className="info-label">현금 잔액</span>
-                  <span className="info-value" style={{ color: '#059669' }}>
-                    {(portfolioInfo.balance || 0).toLocaleString()}원
-                  </span>
-                </div>
-
-                <div className="info-row">
-                  <span className="info-label">보유 주식 총액</span>
+                  <span className="info-label">닉네임</span>
                   <span className="info-value">
-                    {(portfolioInfo.stockAsset || 0).toLocaleString()}원
-                  </span>
-                </div>
-
-                <div className="info-row">
-                  <span className="info-label">보유 종목 수</span>
-                  <span className="info-value">
-                    {portfolioInfo.holdCount || 0}개
+                    {userInfo?.name}
                   </span>
                 </div>
 
                 <div className="info-row" style={{ borderBottom: 'none' }}>
-                  <span className="info-label">총 보유 주식 수량</span>
+                  <span className="info-label">이메일</span>
                   <span className="info-value">
-                    {(portfolioInfo.totalQuantity || 0).toLocaleString()}주
+                    {userInfo?.email}
                   </span>
                 </div>
               </div>
             </div>
-          )}
+
+            {/* 포트폴리오 현황 카드 */}
+            {portfolioInfo && (
+              <div className="info-card">
+                <h2 style={{
+                  margin: '0 0 24px 0',
+                  fontSize: 20,
+                  fontWeight: '600',
+                  color: '#1f2937'
+                }}>
+                  포트폴리오 현황
+                </h2>
+
+                {/* 총 자산과 수익률 */}
+                <div style={{
+                  background: '#f8fafc',
+                  borderRadius: 12,
+                  padding: '24px 20px',
+                  marginBottom: 24,
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <span style={{ fontSize: 14, color: '#64748b', fontWeight: '500' }}>총 자산</span>
+                    <span style={{ fontSize: 24, fontWeight: '800', color: '#0f172a' }}>
+                      {(portfolioInfo.totalAsset || 0).toLocaleString()}원
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ fontSize: 14, color: '#64748b' }}>총 수익</span>
+                    <span style={{
+                      fontSize: 16,
+                      fontWeight: '700',
+                      color: calculateTotalProfit() >= 0 ? '#ef4444' : '#3b82f6'
+                    }}>
+                      {calculateTotalProfit() >= 0 ? '+' : ''}{calculateTotalProfit().toLocaleString()}원
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, color: '#64748b' }}>수익률</span>
+                    <span style={{
+                      fontSize: 16,
+                      fontWeight: '700',
+                      color: (portfolioInfo.returnRate || 0) >= 0 ? '#ef4444' : '#3b82f6'
+                    }}>
+                      {(portfolioInfo.returnRate || 0) >= 0 ? '+' : ''}{(portfolioInfo.returnRate || 0).toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* 자산 구성 */}
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <div className="info-row">
+                    <span className="info-label">현금 잔액</span>
+                    <span className="info-value" style={{ color: '#10b981' }}>
+                      {(portfolioInfo.balance || 0).toLocaleString()}원
+                    </span>
+                  </div>
+
+                  <div className="info-row">
+                    <span className="info-label">보유 주식 총액</span>
+                    <span className="info-value">
+                      {(portfolioInfo.stockAsset || 0).toLocaleString()}원
+                    </span>
+                  </div>
+
+                  <div className="info-row">
+                    <span className="info-label">보유 종목 수</span>
+                    <span className="info-value">
+                      {portfolioInfo.holdCount || 0}개
+                    </span>
+                  </div>
+
+                  <div className="info-row" style={{ borderBottom: 'none' }}>
+                    <span className="info-label">총 보유 주식 수량</span>
+                    <span className="info-value">
+                      {(portfolioInfo.totalQuantity || 0).toLocaleString()}주
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* 보유 주식 현황 */}
           {portfolioInfo && (
-            <div style={{
-              background: 'white',
-              borderRadius: 12,
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              padding: 24,
-              marginBottom: 24
-            }}>
+            <div className="info-card" style={{ marginBottom: 24 }}>
               <h2 style={{
                 margin: '0 0 20px 0',
                 fontSize: 18,
@@ -1204,9 +1201,7 @@ export default function MyPage() {
 
               {userStocks.length > 0 ? (
                 <div className="table-wrapper">
-                  <table style={{
-                    width: '100%',
-                    minWidth: 500,
+                  <table className="my-stock-table" style={{
                     borderCollapse: 'collapse',
                     whiteSpace: 'nowrap'
                   }}>
@@ -1351,21 +1346,15 @@ export default function MyPage() {
               계정 관리
             </h3>
 
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="mypage-actions">
               {/* 소셜 로그인 사용자는 비밀번호가 없을 수 있으므로 버튼 숨김 */}
               {localStorage.getItem('loginMethod') !== 'oauth' && (
                 <button
                   onClick={openPwModal}
+                  className="mypage-action-btn"
                   style={{
-                    padding: '12px 24px',
                     border: '1px solid #d1d5db',
-                    borderRadius: 6,
-                    background: 'white',
-                    color: '#374151',
-                    fontSize: 14,
-                    fontWeight: '500',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
+                    color: '#374151'
                   }}
                   onMouseOver={(e) => {
                     e.currentTarget.style.background = '#f9fafb'
@@ -1382,16 +1371,10 @@ export default function MyPage() {
 
               <button
                 onClick={openEditModal}
+                className="mypage-action-btn"
                 style={{
-                  padding: '12px 24px',
                   border: '1px solid #2962FF',
-                  borderRadius: 6,
-                  background: 'white',
-                  color: '#2962FF',
-                  fontSize: 14,
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  color: '#2962FF'
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.background = '#eff6ff'
@@ -1407,16 +1390,10 @@ export default function MyPage() {
 
               <button
                 onClick={openDeleteModal}
+                className="mypage-action-btn"
                 style={{
-                  padding: '12px 24px',
                   border: '1px solid #dc2626',
-                  borderRadius: 6,
-                  background: 'white',
-                  color: '#dc2626',
-                  fontSize: 14,
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  color: '#dc2626'
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.background = '#fef2f2'
