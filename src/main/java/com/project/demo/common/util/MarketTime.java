@@ -10,7 +10,7 @@ public class MarketTime {
     // === 장 시간 계산 로직 ===
     public static final ZoneId KST = ZoneId.of("Asia/Seoul");
     public static final LocalTime REGULAR_OPEN  = LocalTime.of(9, 0);
-    public static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 20);
+    public static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 40);
 
     public static boolean isMarketOpen() {
         return isMarketOpenAt(ZonedDateTime.now(KST));

@@ -46,18 +46,36 @@ public class WebSocketSessionManager {
 
     /**
      * 사용자 세션 제거 (Redis에서 삭제)
+     * sessionId를 함께 받아, 현재 활성화된 세션과 일치할 때만 사용자 매핑을 제거합니다.
      */
+    public void removeUserSession(Long userId, String sessionId) {
+        String userSessionKey = USER_SESSION_KEY_PREFIX + userId;
+        String sessionUserKey = SESSION_USER_KEY_PREFIX + sessionId;
+        
+        String savedSessionId = redisTemplate.opsForValue().get(userSessionKey);
+        
+        // 현재 세션 아이디가 저장된 것과 일치할 때만 사용자 매핑 제거
+        if (sessionId.equals(savedSessionId)) {
+            redisTemplate.delete(userSessionKey);
+            log.info("사용자 대표 세션 제거 (Redis) - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
+        } else {
+            log.info("사용자 대표 세션 유지 (다른 세션 활성화 중) - 사용자 ID: {}, 종료 세션 ID: {}, 현재 세션 ID: {}", 
+                userId, sessionId, savedSessionId);
+        }
+        
+        // 개별 세션-사용자 매핑은 무조건 삭제
+        redisTemplate.delete(sessionUserKey);
+    }
+
+    /**
+     * @deprecated use {@link #removeUserSession(Long, String)}
+     */
+    @Deprecated
     public void removeUserSession(Long userId) {
         String userSessionKey = USER_SESSION_KEY_PREFIX + userId;
         String sessionId = redisTemplate.opsForValue().get(userSessionKey);
-        
         if (sessionId != null) {
-            String sessionUserKey = SESSION_USER_KEY_PREFIX + sessionId;
-            redisTemplate.delete(userSessionKey);
-            redisTemplate.delete(sessionUserKey);
-            log.info("사용자 세션 제거 (Redis) - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
-        } else {
-            log.warn("제거할 세션을 찾을 수 없음 - 사용자 ID: {}", userId);
+            removeUserSession(userId, sessionId);
         }
     }
 

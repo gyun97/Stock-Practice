@@ -368,47 +368,144 @@
         position: static !important;
         width: 100% !important;
     }
+}
 
-    /* My Page Specific Responsiveness */
+/* My Page Specific Styling (Desktop Baseline) */
+.mypage-info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-bottom: 24px;
+    width: 100%;
+}
+
+.mypage-container {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+.info-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    padding: 32px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f1f5f9;
+    gap: 16px;
+}
+
+.info-label {
+    font-size: 14px;
+    color: #475569;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    text-align: right;
+    word-break: break-all;
+    min-width: 0;
+}
+
+.portfolio-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.my-stock-table {
+    width: 100%;
+    max-width: 900px;
+    /* 너무 넓게 퍼지지 않도록 제한 */
+    margin-top: 8px;
+    table-layout: auto;
+}
+
+.my-stock-table th,
+.my-stock-table td {
+    padding: 12px 16px;
+    /* 간격 축소 */
+}
+
+.my-stock-table th:first-child,
+.my-stock-table td:first-child {
+    padding-left: 0;
+}
+
+.my-stock-table th:last-child,
+.my-stock-table td:last-child {
+    padding-right: 0;
+}
+
+.mypage-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.mypage-action-btn {
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Tablet / Small Laptop */
+@media (max-width: 1024px) {
+    .mypage-info-grid {
+        gap: 16px;
+    }
+}
+
+/* Mobile Responsiveness for My Page */
+@media (max-width: 640px) {
+    .mypage-info-grid {
+        grid-template-columns: 1fr;
+    }
+
     .mypage-container {
-        max-width: 600px !important;
-        margin: 0 auto !important;
-        padding: 0 12px !important;
+        padding: 0 12px;
     }
 
     .info-card {
-        padding: 20px !important;
-        margin-bottom: 16px !important;
+        padding: 24px 16px;
     }
 
     .info-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        padding: 10px 0 !important;
-        border-bottom: 1px solid #f1f5f9 !important;
-        gap: 8px !important;
+        padding: 10px 0;
+        gap: 8px;
     }
 
     .info-label {
-        font-size: 13px !important;
-        color: #6b7280 !important;
-        white-space: nowrap !important;
-        flex-shrink: 0 !important;
+        font-size: 13px;
     }
 
     .info-value {
-        font-size: 14px !important;
-        font-weight: 500 !important;
-        color: #1f2937 !important;
-        text-align: right !important;
-        word-break: break-all !important;
+        font-size: 14px;
     }
 
     .portfolio-stats-grid {
-        display: grid !important;
-        grid-template-columns: 1fr !important;
-        gap: 12px !important;
+        grid-template-columns: 1fr;
     }
 
     .my-stock-table th,
@@ -419,5 +516,15 @@
 
     .hide-on-mobile {
         display: none !important;
+    }
+
+    .mypage-actions {
+        gap: 6px;
+    }
+
+    .mypage-action-btn {
+        padding: 10px 4px;
+        font-size: 11px;
+        letter-spacing: -0.5px;
     }
 }

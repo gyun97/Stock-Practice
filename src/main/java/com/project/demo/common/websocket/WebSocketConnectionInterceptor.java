@@ -65,8 +65,9 @@ public class WebSocketConnectionInterceptor implements ChannelInterceptor {
             String sessionId = accessor.getSessionId();
             Long userId = sessionManager.getUserIdBySessionId(sessionId);
             if (userId != null) {
-                sessionManager.removeUserSession(userId);
-                log.info("WebSocket 연결 해제 - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
+                // 특정 세션 아이디를 명시하여 대표 세션 오삭제 방지
+                sessionManager.removeUserSession(userId, sessionId);
+                log.info("WebSocket 연결 해제 완료 - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
             } else {
                 log.warn("연결 해제할 사용자를 찾을 수 없음 - 세션 ID: {}", sessionId);
             }
