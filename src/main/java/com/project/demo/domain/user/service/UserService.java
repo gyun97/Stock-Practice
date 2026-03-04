@@ -14,7 +14,7 @@ public interface UserService {
 
     public LoginResponse signUp(SignUpRequest request);
 
-    public String refreshAccessToken(String refreshToken);
+    public TokensResponse refreshAccessToken(String refreshToken);
 
     public void isValid(Long userId, String refreshToken);
 

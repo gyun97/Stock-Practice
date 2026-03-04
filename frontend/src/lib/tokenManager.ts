@@ -111,7 +111,7 @@ export class TokenManager {
 
       if (response.ok) {
         const result = await response.json()
-        console.log('✅ 토큰 재발급 응답 데이터:', result)
+        console.log('토큰 재발급 응답 데이터:', result)
         let newAccessToken = result.data || result.accessToken
 
         // "Bearer " prefix 제거 (백엔드에서 이미 포함시켜서 보내므로)
@@ -121,25 +121,25 @@ export class TokenManager {
 
         if (newAccessToken) {
           this.setTokens(newAccessToken)
-          console.log('✨ 토큰 갱신 성공')
+          console.log('토큰 갱신 성공')
           return newAccessToken
         } else {
           throw new Error('새로운 액세스 토큰을 받지 못했습니다')
         }
       } else if (response.status === 401) {
         // Refresh Token도 만료된 경우
-        console.warn('❌ Refresh Token 만료 또는 쿠키 누락 (401)')
+        console.warn('Refresh Token 만료 또는 쿠키 누락 (401)')
         throw new Error('Refresh token expired')
       } else if (response.status === 403) {
-        console.warn('❌ Refresh Token 접근 거부 (403)')
+        console.warn('Refresh Token 접근 거부 (403)')
         throw new Error('Refresh token forbidden')
       } else {
         const errorText = await response.text()
-        console.error('⚠ 토큰 갱신 실패:', response.status, errorText)
+        console.error('토큰 갱신 실패:', response.status, errorText)
         throw new Error(`토큰 갱신 실패: ${response.status}`)
       }
     } catch (error) {
-      console.error('🔥 토큰 갱신 중 네트워크 또는 서버 오류:', error)
+      console.error('토큰 갱신 중 네트워크 또는 서버 오류:', error)
       throw error
     }
   }
