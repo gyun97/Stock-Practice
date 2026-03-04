@@ -368,4 +368,56 @@
         position: static !important;
         width: 100% !important;
     }
+
+    /* My Page Specific Responsiveness */
+    .mypage-container {
+        max-width: 600px !important;
+        margin: 0 auto !important;
+        padding: 0 12px !important;
+    }
+
+    .info-card {
+        padding: 20px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .info-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 10px 0 !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        gap: 8px !important;
+    }
+
+    .info-label {
+        font-size: 13px !important;
+        color: #6b7280 !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+
+    .info-value {
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        color: #1f2937 !important;
+        text-align: right !important;
+        word-break: break-all !important;
+    }
+
+    .portfolio-stats-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .my-stock-table th,
+    .my-stock-table td {
+        padding: 10px 4px !important;
+        font-size: 12px !important;
+    }
+
+    .hide-on-mobile {
+        display: none !important;
+    }
 }
