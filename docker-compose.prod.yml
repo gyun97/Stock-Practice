@@ -76,7 +76,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    #    restart: always
+    restart: always
     ports:
       - "8080:8080"
 

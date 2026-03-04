@@ -20,6 +20,7 @@ import com.project.demo.domain.user.dto.request.SignUpRequest;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.dto.response.GetUserResponse;
 import com.project.demo.domain.user.dto.response.LoginResponse;
+import com.project.demo.domain.user.dto.response.TokensResponse;
 import com.project.demo.domain.user.entity.AuthUser;
 import com.project.demo.domain.user.service.UserService;
 
@@ -35,7 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class UserController {
     private final JwtUtil jwtUtil;
-    // private final UserServiceImpl refreshTokenService;
     private final UserService userService;
 
     @Value("${cookie.secure}")
@@ -161,17 +161,23 @@ public class UserController {
     }
 
     /**
-     * Access Token 재발급 API
+     * Access Token 및 Refresh Token 재발급 API (RTR 방식)
      * 
      * @return [Access Token]
      */
     @PostMapping("/reissue")
-    public ResponseEntity<ApiResponse<String>> refreshAccessToken(HttpServletRequest httpServletRequest) {
+    public ResponseEntity<ApiResponse<String>> refreshAccessToken(HttpServletRequest httpServletRequest,
+            HttpServletResponse httpServletResponse) {
 
         String refreshToken = jwtUtil.getRefreshTokenFromCookie(httpServletRequest); // 쿠키에서 Refresh Token 꺼내기
-        // String newAccessToken = refreshTokenService.refreshAccessToken(refreshToken);
-        String newAccessToken = userService.refreshAccessToken(refreshToken);
-        return ResponseEntity.ok(ApiResponse.requestSuccess(newAccessToken));
+
+        // 새 토큰(Access Token, Refresh Token) 발급
+        TokensResponse tokens = userService.refreshAccessToken(refreshToken);
+
+        // 새 Refresh Token을 HttpOnly 쿠키로 교체 (RTR)
+        jwtUtil.addRefreshTokenToCookie(tokens.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain);
+
+        return ResponseEntity.ok(ApiResponse.requestSuccess(tokens.getAccessToken()));
     }
 
     /**

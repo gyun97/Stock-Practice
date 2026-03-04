@@ -291,9 +291,10 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-     * Refresh Token을 이용한 Aceess Token 재발급 메서드
+     * Refresh Token을 이용한 Aceess Token 및 Refresh Token 재발급 (RTR)
      */
-    public String refreshAccessToken(String refreshToken) {
+    @Transactional
+    public TokensResponse refreshAccessToken(String refreshToken) {
 
         // 1. Refresh Token 유효성(유효 기간 및 서명) 검증
         if (!jwtUtil.validateToken(refreshToken)) {
@@ -304,13 +305,10 @@ public class UserServiceImpl implements UserService {
         Long userId = Long.parseLong(jwtUtil.extractClaims(refreshToken).getSubject());
         isValid(userId, refreshToken);
 
-        // 3. 새 Access Token 발급 (DB에서 최신 정보 조회)
+        // 3. 새 Access Token 및 Refresh Token 발급 (RTR 방식 도입, DB 자동 갱신)
         User user = getUserById(userId);
-        String email = user.getEmail();
-        UserRole userRole = user.getUserRole();
-        String name = user.getName();
 
-        return jwtUtil.createAccessToken(userId, email, userRole, name);
+        return issueTokens(user);
     }
 
     /*
