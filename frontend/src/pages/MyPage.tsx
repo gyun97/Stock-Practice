@@ -1407,6 +1407,9 @@ export default function MyPage() {
                 회원탈퇴
               </button>
             </div>
+            <div style={{ marginTop: 24, textAlign: 'center', fontSize: 10, color: '#94a3b8' }}>
+              Build Version: 2026-03-04-V3
+            </div>
           </div>
         </div>
         {/* 비밀번호 변경 모달 */}
