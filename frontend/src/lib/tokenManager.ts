@@ -4,7 +4,7 @@ export class TokenManager {
   private refreshPromise: Promise<string> | null = null
   private accessToken: string | null = null // 메모리에 토큰 저장
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): TokenManager {
     if (!TokenManager.instance) {
@@ -12,7 +12,7 @@ export class TokenManager {
     }
     return TokenManager.instance
   }
-  
+
   // 전역 인터셉터를 우회하기 위한 원본 fetch 가져오기
   private getOriginalFetch() {
     // 동적 import로 원본 fetch 가져오기
@@ -52,7 +52,7 @@ export class TokenManager {
     try {
       const payload = this.decodeJwtPayload(token)
       if (!payload || !payload.exp) return true
-      
+
       const currentTime = Math.floor(Date.now() / 1000)
       return payload.exp < currentTime
     } catch {
@@ -85,7 +85,7 @@ export class TokenManager {
     }
 
     this.refreshPromise = this.performTokenRefresh()
-    
+
     try {
       const newToken = await this.refreshPromise
       return newToken
@@ -108,35 +108,38 @@ export class TokenManager {
       })
 
       console.log('토큰 재발급 응답 상태:', response.status)
-      
+
       if (response.ok) {
         const result = await response.json()
-        console.log('토큰 재발급 응답 데이터:', result)
+        console.log('✅ 토큰 재발급 응답 데이터:', result)
         let newAccessToken = result.data || result.accessToken
-        
+
         // "Bearer " prefix 제거 (백엔드에서 이미 포함시켜서 보내므로)
         if (newAccessToken && newAccessToken.startsWith('Bearer ')) {
-          newAccessToken = newAccessToken.substring(7) // "Bearer " 제거
+          newAccessToken = newAccessToken.substring(7)
         }
-        
+
         if (newAccessToken) {
           this.setTokens(newAccessToken)
-          console.log('토큰 갱신 성공')
+          console.log('✨ 토큰 갱신 성공')
           return newAccessToken
         } else {
           throw new Error('새로운 액세스 토큰을 받지 못했습니다')
         }
       } else if (response.status === 401) {
         // Refresh Token도 만료된 경우
-        console.log('Refresh Token도 만료됨')
+        console.warn('❌ Refresh Token 만료 또는 쿠키 누락 (401)')
         throw new Error('Refresh token expired')
+      } else if (response.status === 403) {
+        console.warn('❌ Refresh Token 접근 거부 (403)')
+        throw new Error('Refresh token forbidden')
       } else {
         const errorText = await response.text()
-        console.error('토큰 갱신 실패:', response.status, errorText)
+        console.error('⚠ 토큰 갱신 실패:', response.status, errorText)
         throw new Error(`토큰 갱신 실패: ${response.status}`)
       }
     } catch (error) {
-      console.error('❌ 토큰 갱신 오류:', error)
+      console.error('🔥 토큰 갱신 중 네트워크 또는 서버 오류:', error)
       throw error
     }
   }
@@ -144,7 +147,7 @@ export class TokenManager {
   // API 요청을 위한 헤더 생성 (자동 토큰 갱신 포함)
   public async getAuthHeaders(): Promise<HeadersInit> {
     let accessToken = this.getAccessToken()
-    
+
     if (!accessToken || this.isTokenExpired(accessToken)) {
       console.log('Access Token 만료, 갱신 시도')
       accessToken = await this.refreshAccessToken()
@@ -159,7 +162,7 @@ export class TokenManager {
   // fetch 요청 래퍼 (자동 토큰 갱신 포함)
   public async authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
     const headers = await this.getAuthHeaders()
-    
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -177,7 +180,7 @@ export class TokenManager {
           ...headers,
           'Authorization': `Bearer ${newAccessToken}`
         }
-        
+
         return fetch(url, {
           ...options,
           headers: {
