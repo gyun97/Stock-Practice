@@ -30,6 +30,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
 
     private String iv;
     private String key;
+    private String approvalKey;
+    private java.util.List<String> tickers;
 
     public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate,
             StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService,
@@ -44,23 +46,73 @@ public class ConnectWebSocketClient extends WebSocketClient {
     }
 
     /**
-     * Spring Boot 실행되면 자동 연결
+     * Spring Boot 실행되면 자동 연결 시도
      */
     @PostConstruct
     public void init() {
+        tryConnect();
+    }
+
+    public void tryConnect() {
+        if (this.isOpen()) return;
+
         new Thread(() -> {
             try {
                 if (MarketTime.isMarketOpen()) {
                     log.info("장 시간 → WebSocket 연결 시도 중...");
                     this.connectBlocking();
-                    log.info("WebSocket 연결 성공");
                 } else {
-                    log.info("장 외 시간 → WebSocket 연결하지 않음");
+                    log.info("장 외 시간 → WebSocket 연결 대기");
                 }
             } catch (Exception e) {
-                log.error("WebSocket 연결 실패", e);
+                log.error("WebSocket 연결 시도 실패", e);
             }
         }).start();
+    }
+
+    public void setSubscriptionInfo(String approvalKey, java.util.List<String> tickers) {
+        this.approvalKey = approvalKey;
+        this.tickers = tickers;
+        if (this.isOpen()) {
+            subscribeAll();
+        }
+    }
+
+    private void subscribeAll() {
+        if (approvalKey == null || tickers == null) {
+            log.warn("구독 정보(Approval Key 또는 Tickers)가 없어 구독을 생략합니다.");
+            return;
+        }
+        log.info("전체 종목 구독 시작 (개수: {})", tickers.size());
+        for (String ticker : tickers) {
+            try {
+                subscribeStock(ticker);
+            } catch (Exception e) {
+                log.error("종목 구독 실패: {}", ticker, e);
+            }
+        }
+    }
+
+    private void subscribeStock(String ticker) throws Exception {
+        ObjectNode header = objectMapper.createObjectNode();
+        header.put("approval_key", approvalKey);
+        header.put("custtype", "P");
+        header.put("tr_type", "1");
+        header.put("content-type", "utf-8");
+
+        ObjectNode input = objectMapper.createObjectNode();
+        input.put("tr_id", "H0STCNT0");
+        input.put("tr_key", ticker);
+
+        ObjectNode body = objectMapper.createObjectNode();
+        body.set("input", input);
+
+        ObjectNode request = objectMapper.createObjectNode();
+        request.set("header", header);
+        request.set("body", body);
+
+        String json = objectMapper.writeValueAsString(request);
+        this.send(json);
     }
 
     /**
@@ -76,30 +128,28 @@ public class ConnectWebSocketClient extends WebSocketClient {
 
     @Override
     public void onOpen(ServerHandshake handshake) {
-        log.info("서버와 연결됨: {}", handshake);
+        log.info("KIS WebSocket 서버와 연결됨: {}", handshake.getHttpStatusMessage());
+        subscribeAll();
     }
 
-    // 메시지가 수신되었을 때 자동으로 특정 메서드를 실행하는 콜백(callback) 메서드
     @Override
     public void onMessage(String message) {
         try {
             if (message.startsWith("{")) {
                 var json = objectMapper.readTree(message);
                 if (json.has("body") && json.get("body").has("output")) {
-                    this.iv = json.get("body").get("output").get("iv").asText(); // iv: 실시간 결과 복호화에 필요한
-                                                                                 // AES256((Initialize Vector))
-                    this.key = json.get("body").get("output").get("key").asText(); // key: 실시간 결과 복호화에 필요한 AES256 Key
+                    this.iv = json.get("body").get("output").get("iv").asText();
+                    this.key = json.get("body").get("output").get("key").asText();
                     log.info("iv={}, key={}", iv, key);
                 }
             } else {
-                receiveRealTimeData(message); // 웹소켓 실시간 주식 데이터 전처리 및 Redis 저장
+                receiveRealTimeData(message);
             }
         } catch (Exception e) {
             log.error("메시지 처리 실패", e);
         }
     }
 
-    // 실시간 주식 데이터 수신
     private void receiveRealTimeData(String message) throws Exception {
         String[] parts = message.split("\\|");
         String encFlag = parts[0];
@@ -112,12 +162,12 @@ public class ConnectWebSocketClient extends WebSocketClient {
         } else {
             String[] fields = data.split("\\^");
 
-            String ticker = fields[0]; // 종목 코드
+            String ticker = fields[0];
             String tradeTime = fields[1];
             int price = Integer.parseInt(fields[2]);
-            double changeAmount = Double.parseDouble(fields[4]); // 주가 변화
-            double changeRate = Double.parseDouble(fields[5]); // 등락률
-            long volume = Long.parseLong(fields[13]); // 누적 거래량
+            double changeAmount = Double.parseDouble(fields[4]);
+            double changeRate = Double.parseDouble(fields[5]);
+            long volume = Long.parseLong(fields[13]);
             String companyName = stockRepository.findNameByTicker(ticker);
 
             ObjectNode out = objectMapper.createObjectNode();
@@ -126,21 +176,19 @@ public class ConnectWebSocketClient extends WebSocketClient {
             out.put("changeAmount", changeAmount);
             out.put("changeRate", changeRate);
             out.put("companyName", companyName);
-            out.put("tradeTime", tradeTime); // WebSocket만 tradeTime 갱신
+            out.put("tradeTime", tradeTime);
             out.put("volume", volume);
 
             String json = objectMapper.writeValueAsString(out);
 
-            redisTemplate.opsForValue().set("stock:data:" + ticker, json); // Redis에 실시간 해당 종목 데이터 저장
-            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume); // 거래량 많은 순으로 정렬 redis 저장
-            redisTemplate.opsForZSet().add("stock:rank:price", ticker, price); // 가격 높은 순으로 정렬 redis 저장
-            redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate); // 등락률 높은 순으로 정렬 redis 저장
-            // STOMP로 직접 전송
-            messagingTemplate.convertAndSend("/topic/stocks", json);
+            redisTemplate.opsForValue().set("stock:data:" + ticker, json);
+            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
+            redisTemplate.opsForZSet().add("stock:rank:price", ticker, price);
+            redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate);
 
+            messagingTemplate.convertAndSend("/topic/stocks", json);
             log.info("Redis 저장 & STOMP 직접 전송(WS) → {}", json);
 
-            // 이벤트 기반 예약 주문 체결 (주가 업데이트 시 해당 종목의 예약 주문만 체크)
             try {
                 orderService.executeReservedOrdersForTicker(ticker, price);
             } catch (Exception e) {
@@ -152,6 +200,17 @@ public class ConnectWebSocketClient extends WebSocketClient {
     @Override
     public void onClose(int code, String reason, boolean remote) {
         log.warn("WebSocket 연결 종료. code={}, reason={}, remote={}", code, reason, remote);
+        if (MarketTime.isMarketOpen()) {
+            log.info("장 시간 중 연결 종료 → 5초 후 재연결 시도...");
+            new Thread(() -> {
+                try {
+                    Thread.sleep(5000);
+                    this.reconnectBlocking();
+                } catch (Exception e) {
+                    log.error("WebSocket 재연결 실패", e);
+                }
+            }).start();
+        }
     }
 
     @Override

@@ -96,6 +96,9 @@ public class InitStockSubscribe {
                     log.info("Redis 주식 데이터 {}개 삭제 완료", stockKeys.size());
                 }
 
+                client.setSubscriptionInfo(approvalKey, FIXED_TICKERS);
+                client.tryConnect();
+
                 for (String ticker : FIXED_TICKERS) {
                     try {
                         // RDB에 종목 기본 정보 저장 및 갱신
@@ -137,73 +140,17 @@ public class InitStockSubscribe {
         }).start();
     }
 
-    // 메인 화면에 표기될 전체 주식들 정보 얻기 위해 구독
-    // @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @EventListener(ApplicationReadyEvent.class)
-    @Order(2)
-    public void subscribeFixedStocks(ApplicationReadyEvent event) throws JsonProcessingException, InterruptedException {
-        subscribeAllStocks();
-    }
-
     /**
      * 평일 9시에 자동으로 종목 구독
      * cron 표현식: 초 분 시 일 월 요일
      * 0 0 9 * * MON-FRI: 평일 9시 0분 0초
      */
     @Scheduled(cron = "0 0 9 * * MON-FRI", zone = "Asia/Seoul")
-    public void subscribeStocksAtMarketOpen() throws JsonProcessingException, InterruptedException {
-        log.info("평일 9시 스케줄러 실행 - 종목 구독 시작");
-        if (MarketTime.isMarketOpen()) {
-            subscribeAllStocks();
-        } else {
-            log.info("장 시간이 아니므로 구독하지 않습니다.");
-        }
+    public void subscribeStocksAtMarketOpen() {
+        log.info("평일 9시 스케줄러 실행 - WebSocket 연결 시도");
+        client.tryConnect();
     }
 
-    /**
-     * 전체 종목 구독 로직
-     */
-    private void subscribeAllStocks() throws JsonProcessingException, InterruptedException {
-        // 만약 장시간이라면 40개 종목들 구독해서 KIS WebSocket으로 실시간 체결가 가져오기
-        if (MarketTime.isMarketOpen()) {
-            for (String ticker : FIXED_TICKERS) {
-                subscribeStock(ticker); // 해당 종목 구독
-            }
-        } else { // 만약 장외 시간이고 서버 첫 가동이서 데이터 없다면 종목들 데이터 받아오기
-            for (String ticker : FIXED_TICKERS) {
-                if (redisTemplate.hasKey("stock:data:" + ticker)) {
-                    log.info("Redis에 기존 데이터 존재 → API 호출 생략: {}", ticker);
-                    continue;
-                }
-                getStockInfoRest(ticker); // Rest API로 종가 가져오기
-                Thread.sleep(1000); // TPS 제한 고려하여 1초 대기
-            }
-        }
-    }
-
-    // 주식 종목 구독
-    private void subscribeStock(String ticker) throws JsonProcessingException {
-        ObjectNode header = mapper.createObjectNode();
-
-        header.put("approval_key", approvalKey);
-        header.put("custtype", "P"); // 개인: P / 법인 : B
-        header.put("tr_type", "1"); // 구독 신청
-        header.put("content-type", "utf-8");
-
-        ObjectNode input = mapper.createObjectNode();
-        input.put("tr_id", "H0STCNT0"); // TR ID
-        input.put("tr_key", ticker); // 해당 주식의 종목 코드
-
-        ObjectNode body = mapper.createObjectNode();
-        body.set("input", input);
-
-        ObjectNode request = mapper.createObjectNode();
-        request.set("header", header);
-        request.set("body", body);
-
-        String json = mapper.writeValueAsString(request);
-        client.send(json);
-    }
 
     // 서버 가동시 사이트에서 다룰 40개 주식 종목 최초 정보 가져오기
     public void getStockInfoRest(String trKey) {
