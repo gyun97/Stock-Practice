@@ -65,21 +65,27 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
             # 1. 프로젝트 폴더로 위치 이동
             cd /home/ubuntu/stock 
             
-            # 2. 최신 코드 레포지토리 가져오기
-            git pull origin main
+            # 2. 최신 코드 레포지토리 가져오기 (충돌 방지를 위해 reset 사용)
+            git fetch origin main
+            git reset --hard origin/main
             
-            # 3. 배포 환경용 .env.prod 파일 생성 (GitHub Secrets에서 가져옴)
+            # 3. 배포 환경용 .env.prod 파일 생성 및 변수 로드
             echo "${{ secrets.ENV_PROD }}" > .env.prod
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env.prod
             
-            # 4. 최신 도커 이미지 Pull
+            # 4. 서버에서 Docker Hub 로그인 (Private 이미지 Pull 권한 확보)
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            
+            # 5. 최신 도커 이미지 Pull
             docker-compose --env-file .env.prod -f docker-compose.prod.yml pull
             
-            # 5. 기존 서비스 중지 및 재시작 (새 이미지 강제 반영)
+            # 6. 컨테이너 강제 재생성 (Pull 받은 새 이미지 반영)
             docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d --force-recreate
             
-            # 6. 사용하지 않는 불필요한 도커 이미지들 정리 (디스크 공간 확보용)
-            docker image prune -af
+            # 7. 정리
+            docker image prune -f
+            docker logout
