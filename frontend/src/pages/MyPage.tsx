@@ -826,12 +826,8 @@ export default function MyPage() {
       background: '#f8fafc',
       padding: '20px 0'
     }}>
-      <div className="container">
-        <div style={{
-          maxWidth: 600,
-          margin: '0 auto',
-          padding: '0 16px'
-        }}>
+      <div className="container mypage-container">
+        <div>
           {/* 헤더 */}
           <div style={{
             display: 'flex',
@@ -951,13 +947,7 @@ export default function MyPage() {
           )}
 
           {/* 사용자 정보 카드 */}
-          <div style={{
-            background: 'white',
-            borderRadius: 12,
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            padding: 32,
-            marginBottom: 24
-          }}>
+          <div className="info-card">
             <h2 style={{
               margin: '0 0 24px 0',
               fontSize: 20,
@@ -1006,27 +996,16 @@ export default function MyPage() {
             </div>
 
             <div style={{ display: 'grid', gap: 16 }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '12px 0',
-                borderBottom: '1px solid #f1f5f9'
-              }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>닉네임</span>
-                <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+              <div className="info-row">
+                <span className="info-label">닉네임</span>
+                <span className="info-value">
                   {userInfo?.name}
                 </span>
               </div>
 
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '12px 0'
-              }}>
-                <span style={{ fontSize: 14, color: '#6b7280' }}>이메일</span>
-                <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+              <div className="info-row" style={{ borderBottom: 'none' }}>
+                <span className="info-label">이메일</span>
+                <span className="info-value">
                   {userInfo?.email}
                 </span>
               </div>
@@ -1035,13 +1014,7 @@ export default function MyPage() {
 
           {/* 포트폴리오 현황 카드 */}
           {portfolioInfo && (
-            <div style={{
-              background: 'white',
-              borderRadius: 12,
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-              padding: 32,
-              marginBottom: 24
-            }}>
+            <div className="info-card">
               <h2 style={{
                 margin: '0 0 24px 0',
                 fontSize: 20,
@@ -1091,53 +1064,30 @@ export default function MyPage() {
 
               {/* 자산 구성 */}
               <div style={{ display: 'grid', gap: 16 }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 0',
-                  borderBottom: '1px solid #f1f5f9'
-                }}>
-                  <span style={{ fontSize: 14, color: '#6b7280' }}>현금 잔액</span>
-                  <span style={{ fontSize: 16, fontWeight: '500', color: '#059669' }}>
+                <div className="info-row">
+                  <span className="info-label">현금 잔액</span>
+                  <span className="info-value" style={{ color: '#059669' }}>
                     {(portfolioInfo.balance || 0).toLocaleString()}원
                   </span>
                 </div>
 
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 0',
-                  borderBottom: '1px solid #f1f5f9'
-                }}>
-                  <span style={{ fontSize: 14, color: '#6b7280' }}>보유 주식 총액</span>
-                  <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                <div className="info-row">
+                  <span className="info-label">보유 주식 총액</span>
+                  <span className="info-value">
                     {(portfolioInfo.stockAsset || 0).toLocaleString()}원
                   </span>
                 </div>
 
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 0',
-                  borderBottom: '1px solid #f1f5f9'
-                }}>
-                  <span style={{ fontSize: 14, color: '#6b7280' }}>보유 종목 수</span>
-                  <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                <div className="info-row">
+                  <span className="info-label">보유 종목 수</span>
+                  <span className="info-value">
                     {portfolioInfo.holdCount || 0}개
                   </span>
                 </div>
 
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 0'
-                }}>
-                  <span style={{ fontSize: 14, color: '#6b7280' }}>총 보유 주식 수량</span>
-                  <span style={{ fontSize: 16, fontWeight: '500', color: '#1f2937' }}>
+                <div className="info-row" style={{ borderBottom: 'none' }}>
+                  <span className="info-label">총 보유 주식 수량</span>
+                  <span className="info-value">
                     {(portfolioInfo.totalQuantity || 0).toLocaleString()}주
                   </span>
                 </div>
@@ -1265,7 +1215,7 @@ export default function MyPage() {
                         <th style={{
                           padding: '12px 8px',
                           textAlign: 'left',
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: '600',
                           color: '#374151',
                           borderBottom: '2px solid #e5e7eb',
@@ -1274,25 +1224,25 @@ export default function MyPage() {
                         <th style={{
                           padding: '12px 8px',
                           textAlign: 'right',
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: '600',
                           color: '#374151',
                           borderBottom: '2px solid #e5e7eb',
                           whiteSpace: 'nowrap'
                         }}>보유수량</th>
-                        <th style={{
+                        <th className="hide-on-mobile" style={{
                           padding: '12px 8px',
                           textAlign: 'right',
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: '600',
                           color: '#374151',
                           borderBottom: '2px solid #e5e7eb',
                           whiteSpace: 'nowrap'
                         }}>총 구매액</th>
-                        <th style={{
+                        <th className="hide-on-mobile" style={{
                           padding: '12px 8px',
                           textAlign: 'right',
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: '600',
                           color: '#374151',
                           borderBottom: '2px solid #e5e7eb',
@@ -1301,7 +1251,7 @@ export default function MyPage() {
                         <th style={{
                           padding: '12px 8px',
                           textAlign: 'right',
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: '600',
                           color: '#374151',
                           borderBottom: '2px solid #e5e7eb',
@@ -1310,7 +1260,7 @@ export default function MyPage() {
                         <th style={{
                           padding: '12px 8px',
                           textAlign: 'right',
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: '600',
                           color: '#374151',
                           borderBottom: '2px solid #e5e7eb',
@@ -1325,7 +1275,7 @@ export default function MyPage() {
                         }}>
                           <td style={{
                             padding: '12px 8px',
-                            fontSize: 14,
+                            fontSize: 13,
                             color: '#1f2937',
                             fontWeight: '500',
                             whiteSpace: 'nowrap'
@@ -1333,28 +1283,28 @@ export default function MyPage() {
                           <td style={{
                             padding: '12px 8px',
                             textAlign: 'right',
-                            fontSize: 14,
+                            fontSize: 13,
                             color: '#374151',
                             whiteSpace: 'nowrap'
                           }}>{stock.totalQuantity.toLocaleString()}주</td>
-                          <td style={{
+                          <td className="hide-on-mobile" style={{
                             padding: '12px 8px',
                             textAlign: 'right',
-                            fontSize: 14,
+                            fontSize: 13,
                             color: '#374151',
                             whiteSpace: 'nowrap'
                           }}>{(stock.avgPrice * stock.totalQuantity).toLocaleString()}원</td>
-                          <td style={{
+                          <td className="hide-on-mobile" style={{
                             padding: '12px 8px',
                             textAlign: 'right',
-                            fontSize: 14,
+                            fontSize: 13,
                             color: '#374151',
                             whiteSpace: 'nowrap'
                           }}>{stock.currentAsset.toLocaleString()}원</td>
                           <td style={{
                             padding: '12px 8px',
                             textAlign: 'right',
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: '600',
                             color: stock.profitLoss >= 0 ? '#dc2626' : '#2563eb',
                             whiteSpace: 'nowrap'
@@ -1362,7 +1312,7 @@ export default function MyPage() {
                           <td style={{
                             padding: '12px 8px',
                             textAlign: 'right',
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: '600',
                             color: stock.returnRate >= 0 ? '#dc2626' : '#2563eb',
                             whiteSpace: 'nowrap'
