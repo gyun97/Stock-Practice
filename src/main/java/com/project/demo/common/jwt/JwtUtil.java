@@ -109,7 +109,7 @@ public class JwtUtil {
                 .secure(isSecure) // HTTPS일 때만 전송 (프로덕션 true 권장)
                 .path("/") // 쿠키 전송 경로
                 .maxAge(REFRESH_TOKEN_TIME)
-                .sameSite("Strict"); // CSRF 방지: 상황에 따라 "Lax" 또는 "None" 사용
+                .sameSite("Lax"); // Strict에서 Lax로 완화하여 세션 유지성 개선
 
         if (domain != null && !domain.isBlank()) {
             builder.domain(domain);
@@ -128,7 +128,7 @@ public class JwtUtil {
                 .secure(isSecure)
                 .path("/")
                 .maxAge(0) // 즉시 만료
-                .sameSite("Strict");
+                .sameSite("Lax");
 
         if (domain != null && !domain.isBlank()) {
             builder.domain(domain);
