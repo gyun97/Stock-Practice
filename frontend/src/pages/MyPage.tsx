@@ -842,45 +842,20 @@ export default function MyPage() {
       <div className="container mypage-container">
         <div>
           {/* 헤더 */}
-          <div style={{
+          <div className="mypage-header" style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: 32
           }}>
-            <div>
-              <h1 style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 'bold',
-                color: '#1f2937'
-              }}>
-                마이페이지
-              </h1>
-              {/* 서버 상태 표시 */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginTop: 8
-              }}>
-                <div style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  backgroundColor: serverStatus === 'online' ? '#10b981' :
-                    serverStatus === 'offline' ? '#ef4444' : '#f59e0b'
-                }}></div>
-                <span style={{
-                  fontSize: 12,
-                  color: serverStatus === 'online' ? '#10b981' :
-                    serverStatus === 'offline' ? '#ef4444' : '#f59e0b'
-                }}>
-                  {serverStatus === 'online' ? '서버 연결됨' :
-                    serverStatus === 'offline' ? '서버 연결 안됨' : '서버 상태 확인 중...'}
-                </span>
-              </div>
-            </div>
+            <h1 style={{
+              margin: 0,
+              fontSize: 28,
+              fontWeight: 'bold',
+              color: '#1f2937'
+            }}>
+              마이페이지
+            </h1>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
               <button
                 onClick={handleLogout}
@@ -891,7 +866,8 @@ export default function MyPage() {
                   fontSize: 14,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  padding: 0
+                  padding: 0,
+                  whiteSpace: 'nowrap'
                 }}
                 onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
                 onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
@@ -903,7 +879,8 @@ export default function MyPage() {
                 style={{
                   color: '#6b7280',
                   textDecoration: 'none',
-                  fontSize: 14
+                  fontSize: 14,
+                  whiteSpace: 'nowrap'
                 }}
                 onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
                 onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
