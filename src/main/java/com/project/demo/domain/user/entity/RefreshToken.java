@@ -9,6 +9,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
@@ -16,16 +18,24 @@ import lombok.NoArgsConstructor;
 public class RefreshToken {
 
     @Id
-    @Column(nullable = false, name = "rt_key")
-    private Long key; // key = 유저 ID
+    @Column(name = "id", length = 36, nullable = false)
+    private String id; // 세션 UUID (기기별 고유 식별자)
 
-    @Column(name = "rt_value")
+    @Column(name = "user_id", nullable = false)
+    private Long userId; // 유저 PK
+
+    @Column(name = "rt_value", nullable = false, length = 500)
     private String value; // 토큰 값
 
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
     @Builder
-    public RefreshToken(Long key, String value) {
-        this.key = key;
+    public RefreshToken(String id, Long userId, String value, LocalDateTime createdAt) {
+        this.id = id;
+        this.userId = userId;
         this.value = value;
+        this.createdAt = createdAt != null ? createdAt : LocalDateTime.now();
     }
 
     public RefreshToken updateValue(String token) {

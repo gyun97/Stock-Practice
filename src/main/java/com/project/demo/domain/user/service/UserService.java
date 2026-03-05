@@ -16,15 +16,13 @@ public interface UserService {
 
     public TokensResponse refreshAccessToken(String refreshToken);
 
-    public void isValid(Long userId, String refreshToken);
-
     public TokensResponse issueTokens(User user);
 
     public void validateDuplicateName(String name);
 
     public LoginResponse login(LoginRequest loginRequest);
 
-    public void logout(Long userId);
+    public void logout(Long userId, String refreshToken);
 
     public String deleteUser(Long userId);
 

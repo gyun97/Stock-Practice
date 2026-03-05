@@ -27,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -154,8 +156,9 @@ public class UserServiceImpl implements UserService {
      * 유저 로그아웃
      */
     @Transactional
-    public void logout(Long userId) {
-        refreshTokenRepository.deleteById(userId); // DB의 Refresh Token 삭제
+    public void logout(Long userId, String refreshToken) {
+        // 현재 기기의 세션(토큰)만 삭제 (다른 기기 세션 유지)
+        refreshTokenRepository.deleteByUserIdAndValue(userId, refreshToken);
     }
 
     /*
@@ -166,8 +169,8 @@ public class UserServiceImpl implements UserService {
         // PK로 유저 조회
         User user = getUserById(userId);
 
-        // Refresh Token 삭제
-        refreshTokenRepository.deleteById(userId);
+        // 모든 기기의 Refresh Token 삭제
+        refreshTokenRepository.deleteAllByUserId(userId);
 
         // 탈퇴 처리(is_deleted : true)
         user.updateIsDeleted();
@@ -212,9 +215,10 @@ public class UserServiceImpl implements UserService {
                 savedUser.getName());
         String refreshTokenValue = jwtUtil.createRefreshToken(savedUser.getId());
 
-        refreshTokenRepository.deleteById(savedUser.getId()); // 기존 Refresh Token 존재하면 삭제
-        refreshTokenRepository.save(RefreshToken.builder() // 새 Refresh Token 저장
-                .key(savedUser.getId())
+        // 기기별 독립 세션 생성 (UUID로 각 기기를 구분, 기존 다른 기기 세션은 유지)
+        refreshTokenRepository.save(RefreshToken.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(savedUser.getId())
                 .value(refreshTokenValue)
                 .build());
 
@@ -291,7 +295,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
-     * Refresh Token을 이용한 Aceess Token 및 Refresh Token 재발급 (RTR)
+     * Refresh Token을 이용한 Access Token 및 Refresh Token 재발급 (RTR + 멀티 기기)
      */
     @Transactional
     public TokensResponse refreshAccessToken(String refreshToken) {
@@ -301,26 +305,18 @@ public class UserServiceImpl implements UserService {
             throw new InvalidTokenException();
         }
 
-        // 2. 해당 Refresh Token이 DB에 실제 존재하는지 확인
-        Long userId = Long.parseLong(jwtUtil.extractClaims(refreshToken).getSubject());
-        isValid(userId, refreshToken);
-
-        // 3. 새 Access Token 및 Refresh Token 발급 (RTR 방식 도입, DB 자동 갱신)
-        User user = getUserById(userId);
-
-        return issueTokens(user);
-    }
-
-    /*
-     * DB에 있는 Refresh Token과 클라이언트의 Refresh Token 비교 검증
-     */
-    public void isValid(Long userId, String refreshToken) {
-        RefreshToken existingToken = refreshTokenRepository.findById(userId)
+        // 2. 해당 Refresh Token이 DB에 실제 존재하는 세션인지 확인 (토큰 값으로 조회)
+        RefreshToken session = refreshTokenRepository.findByValue(refreshToken)
                 .orElseThrow(NotFoundTokenException::new);
 
-        if (!existingToken.getValue().equals(refreshToken)) {
-            throw new InvalidTokenException();
-        }
+        // 3. 새 Access Token 및 Refresh Token 발급 후, 현재 세션의 토큰 값만 갱신 (RTR)
+        User user = getUserById(session.getUserId());
+        TokensResponse newTokens = issueTokens(user);
+
+        // 4. 이전 세션(현재 기기)의 행 삭제 (issueTokens에서 새 행을 추가하므로 중복 방지)
+        refreshTokenRepository.deleteById(session.getId());
+
+        return newTokens;
     }
 
     /*
