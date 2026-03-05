@@ -69,14 +69,14 @@ export default function MyPage() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // 캔버스 크기 설정
-    canvas.width = 300
-    canvas.height = 300
+    // 캔버스 크기 설정 (데스크탑에서 더 크게 보이도록 상향)
+    canvas.width = 400
+    canvas.height = 400
 
     const centerX = canvas.width / 2
     const centerY = canvas.height / 2
-    const radius = 100
-    const innerRadius = 60
+    const radius = 140
+    const innerRadius = 85
 
     // 전체 주식 자산 계산
     const totalStockAsset = userStocks.reduce((sum, stock) => sum + stock.currentAsset, 0)
@@ -114,14 +114,14 @@ export default function MyPage() {
 
     // 중앙에 총 자산 표시
     ctx.fillStyle = '#374151'
-    ctx.font = 'bold 16px Arial'
+    ctx.font = 'bold 20px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('총 주식 자산', centerX, centerY - 10)
+    ctx.fillText('총 주식 자산', centerX, centerY - 15)
 
     ctx.fillStyle = '#6B7280'
-    ctx.font = '14px Arial'
-    ctx.fillText(`${totalStockAsset.toLocaleString()}원`, centerX, centerY + 10)
+    ctx.font = '16px Arial'
+    ctx.fillText(`${totalStockAsset.toLocaleString()}원`, centerX, centerY + 15)
   }
 
   // 포트폴리오 수익률 실시간 업데이트 핸들러
@@ -1176,6 +1176,9 @@ export default function MyPage() {
                     <canvas
                       ref={canvasRef}
                       style={{
+                        width: '100%',
+                        maxWidth: 400,
+                        height: 'auto',
                         border: '1px solid #e5e7eb',
                         borderRadius: 8,
                         background: 'white'
