@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -57,15 +58,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                 user.getName());
                 String refreshToken = jwtUtil.createRefreshToken(user.getId());
 
-                // Refresh Token 저장 또는 업데이트
-                refreshTokenRepository.findById(user.getId())
-                                .ifPresentOrElse(
-                                                rt -> rt.updateValue(refreshToken), // 이미 존재하면 업데이트
-                                                () -> refreshTokenRepository
-                                                                .save(new RefreshToken(user.getId(), refreshToken)) // 없으면
-                                                                                                                    // 새로
-                                                                                                                    // 저장
-                                );
+                // Refresh Token 기기별 세션 저장 (멀티 기기 지원: UUID로 각 기기를 구분)
+                refreshTokenRepository.save(RefreshToken.builder()
+                                .id(UUID.randomUUID().toString())
+                                .userId(user.getId())
+                                .value(refreshToken)
+                                .build());
 
                 // 리프레시 토큰을 쿠키에 저장
                 jwtUtil.addRefreshTokenToCookie(refreshToken, response, cookieSecure, cookieDomain);

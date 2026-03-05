@@ -207,12 +207,13 @@ class UserServiceImplTest {
     void 로그아웃_테스트() {
         // Given
         Long userId = 1L;
+        String refreshToken = "validRefreshToken";
 
         // When
-        userService.logout(userId);
+        userService.logout(userId, refreshToken);
 
         // Then
-        verify(refreshTokenRepository, times(1)).deleteById(userId);
+        verify(refreshTokenRepository, times(1)).deleteByUserIdAndValue(userId, refreshToken);
     }
 
     @Test
@@ -227,7 +228,7 @@ class UserServiceImplTest {
         // Then
         assertNotNull(result);
         assertTrue(result.contains(String.valueOf(userId)));
-        verify(refreshTokenRepository, times(1)).deleteById(userId);
+        verify(refreshTokenRepository, times(1)).deleteAllByUserId(userId);
         assertTrue(testUser.isDeleted());
     }
 
@@ -621,40 +622,43 @@ class UserServiceImplTest {
     }
 
     @Test
-    void isValid_토큰_일치_테스트() {
+    void refreshAccessToken_토큰_일치_테스트() {
         // Given
-        Long userId = 1L;
         String refreshToken = "validRefreshToken";
         RefreshToken existingToken = RefreshToken.builder()
-                .key(userId)
+                .id("session-uuid-1")
+                .userId(1L)
                 .value(refreshToken)
                 .build();
 
-        when(refreshTokenRepository.findById(userId)).thenReturn(Optional.of(existingToken));
+        when(jwtUtil.validateToken(refreshToken)).thenReturn(true);
+        when(refreshTokenRepository.findByValue(refreshToken)).thenReturn(Optional.of(existingToken));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(jwtUtil.createAccessToken(anyLong(), anyString(), any(), anyString())).thenReturn("Bearer newAccessToken");
+        when(jwtUtil.createRefreshToken(anyLong())).thenReturn("newRefreshToken");
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
+        doNothing().when(refreshTokenRepository).deleteById(anyString());
 
-        // When - 예외가 발생하지 않아야 함
-        assertDoesNotThrow(() -> {
-            userService.isValid(userId, refreshToken);
-        });
+        // When
+        TokensResponse result = userService.refreshAccessToken(refreshToken);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("Bearer newAccessToken", result.getAccessToken());
+        verify(refreshTokenRepository, times(1)).findByValue(refreshToken);
+        verify(refreshTokenRepository, times(1)).deleteById("session-uuid-1");
     }
 
     @Test
-    void isValid_토큰_불일치_예외_테스트() {
+    void refreshAccessToken_토큰_불일치_예외_테스트() {
         // Given
-        Long userId = 1L;
-        String refreshToken = "validRefreshToken";
-        String differentToken = "differentToken";
-        RefreshToken existingToken = RefreshToken.builder()
-                .key(userId)
-                .value(differentToken)
-                .build();
+        String refreshToken = "invalidRefreshToken";
 
-        when(refreshTokenRepository.findById(userId)).thenReturn(Optional.of(existingToken));
+        when(jwtUtil.validateToken(refreshToken)).thenReturn(true);
+        when(refreshTokenRepository.findByValue(refreshToken)).thenReturn(Optional.empty());
 
         // When & Then
-        assertThrows(InvalidTokenException.class, () -> {
-            userService.isValid(userId, refreshToken);
-        });
+        assertThrows(NotFoundTokenException.class, () -> userService.refreshAccessToken(refreshToken));
     }
 
     @Test
@@ -684,12 +688,11 @@ class UserServiceImplTest {
     }
 
     @Test
-    void issueTokens_기존_토큰_삭제_테스트() {
+    void issueTokens_기존_토큰_삭제_및_새_토큰_저장_테스트() {
         // Given
         when(jwtUtil.createAccessToken(anyLong(), anyString(), any(UserRole.class), anyString()))
                 .thenReturn("Bearer accessToken");
         when(jwtUtil.createRefreshToken(anyLong())).thenReturn("refreshToken");
-        doNothing().when(refreshTokenRepository).deleteById(1L);
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // When
@@ -697,7 +700,8 @@ class UserServiceImplTest {
 
         // Then
         assertNotNull(tokens);
-        verify(refreshTokenRepository, times(1)).deleteById(1L);
+        // 멀티 기기 지원: deleteById 호출 없음 (다른 기기 세션은 유지)
+        verify(refreshTokenRepository, never()).deleteById(anyString());
         verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
     }
 }

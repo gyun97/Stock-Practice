@@ -94,9 +94,11 @@ public class UserController {
      */
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout(@AuthenticationPrincipal AuthUser authUser,
+            HttpServletRequest httpServletRequest,
             HttpServletResponse httpServletResponse) {
-        // 리프레시 토큰 삭제
-        userService.logout(authUser.getUserId());
+        // 현재 기기의 Refresh Token만 삭제 (다른 기기 세션 유지)
+        String refreshToken = jwtUtil.getRefreshTokenFromCookie(httpServletRequest);
+        userService.logout(authUser.getUserId(), refreshToken);
         jwtUtil.clearRefreshTokenCookie(httpServletResponse, cookieSecure, cookieDomain);
 
         log.info("로그아웃 성공!");
