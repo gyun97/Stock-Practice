@@ -660,18 +660,6 @@ export default function Home() {
           borderRadius: 12,
           border: '1px solid #e5e7eb'
         }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20
-          }}>
-            🏆
-          </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
               유저 랭킹
@@ -766,18 +754,6 @@ export default function Home() {
             borderRadius: 12,
             border: '1px solid #e5e7eb'
           }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 20
-            }}>
-              💼
-            </div>
             <div style={{ flex: 1 }}>
               <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
                 내 보유 종목
@@ -910,18 +886,6 @@ export default function Home() {
           borderRadius: 12,
           border: '1px solid #e5e7eb'
         }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            borderRadius: 10,
-            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 20
-          }}>
-            📈
-          </div>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
               실시간 차트
