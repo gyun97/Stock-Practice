@@ -225,6 +225,13 @@ export default function Chart() {
         barSpacing: 8, // 캔들 간격 증가
         minBarSpacing: 2, // 최소 캔들 간격
       },
+      handleScroll: {
+        vertTouchDrag: false, // 스크롤과 겹치지 않게 세로 드래그는 비활성화
+      },
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+      }
     })
 
     // 캔들스틱 시리즈 추가
@@ -276,9 +283,22 @@ export default function Chart() {
 
       const data = param.seriesData.get(candlestickSeries)
       if (data) {
+        // 모바일 대응: 툴팁이 화면 밖으로 나가지 않도록 정밀한 위치 계산
+        const containerWidth = chartContainerRef.current.clientWidth
+        const tooltipWidth = 180 // 모바일 고려하여 약간 축소
+        let x = param.point.x + 15
+
+        // 오른쪽 경계 체크
+        if (x + tooltipWidth > containerWidth) {
+          x = param.point.x - tooltipWidth - 15
+        }
+
+        // 왼쪽 경계 체크 (클램핑)
+        x = Math.max(5, Math.min(containerWidth - tooltipWidth - 5, x))
+
         setTooltip({
           visible: true,
-          x: param.point.x,
+          x: x,
           y: param.point.y,
           data: {
             time: data.time,
@@ -840,16 +860,17 @@ export default function Chart() {
               <div
                 style={{
                   position: 'absolute',
-                  left: tooltip.x + 10,
-                  top: tooltip.y - 10,
-                  background: 'rgba(0, 0, 0, 0.8)',
+                  left: tooltip.x,
+                  // Y축 클램핑: 상단 공간 부족시 하단으로, 하단 공간 부족시 상단으로
+                  top: tooltip.y > 180 ? tooltip.y - 150 : tooltip.y + 20,
+                  background: 'rgba(0, 0, 0, 0.85)',
                   color: 'white',
                   padding: '8px 12px',
                   borderRadius: 6,
-                  fontSize: 12,
+                  fontSize: 11, // 폰트 약간 축소
                   pointerEvents: 'none',
                   zIndex: 1000,
-                  minWidth: 200,
+                  width: 180, // 가로폭 고정
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
                 }}
               >
