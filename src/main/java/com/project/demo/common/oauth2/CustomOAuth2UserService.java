@@ -31,6 +31,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private static final String GOOGLE = "google";
 
     @Override
+    @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
 
         log.info("CustomOAuth2UserService.loadUser() 실행 - OAuth2 로그인 요청 진입");
@@ -69,7 +70,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 createdUser.getProfileImage());
     }
 
-    @Transactional
     private void getOrSavePortfolio(User createdUser) {
         Portfolio portfolio = portfolioRepository.findByUser(createdUser)
                 .orElseGet(() -> Portfolio.builder()
@@ -85,7 +85,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         portfolioRepository.save(portfolio);
     }
 
-    @Transactional
     private User getUser(OAuthAttributes attributes, SocialType socialType) {
         String socialId = attributes.getOauth2UserInfo().getId();
         String email = attributes.getOauth2UserInfo().getEmail();
@@ -104,6 +103,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 log.info("기존 이메일 계정 발견 ({}). 새로운 소셜 정보 연결: {}", email, socialType);
                 findUser.updateSocialInfo(socialType, socialId);
 
+                // 탈퇴한 사용자였다면 재활성화
+                if (findUser.isDeleted()) {
+                    log.info("탈퇴한 사용자 재가입 처리 - 이메일: {}", email);
+                    findUser.reactivate();
+                    userRepository.save(findUser);
+                }
+
                 // 프로필 이미지 동기화 (기존 이미지가 없거나 소셜 이미지가 다를 경우)
                 String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
                 if (socialProfileImage != null && !socialProfileImage.isBlank()) {
@@ -117,7 +123,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             return saveUser(attributes, socialType);
         }
 
-        // 이미 소셜 연동된 유저의 경우에도 프로필 이미지 최신화
+        // 이미 소셜 연동된 유저의 경우에도 프로필 이미지 최신화 및 탈퇴 여부 확인
+        if (findUser.isDeleted()) {
+            log.info("탈퇴한 소셜 사용자 재가입 처리 - 소셜 ID: {}", socialId);
+            findUser.reactivate();
+            userRepository.save(findUser);
+        }
+
         String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
         if (socialProfileImage != null && !socialProfileImage.isBlank()) {
             findUser.updateProfileImage(socialProfileImage);
