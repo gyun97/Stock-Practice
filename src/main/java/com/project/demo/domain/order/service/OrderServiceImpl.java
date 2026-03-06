@@ -74,7 +74,7 @@ public class OrderServiceImpl implements OrderService {
         int stockPrice = getStockPrice(ticker);
 
         // 총 주문 가격
-        int totalPrice = stockPrice * quantity;
+        long totalPrice = (long) stockPrice * quantity;
 
         // 보유금이 모자르다면
         if (portfolio.getBalance() < totalPrice) {
@@ -107,7 +107,7 @@ public class OrderServiceImpl implements OrderService {
      * 매수 주문 체결
      */
     @Transactional
-    public void executeBuy(Order order, User user, Stock stock, int price, int quantity, int totalPrice) {
+    public void executeBuy(Order order, User user, Stock stock, int price, int quantity, long totalPrice) {
         Portfolio portfolio = portfolioRepository.findWithLockByUser(user)
                 .orElseThrow(NotFoundPortfolioException::new);
 
@@ -197,7 +197,7 @@ public class OrderServiceImpl implements OrderService {
         int stockPrice = getStockPrice(ticker);
 
         // 총 매도 금액
-        int totalPrice = stockPrice * quantity;
+        long totalPrice = (long) stockPrice * quantity;
 
         // 주문(Order) 생성
         Order newOrder = Order.builder()
@@ -225,7 +225,7 @@ public class OrderServiceImpl implements OrderService {
      * 주문 체결 (매도)
      */
     @Transactional
-    public void executeSell(Order order, User user, Stock stock, int price, int quantity, int totalPrice) {
+    public void executeSell(Order order, User user, Stock stock, int price, int quantity, long totalPrice) {
         Execution execution = Execution.builder()
                 .order(order)
                 .type(OrderType.SELL)
@@ -270,7 +270,7 @@ public class OrderServiceImpl implements OrderService {
     private void updatePortfolioAfterBuy(Portfolio portfolio, int buyPrice, int quantity) {
 
         // 매수 후 보유 주식 평가액 증가
-        int increaseStockValue = buyPrice * quantity;
+        long increaseStockValue = (long) buyPrice * quantity;
         portfolio.increaseStockAsset(increaseStockValue);
 
         // 잔액(현금) 감소

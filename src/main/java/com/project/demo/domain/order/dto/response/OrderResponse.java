@@ -17,10 +17,10 @@ public class OrderResponse {
     private String stockName;
     private int price;
     private int quantity;
-    private int totalPrice;
+    private long totalPrice;
     private OrderType orderType;
-    private boolean isReserved;  // 예약 주문 여부
-    private boolean isExecuted;  // 체결 완료 여부
+    private boolean isReserved; // 예약 주문 여부
+    private boolean isExecuted; // 체결 완료 여부
     private LocalDateTime createdAt;
 
     public static OrderResponse of(Order order) {
@@ -35,9 +35,7 @@ public class OrderResponse {
                 order.getType(),
                 order.isReserved(),
                 order.isExecuted(),
-                order.getCreatedAt()
-        );
+                order.getCreatedAt());
     }
-
 
 }

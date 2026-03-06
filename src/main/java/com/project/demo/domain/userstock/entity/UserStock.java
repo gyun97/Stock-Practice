@@ -51,9 +51,9 @@ public class UserStock extends TimeStamped {
     @JoinColumn(name = "port_id", nullable = false)
     private Portfolio portfolio;
 
-
     @Builder
-    public UserStock(Long id, String ticker,int avgPrice, int totalQuantity, User user, Stock stock, Portfolio portfolio, String userName, String stockName) {
+    public UserStock(Long id, String ticker, int avgPrice, int totalQuantity, User user, Stock stock,
+            Portfolio portfolio, String userName, String stockName) {
         this.id = id;
         this.ticker = ticker;
         this.avgPrice = avgPrice;
@@ -65,33 +65,33 @@ public class UserStock extends TimeStamped {
         this.stockName = stockName;
     }
 
-//    public double getAvgPrice() {
-//        return totalQuantity == 0 ? 0 : (double) purchaseAmount / totalQuantity;
-//    }
+    // public double getAvgPrice() {
+    // return totalQuantity == 0 ? 0 : (double) purchaseAmount / totalQuantity;
+    // }
 
     /*
-    매수 시 총 구매액 증가
+     * 매수 시 총 구매액 증가
      */
     public void increasePurchaseAmount(long amount) {
         this.purchaseAmount += amount;
     }
 
     /*
-    매도 시 총 구매액 감소
+     * 매도 시 총 구매액 감소
      */
     public void decreasePurchaseAmount(int sellQuantity) {
         this.purchaseAmount -= (long) sellQuantity * this.avgPrice;
     }
 
     /*
-    해당 보유 종목 평균단가 갱신
+     * 해당 보유 종목 평균단가 갱신
      */
     public void updateAveragePrice(int avgPrice) {
         this.avgPrice = avgPrice;
     }
 
     /*
-    해당 보유 종목 보유수량 갱신
+     * 해당 보유 종목 보유수량 갱신
      */
     public void updateQuantity(int totalQuantity) {
         this.totalQuantity = totalQuantity;

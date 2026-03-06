@@ -32,14 +32,14 @@ public class Execution extends TimeStamped {
     @Column(nullable = false)
     private int quantity;
 
-    private int totalPrice;
+    private long totalPrice;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", unique = true)
     private Order order;
 
     @Builder
-    public Execution(Long id, OrderType type, int price, int quantity, int totalPrice, Order order) {
+    public Execution(Long id, OrderType type, int price, int quantity, long totalPrice, Order order) {
         this.id = id;
         this.type = type;
         this.price = price;
@@ -49,10 +49,10 @@ public class Execution extends TimeStamped {
     }
 
     /*
-        거래 총 금액 계산
-         */
+     * 거래 총 금액 계산
+     */
     public void calculateTotalAmount(int price, int quantity) {
-        this.totalPrice = price * quantity;
+        this.totalPrice = (long) price * quantity;
     }
 
 }

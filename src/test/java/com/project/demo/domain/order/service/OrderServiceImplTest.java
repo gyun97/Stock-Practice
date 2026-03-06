@@ -121,7 +121,7 @@ class OrderServiceImplTest {
         String ticker = "005930";
         int quantity = 10;
         int stockPrice = 70000;
-        int totalPrice = stockPrice * quantity;
+        long totalPrice = (long) stockPrice * quantity;
 
         org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
                 org.springframework.data.redis.core.ValueOperations.class);
@@ -194,6 +194,45 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void 주식_매수_잔액_부족_예외_테스트_오버플로우_방지_확인() {
+        // Given
+        Long userId = 1L;
+        String ticker = "005930";
+        int quantity = 1000000;
+        int stockPrice = 70000;
+        // 70,000 * 1,000,000 = 70,000,000,000 (700억) -> int 오버플로우 발생 지점
+
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + stockPrice + "}");
+
+        com.project.demo.domain.stock.dto.response.StockData stockData = com.project.demo.domain.stock.dto.response.StockData
+                .builder()
+                .price(stockPrice)
+                .build();
+        try {
+            when(objectMapper.readValue(eq("{\"price\":" + stockPrice + "}"),
+                    eq(com.project.demo.domain.stock.dto.response.StockData.class)))
+                    .thenReturn(stockData);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // ignore
+        }
+
+        testPortfolio.increaseBalance(100000000L); // 1억 보유
+
+        // When & Then
+        // 700억 주문 시 1억 잔액으로는 부족해야 함 (long 사용 시)
+        // int 사용 시 오버플로우로 인해 totalPrice가 작아져서 통과할 수 있음
+        assertThrows(NotEnoughMoneyException.class, () -> {
+            orderService.buyingStock(userId, ticker, quantity);
+        });
+    }
+
+    @Test
     void 주식_매수_잔액_부족_예외_테스트() {
         // Given
         Long userId = 1L;
@@ -235,7 +274,7 @@ class OrderServiceImplTest {
                 .type(OrderType.BUY)
                 .price(70000)
                 .quantity(10)
-                .totalPrice(700000)
+                .totalPrice(700000L)
                 .isExecuted(false)
                 .isReserved(true)
                 .user(testUser)
@@ -320,7 +359,7 @@ class OrderServiceImplTest {
         String ticker = "005930";
         int quantity = 5;
         int stockPrice = 75000;
-        int totalPrice = stockPrice * quantity;
+        long totalPrice = (long) stockPrice * quantity;
 
         UserStock userStock = UserStock.builder()
                 .user(testUser)
@@ -423,7 +462,7 @@ class OrderServiceImplTest {
         String ticker = "005930";
         int quantity = 10;
         int targetPrice = 70000;
-        int totalPrice = targetPrice * quantity;
+        long totalPrice = (long) targetPrice * quantity;
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
