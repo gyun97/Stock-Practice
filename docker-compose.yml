@@ -102,28 +102,27 @@ services:
       - redis_replica1
     ports:
       - "${REDIS_SENTINEL_PORT3}:26379"
+  # # -----------------
+  # # Spring Boot App
+  # # -----------------
+  # app:
+  #   #    entrypoint: [ "sh", "-c" ]
+  #   #    command: "sleep 300"
+  #   env_file:
+  #     - .env.local
+  #   build: .
+  #   container_name: stock-app
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     redis_master:
+  #       condition: service_started
+  #     redis-sentinel-1:
+  #       condition: service_started
+  #   #    restart: always
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: dev
+  #     SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stock
 
-  # -----------------
-  # Spring Boot App
-  # -----------------
-  app:
-    #    entrypoint: [ "sh", "-c" ]
-    #    command: "sleep 300"
-    env_file:
-      - .env.local
-    build: .
-    container_name: stock-app
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis_master:
-        condition: service_started
-      redis-sentinel-1:
-        condition: service_started
-    #    restart: always
-    environment:
-      SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stock
-
-    ports:
-      - "8080:8080"
+  #   ports:
+  #     - "8080:8080"

@@ -94,7 +94,7 @@ public class User extends TimeStamped {
     }
 
     /*
-     * 탈퇴 회원 재가입
+     * 탈퇴 회원 재가입 (일반 가입용)
      */
     public void reactivate(String newPassword, String newName, UserRole newRole) {
         this.password = newPassword;
@@ -103,6 +103,14 @@ public class User extends TimeStamped {
         this.isDeleted = false;
         this.withdrawalAt = null;
         // balance는 기존 값 유지 (초기화하지 않음)
+    }
+
+    /**
+     * 탈퇴 회원 재활성화 (소셜 로그인용)
+     */
+    public void reactivate() {
+        this.isDeleted = false;
+        this.withdrawalAt = null;
     }
 
     /*
