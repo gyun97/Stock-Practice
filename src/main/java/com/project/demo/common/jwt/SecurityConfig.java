@@ -97,7 +97,7 @@ public class SecurityConfig {
                                 .exceptionHandling(exceptions -> exceptions
                                                 .defaultAuthenticationEntryPointFor(
                                                                 new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                                                                new AntPathRequestMatcher("/api/**")))
+                                                                AntPathRequestMatcher.antMatcher("/api/**")))
                                 .build();
         }
 
