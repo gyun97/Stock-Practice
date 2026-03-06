@@ -99,7 +99,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         }
 
         List<UserStock> userStocks = portfolio.getUserStocks();
-        int stockAsset = 0; // 현재 보유하고 있는 주식 자산
+        long stockAsset = 0; // 현재 보유하고 있는 주식 자산 - long으로 변경하여 오버플로우 방지
 
         // 가지고 있는 종목들의 가격 합 계산
         for (UserStock userStock : userStocks) {
@@ -107,7 +107,7 @@ public class PortfolioServiceImpl implements PortfolioService {
             try {
                 int stockPrice = getStockPrice(ticker);
                 int stockQuantity = userStock.getTotalQuantity();
-                stockAsset += (stockPrice * stockQuantity);
+                stockAsset += ((long) stockPrice * stockQuantity);
             } catch (Exception e) {
                 log.warn("주식 가격 조회 실패 (티커: {}, 사용자 ID: {}): {}", ticker, userId, e.getMessage());
             }

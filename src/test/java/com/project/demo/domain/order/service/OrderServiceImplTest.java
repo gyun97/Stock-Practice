@@ -115,6 +115,58 @@ class OrderServiceImplTest {
     }
 
     @Test
+    void 주식_매수_평균단가_오버플로우_테스트() {
+        // Given
+        Long userId = 1L;
+        String ticker = "005930";
+        int firstQuantity = 1000000;
+        int firstPrice = 70000;
+        int secondQuantity = 1000000;
+        int secondPrice = 80000;
+        // (70,000 * 1,000,000 + 80,000 * 1,000,000) = 150,000,000,000 -> int 오버플로우 발생
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(stockRepository.findByTicker(ticker)).thenReturn(Optional.of(testStock));
+        when(portfolioRepository.findWithLockByUser(testUser)).thenReturn(Optional.of(testPortfolio));
+
+        com.project.demo.domain.userstock.entity.UserStock userStock = com.project.demo.domain.userstock.entity.UserStock
+                .builder()
+                .user(testUser)
+                .stock(testStock)
+                .avgPrice(firstPrice)
+                .totalQuantity(firstQuantity)
+                .ticker(ticker)
+                .portfolio(testPortfolio)
+                .userName("테스트")
+                .stockName("삼성전자")
+                .build();
+
+        when(userStockRepository.findByUserAndStock(testUser, testStock)).thenReturn(Optional.of(userStock));
+
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get("stock:data:" + ticker)).thenReturn("{\"price\":" + secondPrice + "}");
+
+        try {
+            when(objectMapper.readValue(anyString(), eq(com.project.demo.domain.stock.dto.response.StockData.class)))
+                    .thenReturn(
+                            com.project.demo.domain.stock.dto.response.StockData.builder().price(secondPrice).build());
+        } catch (Exception e) {
+        }
+
+        testPortfolio.increaseBalance(200000000000L); // 2000억 보유
+
+        // When
+        orderService.buyingStock(userId, ticker, secondQuantity);
+
+        // Then
+        // 평균단가는 (70000 + 80000) / 2 = 75000 이어야 함
+        assertEquals(75000, userStock.getAvgPrice());
+        assertEquals(2000000, userStock.getTotalQuantity());
+    }
+
+    @Test
     void 주식_매수_성공_테스트() {
         // Given
         Long userId = 1L;

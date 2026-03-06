@@ -28,6 +28,7 @@ import com.project.demo.common.websocket.WebSocketSessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -133,10 +134,11 @@ public class OrderServiceImpl implements OrderService {
             int currentAvgPrice = userStock.getAvgPrice();
 
             int newTotalQuantity = currentQuantity + quantity;
-            int newAvgPrice = (currentAvgPrice * currentQuantity + price * quantity) / newTotalQuantity;
+            // 평균 단가 계산 시 거대 수량(천만 단위) 고려하여 long 연산 수행
+            int newAvgPrice = (int) (((long) currentAvgPrice * currentQuantity + (long) price * quantity)
+                    / newTotalQuantity);
 
             userStock.updateAveragePrice(newAvgPrice); // 해당 종목의 평균 단가 갱신
-            long purchaseAmount = (long) price * quantity;
             userStock.updateQuantity(newTotalQuantity); // 수량 변화
 
         } else {
@@ -243,10 +245,10 @@ public class OrderServiceImpl implements OrderService {
 
         int remainingQuantity = userStock.getTotalQuantity() - quantity;
 
-        // 수익 계산
+        // 수익 계산 (long 연산으로 오버플로우 방지)
         int avgPrice = userStock.getAvgPrice();
-        int profit = (price - avgPrice) * quantity;
-        double returnRate = ((double) profit / (avgPrice * quantity)) * 100; // 수익률 계산
+        long profit = (long) (price - avgPrice) * quantity;
+        double returnRate = ((double) profit / ((long) avgPrice * quantity)) * 100; // 수익률 계산
 
         log.info("[매도체결] {} 매도 수익: {}원 (수익률: {}%)", stock.getName(), profit, returnRate);
 
@@ -293,7 +295,7 @@ public class OrderServiceImpl implements OrderService {
     private void updatePortfolioAfterSell(Portfolio portfolio, int sellPrice, int quantity) {
 
         // 매도 후 보유 주식 평가액 감소
-        int decreasedStockValue = sellPrice * quantity;
+        long decreasedStockValue = (long) sellPrice * quantity;
         portfolio.decreaseStockAsset(decreasedStockValue);
 
         // 잔액(현금) 증가
@@ -325,7 +327,7 @@ public class OrderServiceImpl implements OrderService {
         Stock stock = stockRepository.findByTicker(ticker)
                 .orElseThrow(NotFoundStockException::new);
 
-        int totalPrice = targetPrice * quantity;
+        long totalPrice = (long) targetPrice * quantity;
 
         if (portfolio.getBalance() < totalPrice)
             throw new NotEnoughMoneyException();
@@ -366,7 +368,7 @@ public class OrderServiceImpl implements OrderService {
         if (userStock.getTotalQuantity() < quantity)
             throw new NotEnoughStockException();
 
-        int totalPrice = targetPrice * quantity;
+        long totalPrice = (long) targetPrice * quantity;
 
         Order reservedOrder = Order.builder()
                 .type(OrderType.SELL)
@@ -386,7 +388,9 @@ public class OrderServiceImpl implements OrderService {
 
     /*
      * 특정 종목의 예약 주문 체결 (이벤트 기반 - 주가 업데이트 시 호출)
+     * WebSocket 스레드를 차단하지 않기 위해 비동기로 실행
      */
+    @Async
     @Transactional
     public void executeReservedOrdersForTicker(String ticker, int currentPrice) {
         List<Order> reservedOrders = orderRepository.findReservedOrdersByTicker(ticker);
