@@ -22,6 +22,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -141,7 +145,8 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .volume(1000000L)
                                 .build();
                 try {
-                        redisTemplate.opsForValue().set("stock:data:005930", objectMapper.writeValueAsString(stockData));
+                        redisTemplate.opsForValue().set("stock:data:005930",
+                                        objectMapper.writeValueAsString(stockData));
                 } catch (Exception e) {
                         e.printStackTrace();
                 }
@@ -158,7 +163,7 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
         void cleanupDatabase() {
                 // Redis 초기화 추가
                 redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
-                
+
                 // Native SQL을 사용하여 더 확실하게 삭제
                 entityManager.createNativeQuery("SET FOREIGN_KEY_CHECKS = 0").executeUpdate();
                 executionRepository.deleteAll();
@@ -259,7 +264,7 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .user(user2)
                                 .build();
                 portfolioRepository.save(portfolio2);
-                
+
                 entityManager.flush();
                 entityManager.clear();
 
@@ -273,5 +278,44 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.data").isArray())
                                 .andExpect(jsonPath("$.data.length()").value(greaterThanOrEqualTo(2)));
+        }
+
+        @Test
+        @DisplayName("동시에 30개의 매수 주문이 들어와도 비관적 락을 통해 자산 정합성이 유지된다")
+        void 동시에_매수_주문_시_자산_정합성_테스트() throws Exception {
+                // Given
+                int threadCount = 30;
+                ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
+                CountDownLatch latch = new CountDownLatch(threadCount);
+
+                String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(),
+                                testUser.getUserRole(), testUser.getName());
+
+                // When
+                for (int i = 0; i < threadCount; i++) {
+                        executorService.execute(() -> {
+                                try {
+                                        mockMvc.perform(post("/api/v1/orders/buying/{ticker}", "005930")
+                                                        .param("quantity", "1")
+                                                        .header("Authorization", accessToken))
+                                                        .andExpect(status().isOk());
+                                } catch (Exception e) {
+                                        e.printStackTrace();
+                                } finally {
+                                        latch.countDown();
+                                }
+                        });
+                }
+
+                latch.await(10, TimeUnit.SECONDS);
+                executorService.shutdown();
+
+                // Then
+                // 초기 잔액 10,000,000원 - (삼성전자 70,000원 * 30회) = 7,900,000원
+                Portfolio portfolio = portfolioRepository.findByUser(testUser).orElseThrow();
+                assertEquals(7900000L, portfolio.getBalance());
+
+                // 전역 보유 수량 확인: 0 -> 30주
+                assertEquals(30, portfolio.getTotalQuantity());
         }
 }
