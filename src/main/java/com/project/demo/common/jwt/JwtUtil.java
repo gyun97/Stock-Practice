@@ -42,7 +42,10 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
-        log.info("Initializing JWT with secretKey: {}", secretKey);
+        if (secretKey != null) {
+            secretKey = secretKey.trim();
+        }
+        log.info("Initializing JWT with secretKey length: {}", secretKey != null ? secretKey.length() : "null");
         byte[] bytes = Base64.getDecoder().decode(secretKey);
         key = Keys.hmacShaKeyFor(bytes);
     }

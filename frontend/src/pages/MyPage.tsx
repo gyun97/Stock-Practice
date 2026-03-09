@@ -57,8 +57,9 @@ export default function MyPage() {
 
   // 총 수익 계산 함수
   const calculateTotalProfit = () => {
-    if (!userStocks.length) return 0
-    return userStocks.reduce((total, stock) => total + stock.profitLoss, 0)
+    if (!portfolioInfo || !portfolioInfo.totalAsset) return 0
+    const PRINCIPAL = 100000000 // 초기 원금 1억
+    return portfolioInfo.totalAsset - PRINCIPAL
   }
 
   // 도넛 그래프 그리기 함수
