@@ -24,13 +24,15 @@ cookie:
 
 spring:
   config:
-    import: optional:file:.env[.properties]
+    import: optional:file:.env.local[.properties]
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://mysql:3306/stock
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:stock}
     username: ${MYSQL_NAME}
     password: ${MYSQL_PASSWORD}
+    # username: ${DB_USERNAME_LOCAL:root}
+    # password: ${DB_PASSWORD_LOCAL:1234}
 
     hikari:
       initialization-fail-timeout: 60000
@@ -94,9 +96,11 @@ spring:
   flyway:
     enabled: true  # flyway 
 
-    url: jdbc:mysql://mysql:3306/stock
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:stock}
     username: ${MYSQL_NAME}
-    password: ${MYSQL_PASSWORD}  
+    password: ${MYSQL_PASSWORD}
+    # username: ${DB_USERNAME_LOCAL:root}
+    # password: ${DB_PASSWORD_LOCAL:1234}
     baseline-on-migrate: true 
     locations: classpath:db/migration/{vendor} 
 

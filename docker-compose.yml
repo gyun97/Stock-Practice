@@ -9,7 +9,7 @@ services:
     image: mysql:8
     container_name: stock-mysql
     environment:
-      #      MYSQL_USER: "${MYSQL_NAME}"
+      MYSQL_ROOT_NAME: "${MYSQL_NAME}"
       MYSQL_ROOT_PASSWORD: "${MYSQL_PASSWORD}"
       MYSQL_DATABASE: "${MYSQL_DATABASE}"
     ports:
@@ -102,27 +102,29 @@ services:
       - redis_replica1
     ports:
       - "${REDIS_SENTINEL_PORT3}:26379"
-  # # -----------------
-  # # Spring Boot App
-  # # -----------------
-  # app:
-  #   #    entrypoint: [ "sh", "-c" ]
-  #   #    command: "sleep 300"
-  #   env_file:
-  #     - .env.local
-  #   build: .
-  #   container_name: stock-app
-  #   depends_on:
-  #     mysql:
-  #       condition: service_healthy
-  #     redis_master:
-  #       condition: service_started
-  #     redis-sentinel-1:
-  #       condition: service_started
-  #   #    restart: always
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: dev
-  #     SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/stock
+  # -----------------
+  # Spring Boot App
+  # -----------------
+  app:
+    env_file:
+      - .env.local
+    build: .
+    container_name: stock-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis_master:
+        condition: service_started
+      redis-sentinel-1:
+        condition: service_started
+    #    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      REDIS_SENTINEL_NODE1: sentinel1:26379
+      REDIS_SENTINEL_NODE2: sentinel2:26379
+      REDIS_SENTINEL_NODE3: sentinel3:26379
 
-  #   ports:
-  #     - "8080:8080"
+    ports:
+      - "8080:8080"
