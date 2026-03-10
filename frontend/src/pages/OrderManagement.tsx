@@ -38,19 +38,7 @@ export default function OrderManagement() {
 
   const fetchOrders = async () => {
     try {
-      const accessToken = tokenManager.getAccessToken()
-      if (!accessToken) {
-        setError('로그인이 필요합니다.')
-        setLoading(false)
-        return
-      }
-
-      const response = await fetch('/api/v1/orders', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await tokenManager.authenticatedFetch('/api/v1/orders')
 
       if (response.ok) {
         const result = await response.json()
@@ -69,7 +57,11 @@ export default function OrderManagement() {
       }
     } catch (err) {
       console.error('주문 내역 조회 오류:', err)
-      setError('네트워크 오류가 발생했습니다.')
+      if (err instanceof Error && err.message.includes('토큰 갱신')) {
+        setError('로그인이 필요하거나 세션이 만료되었습니다.')
+      } else {
+        setError('네트워크 오류가 발생했습니다.')
+      }
     } finally {
       setLoading(false)
     }
@@ -92,18 +84,8 @@ export default function OrderManagement() {
       setCancelLoading(orderId)
       setMessage('')
 
-      const accessToken = tokenManager.getAccessToken()
-      if (!accessToken) {
-        setMessage('로그인이 필요합니다.')
-        return
-      }
-
-      const response = await fetch(`/api/v1/orders/${orderId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await tokenManager.authenticatedFetch(`/api/v1/orders/${orderId}`, {
+        method: 'DELETE'
       })
 
       if (response.ok) {
@@ -117,7 +99,11 @@ export default function OrderManagement() {
       }
     } catch (err) {
       console.error('주문 취소 오류:', err)
-      setMessage('네트워크 오류가 발생했습니다.')
+      if (err instanceof Error && err.message.includes('토큰 갱신')) {
+        setMessage('로그인이 필요하거나 세션이 만료되었습니다.')
+      } else {
+        setMessage('네트워크 오류가 발생했습니다.')
+      }
     } finally {
       setCancelLoading(null)
     }
@@ -246,14 +232,14 @@ export default function OrderManagement() {
         margin: '0 auto'
       }}>
         {/* 헤더 */}
-        <div style={{
+        <div className="order-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: 32
         }}>
-          <div>
-            <h1 style={{
+          <div className="order-title-group">
+            <h1 className="order-title" style={{
               margin: 0,
               fontSize: 28,
               fontWeight: 'bold',
@@ -261,7 +247,7 @@ export default function OrderManagement() {
             }}>
               주문 관리
             </h1>
-            <p style={{
+            <p className="order-subtitle" style={{
               margin: '8px 0 0 0',
               fontSize: 14,
               color: '#6b7280'
@@ -269,16 +255,34 @@ export default function OrderManagement() {
               내 주문 내역 조회 및 예약 주문 취소
             </p>
           </div>
-          <Link
-            to="/mypage"
-            style={{
-              color: '#6b7280',
-              textDecoration: 'none',
-              fontSize: 14
-            }}
-          >
-            ← 마이페이지로 돌아가기
-          </Link>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Link
+              to="/"
+              style={{
+                color: '#6b7280',
+                textDecoration: 'none',
+                fontSize: 14,
+                whiteSpace: 'nowrap'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+            >
+              ← 메인으로 돌아가기
+            </Link>
+            <Link
+              to="/mypage"
+              style={{
+                color: '#6b7280',
+                textDecoration: 'none',
+                fontSize: 14,
+                whiteSpace: 'nowrap'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+            >
+              ← 마이페이지로 돌아가기
+            </Link>
+          </div>
         </div>
 
         {/* 메시지 */}
@@ -297,14 +301,14 @@ export default function OrderManagement() {
         )}
 
         {/* 예약 주문 내역 */}
-        <div style={{
+        <div className="info-card" style={{
           background: 'white',
           borderRadius: 12,
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           padding: 24,
           marginBottom: 24
         }}>
-          <h2 style={{
+          <h2 className="order-section-title" style={{
             margin: '0 0 20px 0',
             fontSize: 20,
             fontWeight: '600',
@@ -323,8 +327,8 @@ export default function OrderManagement() {
               예약 주문 내역이 없습니다.
             </div>
           ) : (
-            <div className="table-wrapper">
-              <table style={{
+            <div className="table-wrapper order-table-wrapper">
+              <table className="order-management-table" style={{
                 width: '100%',
                 borderCollapse: 'collapse',
                 fontSize: 14
@@ -334,10 +338,9 @@ export default function OrderManagement() {
                     background: '#f8fafc',
                     borderBottom: '2px solid #e5e7eb'
                   }}>
-
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>종목</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>구분</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>수량</th>
+                    <th className="col-stock" style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>종목</th>
+                    <th className="col-type" style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>구분</th>
+                    <th className="col-qty" style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>수량</th>
                     <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>목표가</th>
                     <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>총 금액</th>
                     <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: '600', color: '#374151' }}>상태</th>
@@ -350,8 +353,8 @@ export default function OrderManagement() {
                     <tr key={order.orderId} style={{
                       borderBottom: '1px solid #f1f5f9'
                     }}>
-                      <td style={{ padding: '12px 8px', fontWeight: '500' }}>{order.stockName}</td>
-                      <td style={{ padding: '12px 8px' }}>
+                      <td className="col-stock" style={{ padding: '12px 8px', fontWeight: '500' }}>{order.stockName}</td>
+                      <td className="col-type" style={{ padding: '12px 8px' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -363,7 +366,7 @@ export default function OrderManagement() {
                           {order.orderType === 'BUY' ? '매수' : '매도'}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
+                      <td className="col-qty" style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
                         {order.quantity.toLocaleString()}주
                       </td>
                       <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
@@ -417,13 +420,13 @@ export default function OrderManagement() {
         </div>
 
         {/* 일반 주문 내역 */}
-        <div style={{
+        <div className="info-card" style={{
           background: 'white',
           borderRadius: 12,
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
           padding: 24
         }}>
-          <h2 style={{
+          <h2 className="order-section-title" style={{
             margin: '0 0 20px 0',
             fontSize: 20,
             fontWeight: '600',
@@ -442,8 +445,8 @@ export default function OrderManagement() {
               일반 주문 내역이 없습니다.
             </div>
           ) : (
-            <div className="table-wrapper">
-              <table style={{
+            <div className="table-wrapper order-table-wrapper">
+              <table className="order-management-table" style={{
                 width: '100%',
                 borderCollapse: 'collapse',
                 fontSize: 14
@@ -453,10 +456,9 @@ export default function OrderManagement() {
                     background: '#f8fafc',
                     borderBottom: '2px solid #e5e7eb'
                   }}>
-
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>종목</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>구분</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>수량</th>
+                    <th className="col-stock" style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>종목</th>
+                    <th className="col-type" style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>구분</th>
+                    <th className="col-qty" style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>수량</th>
                     <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>체결가</th>
                     <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>총 금액</th>
                     <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: '600', color: '#374151' }}>상태</th>
@@ -468,8 +470,8 @@ export default function OrderManagement() {
                     <tr key={order.orderId} style={{
                       borderBottom: '1px solid #f1f5f9'
                     }}>
-                      <td style={{ padding: '12px 8px', fontWeight: '500' }}>{order.stockName}</td>
-                      <td style={{ padding: '12px 8px' }}>
+                      <td className="col-stock" style={{ padding: '12px 8px', fontWeight: '500' }}>{order.stockName}</td>
+                      <td className="col-type" style={{ padding: '12px 8px' }}>
                         <span style={{
                           padding: '4px 8px',
                           borderRadius: 4,
@@ -481,7 +483,7 @@ export default function OrderManagement() {
                           {order.orderType === 'BUY' ? '매수' : '매도'}
                         </span>
                       </td>
-                      <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
+                      <td className="col-qty" style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
                         {order.quantity.toLocaleString()}주
                       </td>
                       <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '500' }}>
