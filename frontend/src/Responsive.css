@@ -548,4 +548,58 @@
     .mypage-header div button {
         font-size: 11px !important;
     }
+
+    /* 주문 내역 페이지 모바일 가독성 개선 */
+    .order-table-wrapper {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        margin-top: 10px;
+        border-radius: 8px;
+    }
+
+    .order-management-table {
+        min-width: 500px !important;
+        /* 테이블 최소 너비를 대폭 줄여 초기 노출 최적화 */
+        table-layout: auto !important;
+    }
+
+    .order-management-table th,
+    .order-management-table td {
+        white-space: nowrap !important;
+        padding: 8px 4px !important;
+        /* 모바일에서 가로 공간 확보를 위해 패딩 최소화 */
+        font-size: 12px !important;
+        /* 폰트 크기 축소 */
+    }
+
+    /* 긴 종목명으로 인해 테이블이 밀리는 것 방지 */
+    .col-stock {
+        max-width: 100px !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 주문 관리 페이지 헤더 및 타이틀 반응형 */
+    .order-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 16px !important;
+        margin-bottom: 20px !important;
+    }
+
+    .order-title {
+        font-size: 22px !important;
+        white-space: nowrap !important;
+    }
+
+    .order-subtitle {
+        font-size: 12px !important;
+        white-space: nowrap !important;
+    }
+
+    .order-section-title {
+        font-size: 17px !important;
+        white-space: nowrap !important;
+        margin-bottom: 15px !important;
+    }
 }
