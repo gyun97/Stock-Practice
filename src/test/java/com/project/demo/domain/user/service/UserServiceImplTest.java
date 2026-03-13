@@ -133,33 +133,34 @@ class UserServiceImplTest {
         verify(portfolioRepository, times(1)).save(any(Portfolio.class));
     }
 
-    @Test
-    void 회원가입_이메일_중복_예외_테스트() {
-        // Given
-        when(userRepository.existsByEmail(anyString())).thenReturn(true);
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+    // @Test
+    // void 회원가입_이메일_중복_예외_테스트() {
+    // // Given
+    // when(userRepository.existsByEmail(anyString())).thenReturn(true);
+    // when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
 
-        // When & Then
-        assertThrows(DuplicateEmailException.class, () -> {
-            userService.signUp(signUpRequest);
-        });
-    }
+    // // When & Then
+    // assertThrows(DuplicateEmailException.class, () -> {
+    // userService.signUp(signUpRequest);
+    // });
+    // }
 
-    @Test
-    void 회원가입_닉네임_중복_예외_테스트() {
-        // Given
-        // 닉네임 중복 체크가 먼저 실행되므로 existsByEmail은 호출되지 않음
-        lenient().when(userRepository.existsByEmail(anyString())).thenReturn(false);
-        when(userRepository.existsByName(anyString())).thenReturn(true);
-        when(userRepository.findByName(anyString())).thenReturn(Optional.of(testUser));
+    /* 로컬 회원가입 비활성화 */
+    // @Test
+    // void 회원가입_닉네임_중복_예외_테스트() {
+    // // Given
+    // // 닉네임 중복 체크가 먼저 실행되므로 existsByEmail은 호출되지 않음
+    // lenient().when(userRepository.existsByEmail(anyString())).thenReturn(false);
+    // when(userRepository.existsByName(anyString())).thenReturn(true);
+    // when(userRepository.findByName(anyString())).thenReturn(Optional.of(testUser));
 
-        // When & Then
-        assertThrows(DuplicateNameException.class, () -> {
-            userService.signUp(signUpRequest);
-        });
+    // // When & Then
+    // assertThrows(DuplicateNameException.class, () -> {
+    // userService.signUp(signUpRequest);
+    // });
 
-        verify(userRepository, never()).save(any(User.class));
-    }
+    // verify(userRepository, never()).save(any(User.class));
+    // }
 
     @Test
     void 로그인_성공_테스트() {
@@ -537,17 +538,17 @@ class UserServiceImplTest {
         });
     }
 
-    @Test
-    void 닉네임_중복_검증_활성_사용자_예외_테스트() {
-        // Given
-        when(userRepository.existsByName("기존 닉네임")).thenReturn(true);
-        when(userRepository.findByName("기존 닉네임")).thenReturn(Optional.of(testUser));
+    // @Test
+    // void 닉네임_중복_검증_활성_사용자_예외_테스트() {
+    // // Given
+    // when(userRepository.existsByName("기존 닉네임")).thenReturn(true);
+    // when(userRepository.findByName("기존 닉네임")).thenReturn(Optional.of(testUser));
 
-        // When & Then
-        assertThrows(DuplicateNameException.class, () -> {
-            userService.validateDuplicateName("기존 닉네임");
-        });
-    }
+    // // When & Then
+    // assertThrows(DuplicateNameException.class, () -> {
+    // userService.validateDuplicateName("기존 닉네임");
+    // });
+    // }
 
     @Test
     void 사용자_정보_수정_성공_테스트() {

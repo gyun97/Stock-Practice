@@ -6,7 +6,6 @@ import Detail from './pages/Detail'
 // @ts-ignore
 import Chart from './pages/Chart.jsx'
 import Login from './pages/Login'
-import SignUp from './pages/SignUp'
 import MyPage from './pages/MyPage'
 import OrderManagement from './pages/OrderManagement'
 import GlobalNotification from './components/GlobalNotification'
@@ -62,7 +61,6 @@ const router = createBrowserRouter([
   { path: '/stocks/:ticker', element: <Detail /> },
   { path: '/stocks/:ticker/chart', element: <Chart /> },
   { path: '/login', element: <Login /> },
-  { path: '/signup', element: <SignUp /> },
   { path: '/mypage', element: <MyPage /> },
   { path: '/order-management', element: <OrderManagement /> },
 ])
