@@ -536,58 +536,29 @@ export default function Home() {
             <Link
               to="/login"
               style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                background: 'white',
-                color: '#111827',
-                textDecoration: 'none',
-                fontSize: 14,
-                fontWeight: 700,
-                border: '1px solid #e5e7eb',
-                transition: 'all 0.2s ease',
-                display: 'inline-block'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#f9fafb'
-                e.currentTarget.style.transform = 'translateY(-1px)'
-                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'white'
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
-              로그인
-            </Link>
-            <Link
-              to="/signup"
-              style={{
-                padding: '10px 14px',
+                padding: '10px 20px',
                 borderRadius: 10,
                 background: '#2962FF',
                 color: 'white',
                 textDecoration: 'none',
                 fontSize: 14,
-                fontWeight: 800,
+                fontWeight: 700,
                 border: '1px solid #2962FF',
                 transition: 'all 0.2s ease',
                 display: 'inline-block'
               }}
               onMouseOver={(e) => {
                 e.currentTarget.style.background = '#1d4ed8'
-                e.currentTarget.style.borderColor = '#1d4ed8'
                 e.currentTarget.style.transform = 'translateY(-1px)'
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(41,98,255,0.3)'
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.background = '#2962FF'
-                e.currentTarget.style.borderColor = '#2962FF'
                 e.currentTarget.style.transform = 'translateY(0)'
                 e.currentTarget.style.boxShadow = 'none'
               }}
             >
-              회원가입
+              로그인
             </Link>
           </>
         )}

@@ -58,8 +58,8 @@ public class UserController {
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
         jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain); // 응답
                                                                                                                       // 쿠키에
-                                                                                                                      // Refresh
-                                                                                                                      // Token
+                                                                                                                      // refresh
+                                                                                                                      // token
                                                                                                                       // 저장
 
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
@@ -79,8 +79,8 @@ public class UserController {
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
         jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain); // 응답
                                                                                                                       // 쿠키에
-                                                                                                                      // Refresh
-                                                                                                                      // Token
+                                                                                                                      // refresh
+                                                                                                                      // token
                                                                                                                       // 저장
 
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드

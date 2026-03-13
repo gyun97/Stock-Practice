@@ -124,9 +124,6 @@ public class UserServiceImpl implements UserService {
         String inputEmail = loginRequest.getEmail();
         String inputPassword = loginRequest.getPassword();
 
-        log.info("입력한 계정: {}", inputEmail);
-        log.info("입력한 비밀번호: {}", inputPassword);
-
         // 해당 이메일 계정의 유저가 존재하는지 확인
         User user = userRepository.findByEmail(inputEmail)
                 .orElseThrow(NotFoundUserException::new);
@@ -221,9 +218,6 @@ public class UserServiceImpl implements UserService {
                 .userId(savedUser.getId())
                 .value(refreshTokenValue)
                 .build());
-
-        log.info("Access Token: {}", accessToken);
-        log.info("Refresh Token: {}", refreshTokenValue);
 
         return new TokensResponse(accessToken, refreshTokenValue);
     }
@@ -323,7 +317,6 @@ public class UserServiceImpl implements UserService {
      * 비밀번호 검증
      */
     public void validateCorrectPassword(String inputPassword, String correctPassword) {
-        log.info("입력 비밀번호: {}", inputPassword);
 
         if (!passwordEncoder.matches(inputPassword, correctPassword)) {
             throw new IncorrectPasswordException();
