@@ -106,7 +106,6 @@ class OrderIntegrationTest extends AbstractIntegrationTest {
                                 .name("주문 테스트 사용자")
                                 .userRole(UserRole.ROLE_USER)
                                 .email("order@example.com")
-                                .isDeleted(false)
                                 .socialType(SocialType.LOCAL)
                                 .socialId(null)
                                 .profileImage("")

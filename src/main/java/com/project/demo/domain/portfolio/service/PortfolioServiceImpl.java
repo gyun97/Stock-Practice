@@ -7,7 +7,6 @@ import com.project.demo.common.websocket.WebSocketSessionManager;
 import com.project.demo.domain.portfolio.dto.response.PortfolioResponse;
 import com.project.demo.domain.portfolio.dto.response.RankingResponse;
 import com.project.demo.domain.portfolio.entity.Portfolio;
-import com.project.demo.domain.user.entity.User;
 import com.project.demo.domain.portfolio.repository.PortfolioRepository;
 import com.project.demo.domain.stock.dto.response.StockData;
 import com.project.demo.domain.userstock.dto.response.UserStockResponse;
@@ -140,18 +139,10 @@ public class PortfolioServiceImpl implements PortfolioService {
                 String portfolioJson = objectMapper.writeValueAsString(portfolioUpdate);
                 redisTemplate.opsForValue().set(cacheKey, portfolioJson, 10, TimeUnit.SECONDS);
 
-                // Redis Sorted Set에 총 자산 기준 랭킹 저장 (탈퇴하지 않은 사용자만)
-                User user = portfolio.getUser();
-                if (!user.isDeleted()) {
-                    String rankingKey = "user:rank:totalAsset";
-                    redisTemplate.opsForZSet().add(rankingKey, userId.toString(), totalCurrentAsset);
-                    log.debug("랭킹 Sorted Set 업데이트 - 사용자 ID: {}, 총 자산: {}", userId, totalCurrentAsset);
-                } else {
-                    // 탈퇴한 사용자는 Sorted Set에서 제거
-                    String rankingKey = "user:rank:totalAsset";
-                    redisTemplate.opsForZSet().remove(rankingKey, userId.toString());
-                    log.debug("탈퇴 사용자 랭킹 제거 - 사용자 ID: {}", userId);
-                }
+                // Redis Sorted Set에 총 자산 기준 랭킹 저장
+                String rankingKey = "user:rank:totalAsset";
+                redisTemplate.opsForZSet().add(rankingKey, userId.toString(), totalCurrentAsset);
+                log.debug("랭킹 Sorted Set 업데이트 - 사용자 ID: {}, 총 자산: {}", userId, totalCurrentAsset);
 
                 // WebSocket 세션 관리자를 통해 직접 전송
                 sessionManager.sendPortfolioUpdate(userId, portfolioUpdate);
@@ -227,11 +218,8 @@ public class PortfolioServiceImpl implements PortfolioService {
                 // Sorted Set이 비어있으면 모든 포트폴리오를 조회하여 초기화
                 List<Portfolio> allPortfolios = portfolioRepository.findAll();
                 for (Portfolio portfolio : allPortfolios) {
-                    User user = portfolio.getUser();
-                    if (!user.isDeleted()) {
-                        // 포트폴리오 데이터 계산 및 Sorted Set에 추가
-                        calculateAndCacheReturnRate(portfolio);
-                    }
+                    // 포트폴리오 데이터 계산 및 Sorted Set에 추가
+                    calculateAndCacheReturnRate(portfolio);
                 }
                 // 초기화 후 다시 조회
                 topUserIds = redisTemplate.opsForZSet()
@@ -256,13 +244,6 @@ public class PortfolioServiceImpl implements PortfolioService {
                         continue;
                     }
 
-                    User user = portfolio.getUser();
-                    if (user.isDeleted()) {
-                        // 탈퇴한 사용자는 Sorted Set에서 제거
-                        redisTemplate.opsForZSet().remove(rankingKey, userIdStr);
-                        log.debug("탈퇴 사용자 랭킹에서 제거 - 사용자 ID: {}", userId);
-                        continue;
-                    }
 
                     // 포트폴리오 데이터 조회 (캐시 우선)
                     String cacheKey = "portfolio:data:" + userId;
@@ -295,7 +276,7 @@ public class PortfolioServiceImpl implements PortfolioService {
                     }
 
                     double returnRate = ((Number) portfolioData.getOrDefault("returnRate", 0.0)).doubleValue();
-                    String userName = user.getName();
+                    String userName = portfolio.getUser().getName();
 
                     rankings.add(new RankingResponse(userId, userName, totalAsset, returnRate, rank++));
 

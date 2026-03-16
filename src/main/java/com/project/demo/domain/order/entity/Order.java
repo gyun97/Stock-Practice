@@ -1,6 +1,7 @@
 package com.project.demo.domain.order.entity;
 
 import com.project.demo.common.util.TimeStamped;
+import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.order.enums.OrderType;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.user.entity.User;
@@ -44,6 +45,9 @@ public class Order extends TimeStamped {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Execution execution;
 
     @Builder
     public Order(Long id, OrderType type, int price, int quantity, long totalPrice, Stock stock, User user,

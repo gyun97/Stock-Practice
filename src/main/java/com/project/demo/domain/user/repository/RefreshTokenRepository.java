@@ -15,4 +15,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Stri
 
     // 유저의 모든 세션 삭제 (회원탈퇴, 전체 로그아웃)
     void deleteAllByUserId(Long userId);
+
+    // 유저의 모든 세션 조회 (테스트 및 관리 용도)
+    java.util.List<com.project.demo.domain.user.entity.RefreshToken> findAllByUserId(Long userId);
 }
