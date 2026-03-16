@@ -54,7 +54,6 @@ public class InitStockSubscribe {
     @Value("${kis.url.rest}")
     private String baseUrl;
 
-    private String approvalKey;
     private String accessToken;
 
     private static final List<String> FIXED_TICKERS = List.of(
@@ -86,7 +85,6 @@ public class InitStockSubscribe {
         new Thread(() -> {
             try {
                 log.info("[ASYNC INIT] 고정 종목 40개 정보 초기화 시작...");
-                approvalKey = approvalKeyService.getApprovalKey();
                 accessToken = kisApiAccessTokenService.getAccessToken();
 
                 log.info("서버 가동: Redis 주식 관련 데이터 초기화 시작...");
@@ -96,7 +94,7 @@ public class InitStockSubscribe {
                     log.info("Redis 주식 데이터 {}개 삭제 완료", stockKeys.size());
                 }
 
-                client.setSubscriptionInfo(approvalKey, FIXED_TICKERS);
+                client.setSubscriptionInfo(null, FIXED_TICKERS);
                 client.tryConnect();
 
                 for (String ticker : FIXED_TICKERS) {

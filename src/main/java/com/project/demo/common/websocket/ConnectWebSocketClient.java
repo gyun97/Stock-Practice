@@ -3,6 +3,7 @@ package com.project.demo.common.websocket;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.kis.AesDecryptUtil;
+import com.project.demo.common.kis.KisApprovalKeyService;
 import com.project.demo.common.util.MarketTime;
 import com.project.demo.domain.order.service.OrderService;
 import com.project.demo.domain.stock.repository.StockRepository;
@@ -17,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -27,15 +29,17 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private final StockRepository stockRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderService orderService;
+    private final KisApprovalKeyService approvalKeyService;
 
     private String iv;
     private String key;
     private String approvalKey;
-    private java.util.List<String> tickers;
+    private List<String> tickers;
 
     public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate,
-            StockRepository stockRepository, SimpMessagingTemplate messagingTemplate, OrderService orderService,
-            @Value("${kis.url.ws}") String wsUrl)
+                                StockRepository stockRepository, SimpMessagingTemplate messagingTemplate,
+                                OrderService orderService, KisApprovalKeyService approvalKeyService,
+                                @Value("${kis.url.ws}") String wsUrl)
             throws Exception {
         super(new URI(wsUrl));
         this.objectMapper = objectMapper;
@@ -43,6 +47,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
         this.stockRepository = stockRepository;
         this.messagingTemplate = messagingTemplate;
         this.orderService = orderService;
+        this.approvalKeyService = approvalKeyService;
     }
 
     /**
@@ -60,6 +65,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
             try {
                 if (MarketTime.isMarketOpen()) {
                     log.info("장 시간 → WebSocket 연결 시도 중...");
+                    // 연결 직전에 신선한 Approval Key를 가져온다 (만료 시 자동 갱신됨)
+                    this.approvalKey = approvalKeyService.getApprovalKey();
                     this.connectBlocking();
                 } else {
                     log.info("장 외 시간 → WebSocket 연결 대기");
@@ -70,8 +77,11 @@ public class ConnectWebSocketClient extends WebSocketClient {
         }).start();
     }
 
-    public void setSubscriptionInfo(String approvalKey, java.util.List<String> tickers) {
-        this.approvalKey = approvalKey;
+    public void setSubscriptionInfo(String approvalKey, List<String> tickers) {
+        // approvalKeyService를 통해 직접 관리하므로 매개변수로 넘어온 approvalKey는 무시해도 될 수 있지만 하위 호환성을 위해 유지
+        if (approvalKey != null) {
+            this.approvalKey = approvalKey;
+        }
         this.tickers = tickers;
         if (this.isOpen()) {
             subscribeAll();
@@ -201,16 +211,34 @@ public class ConnectWebSocketClient extends WebSocketClient {
     public void onClose(int code, String reason, boolean remote) {
         log.warn("WebSocket 연결 종료. code={}, reason={}, remote={}", code, reason, remote);
         if (MarketTime.isMarketOpen()) {
-            log.info("장 시간 중 연결 종료 → 5초 후 재연결 시도...");
-            new Thread(() -> {
-                try {
-                    Thread.sleep(5000);
-                    this.reconnectBlocking();
-                } catch (Exception e) {
-                    log.error("WebSocket 재연결 실패", e);
-                }
-            }).start();
+            log.info("장 시간 중 연결 종료 → 재연결 루프 시작...");
+            scheduleReconnection();
         }
+    }
+
+    private void scheduleReconnection() {
+        new Thread(() -> {
+            try {
+                while (!this.isOpen() && MarketTime.isMarketOpen()) {
+                    log.info("5초 후 WebSocket 재연결 시도...");
+                    Thread.sleep(5000);
+                    try {
+                        // reconnectBlocking() 호출 전에도 key 갱신 시도
+                        this.approvalKey = approvalKeyService.getApprovalKey();
+                        this.reconnectBlocking();
+                        if (this.isOpen()) {
+                            log.info("WebSocket 재연결 성공");
+                            break;
+                        }
+                    } catch (Exception e) {
+                        log.error("WebSocket 재연결 시도 중 오류 발생", e);
+                    }
+                }
+            } catch (InterruptedException e) {
+                log.error("재연결 루프 중단", e);
+                Thread.currentThread().interrupt();
+            }
+        }).start();
     }
 
     @Override
