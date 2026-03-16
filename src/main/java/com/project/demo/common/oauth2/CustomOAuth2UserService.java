@@ -103,12 +103,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 log.info("기존 이메일 계정 발견 ({}). 새로운 소셜 정보 연결: {}", email, socialType);
                 findUser.updateSocialInfo(socialType, socialId);
 
-                // 탈퇴한 사용자였다면 재활성화
-                if (findUser.isDeleted()) {
-                    log.info("탈퇴한 사용자 재가입 처리 - 이메일: {}", email);
-                    findUser.reactivate();
-                    userRepository.save(findUser);
-                }
+                // 탈퇴한 사용자였다면 재활성화 -> 하드 딜리트이므로 더이상 존재하지 않음. 이 로직 제거.
 
                 // 프로필 이미지 동기화 (기존 이미지가 없거나 소셜 이미지가 다를 경우)
                 String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
@@ -123,12 +118,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             return saveUser(attributes, socialType);
         }
 
-        // 이미 소셜 연동된 유저의 경우에도 프로필 이미지 최신화 및 탈퇴 여부 확인
-        if (findUser.isDeleted()) {
-            log.info("탈퇴한 소셜 사용자 재가입 처리 - 소셜 ID: {}", socialId);
-            findUser.reactivate();
-            userRepository.save(findUser);
-        }
+        // 이미 소셜 연동된 유저의 경우 이미지 최신화 (탈퇴 체크 제거)
 
         String socialProfileImage = attributes.getOauth2UserInfo().getImageUrl();
         if (socialProfileImage != null && !socialProfileImage.isBlank()) {

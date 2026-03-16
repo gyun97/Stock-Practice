@@ -2,9 +2,8 @@ package com.project.demo.domain.user.entity;
 
 import com.project.demo.common.oauth2.SocialType;
 import com.project.demo.common.util.TimeStamped;
-import com.project.demo.domain.execution.entity.Execution;
 import com.project.demo.domain.order.entity.Order;
-import com.project.demo.domain.stock.entity.Stock;
+import com.project.demo.domain.portfolio.entity.Portfolio;
 import com.project.demo.domain.user.dto.request.UpdateUserInfoRequest;
 import com.project.demo.domain.user.enums.UserRole;
 import com.project.demo.domain.userstock.entity.UserStock;
@@ -16,7 +15,6 @@ import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -37,11 +35,6 @@ public class User extends TimeStamped {
     @Column(nullable = false, unique = true)
     private String name;
 
-    @Column(name = "is_deleted", nullable = false)
-    private boolean isDeleted = false; // 탈퇴 여부
-
-    private LocalDateTime withdrawalAt; // 탈퇴일
-
     @Enumerated(EnumType.STRING)
     private UserRole userRole; // 운영자/일반 유저
 
@@ -56,21 +49,23 @@ public class User extends TimeStamped {
     @Column(columnDefinition = "MEDIUMTEXT")
     private String profileImage;
 
-    @OneToMany(mappedBy = "user")
-    private List<Order> orders;
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Order> orders = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserStock> userStocks = new ArrayList<>();
 
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Portfolio portfolio;
+
     @Builder
-    public User(Long id, String password, String name, UserRole userRole, String email, boolean isDeleted,
+    public User(Long id, String password, String name, UserRole userRole, String email,
             SocialType socialType, String socialId, String profileImage) {
         this.id = id;
         this.password = password;
         this.name = name;
         this.userRole = userRole;
         this.email = email;
-        this.isDeleted = isDeleted;
         this.socialType = socialType;
         this.socialId = socialId;
         this.profileImage = profileImage;
@@ -87,30 +82,9 @@ public class User extends TimeStamped {
                 .name(name)
                 .password(encodedPassword)
                 .userRole(role)
-                .isDeleted(false)
                 .socialType(socialType)
                 .profileImage(profileImage)
                 .build();
-    }
-
-    /*
-     * 탈퇴 회원 재가입 (일반 가입용)
-     */
-    public void reactivate(String newPassword, String newName, UserRole newRole) {
-        this.password = newPassword;
-        this.name = newName;
-        this.userRole = newRole;
-        this.isDeleted = false;
-        this.withdrawalAt = null;
-        // balance는 기존 값 유지 (초기화하지 않음)
-    }
-
-    /**
-     * 탈퇴 회원 재활성화 (소셜 로그인용)
-     */
-    public void reactivate() {
-        this.isDeleted = false;
-        this.withdrawalAt = null;
     }
 
     /*
@@ -131,13 +105,6 @@ public class User extends TimeStamped {
     public void updateSocialInfo(SocialType socialType, String socialId) {
         this.socialType = socialType;
         this.socialId = socialId;
-    }
-
-    /*
-     * 회원 탈퇴 상태로 전환(소프트 딜리트)
-     */
-    public void updateIsDeleted() {
-        this.isDeleted = true;
     }
 
     /*

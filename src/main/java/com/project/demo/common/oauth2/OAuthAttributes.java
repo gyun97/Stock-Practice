@@ -86,7 +86,6 @@ public class OAuthAttributes {
                 .name(oauth2UserInfo.getNickname())
                 .profileImage(oauth2UserInfo.getImageUrl())
                 .userRole(UserRole.ROLE_USER)
-                .isDeleted(false)
                 .build();
     }
 }

@@ -40,6 +40,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
 
     @Value("${ADMIN_TOKEN}")
     private String ADMIN_TOKEN; // 관리자가 맞는지 확인 토큰
@@ -71,13 +72,7 @@ public class UserServiceImpl implements UserService {
         User user;
 
         if (validateDuplicateEmail(email)) { // 이미 있는 이메일이면
-            user = userRepository.findByEmail(email).orElseThrow();
-
-            if (user.isDeleted()) { // 탈퇴 상태인 기존 회원이었다면
-                user.reactivate(passwordEncoder.encode(password), name, userRole); // 기존 탈퇴 유저 복구
-            } else {
-                throw new DuplicateEmailException(); // 이미 해당 이메일 계정 존재
-            }
+            throw new DuplicateEmailException(); // 이미 해당 이메일 계정 존재
         } else {
             // 신규 유저 생성
             user = User.createNewUser(email, name, passwordEncoder.encode(password), userRole, SocialType.LOCAL, "");
@@ -128,8 +123,6 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(inputEmail)
                 .orElseThrow(NotFoundUserException::new);
 
-        // 탈퇴한 계정인지 확인
-        checkDeletedUser(user);
 
         String correctPassword = user.getPassword();
 
@@ -166,13 +159,17 @@ public class UserServiceImpl implements UserService {
         // PK로 유저 조회
         User user = getUserById(userId);
 
-        // 모든 기기의 Refresh Token 삭제
+        // 1. Refresh Token 모든 기기에서 삭제 (JPA 관계가 아니므로 명시적 삭제 필요)
         refreshTokenRepository.deleteAllByUserId(userId);
 
-        // 탈퇴 처리(is_deleted : true)
-        user.updateIsDeleted();
+        // 2. Redis 랭킹에서도 즉시 삭제
+        String rankingKey = "user:rank:totalAsset";
+        redisTemplate.opsForZSet().remove(rankingKey, userId.toString());
 
-        return "PK ID " + userId + "인 유저가 탈퇴처리되었습니다.";
+        // 3. 하드 딜리트 처리 (연관된 모든 데이터는 JPA Cascade에 의해 삭제됨)
+        userRepository.delete(user);
+
+        return "PK ID " + userId + "인 유저가 영구 삭제되었습니다.";
     }
 
     /*
@@ -272,10 +269,7 @@ public class UserServiceImpl implements UserService {
     public void validateDuplicateName(String name) {
 
         if (userRepository.existsByName(name)) {
-            User user = userRepository.findByName(name).get();
-
-            if (!user.isDeleted())
-                throw new DuplicateNameException();
+            throw new DuplicateNameException();
         }
     }
 
@@ -323,12 +317,5 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    /*
-     * 탈퇴한 계정인지 확인
-     */
-    public void checkDeletedUser(User user) {
-        if (user.isDeleted())
-            throw new NotFoundUserException();
-    }
 
 }

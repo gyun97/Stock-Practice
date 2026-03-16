@@ -113,7 +113,6 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .name("포트폴리오 테스트 사용자")
                                 .userRole(UserRole.ROLE_USER)
                                 .socialType(SocialType.LOCAL)
-                                .isDeleted(false)
                                 .build();
                 testUser = userRepository.save(testUser);
 
@@ -231,7 +230,6 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .name("사용자1")
                                 .userRole(UserRole.ROLE_USER)
                                 .socialType(SocialType.LOCAL)
-                                .isDeleted(false)
                                 .build();
                 user1 = userRepository.save(user1);
 
@@ -251,7 +249,6 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                                 .name("사용자2")
                                 .userRole(UserRole.ROLE_USER)
                                 .socialType(SocialType.LOCAL)
-                                .isDeleted(false)
                                 .build();
                 user2 = userRepository.save(user2);
 

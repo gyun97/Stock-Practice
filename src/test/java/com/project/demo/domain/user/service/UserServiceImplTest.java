@@ -29,6 +29,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -57,6 +60,9 @@ class UserServiceImplTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private StringRedisTemplate redisTemplate;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -222,6 +228,10 @@ class UserServiceImplTest {
         // Given
         Long userId = 1L;
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        
+        // Redis Mock Stubbing (NPE 방지)
+        ZSetOperations zSetOperations = mock(ZSetOperations.class);
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
 
         // When
         String result = userService.deleteUser(userId);
@@ -230,7 +240,7 @@ class UserServiceImplTest {
         assertNotNull(result);
         assertTrue(result.contains(String.valueOf(userId)));
         verify(refreshTokenRepository, times(1)).deleteAllByUserId(userId);
-        assertTrue(testUser.isDeleted());
+        verify(userRepository, times(1)).delete(any(User.class));
     }
 
     @Test
@@ -355,40 +365,14 @@ class UserServiceImplTest {
     }
 
     @Test
-    void 회원가입_탈퇴_사용자_복구_테스트() {
+    void 회원가입_중복_이메일_예외_테스트() {
         // Given
-        User deletedUser = User.createNewUser(
-                "test@example.com",
-                "탈퇴 사용자",
-                "encodedPassword",
-                UserRole.ROLE_USER,
-                SocialType.LOCAL,
-                "");
-        ReflectionTestUtils.setField(deletedUser, "id", 1L);
-        deletedUser.updateIsDeleted(); // 탈퇴 처리
-
         when(userRepository.existsByEmail(anyString())).thenReturn(true);
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(deletedUser));
-        when(userRepository.existsByName(anyString())).thenReturn(false);
-        when(passwordEncoder.encode(anyString())).thenReturn("newEncodedPassword");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User user = invocation.getArgument(0);
-            ReflectionTestUtils.setField(user, "id", 1L);
-            return user;
+
+        // When & Then
+        assertThrows(DuplicateEmailException.class, () -> {
+            userService.signUp(signUpRequest);
         });
-        when(jwtUtil.createAccessToken(anyLong(), anyString(), any(UserRole.class), anyString()))
-                .thenReturn("Bearer accessToken");
-        when(jwtUtil.createRefreshToken(anyLong())).thenReturn("refreshToken");
-        when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(mock(RefreshToken.class));
-        when(portfolioRepository.save(any(Portfolio.class))).thenReturn(mock(Portfolio.class));
-
-        // When
-        LoginResponse response = userService.signUp(signUpRequest);
-
-        // Then
-        assertNotNull(response);
-        assertFalse(deletedUser.isDeleted()); // 복구 확인
-        verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
@@ -496,59 +480,6 @@ class UserServiceImplTest {
         });
     }
 
-    @Test
-    void 로그인_탈퇴_사용자_예외_테스트() {
-        // Given
-        User deletedUser = User.createNewUser(
-                "test@example.com",
-                "탈퇴 사용자",
-                "encodedPassword",
-                UserRole.ROLE_USER,
-                SocialType.LOCAL,
-                "");
-        ReflectionTestUtils.setField(deletedUser, "id", 1L);
-        deletedUser.updateIsDeleted(); // 탈퇴 처리
-
-        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(deletedUser));
-
-        // When & Then
-        assertThrows(NotFoundUserException.class, () -> {
-            userService.login(loginRequest);
-        });
-    }
-
-    @Test
-    void 닉네임_중복_검증_탈퇴_사용자_허용_테스트() {
-        // Given
-        User deletedUser = User.createNewUser(
-                "other@example.com",
-                "기존 닉네임",
-                "encodedPassword",
-                UserRole.ROLE_USER,
-                SocialType.LOCAL,
-                "");
-        deletedUser.updateIsDeleted(); // 탈퇴 처리
-
-        when(userRepository.existsByName("기존 닉네임")).thenReturn(true);
-        when(userRepository.findByName("기존 닉네임")).thenReturn(Optional.of(deletedUser));
-
-        // When - 예외가 발생하지 않아야 함
-        assertDoesNotThrow(() -> {
-            userService.validateDuplicateName("기존 닉네임");
-        });
-    }
-
-    // @Test
-    // void 닉네임_중복_검증_활성_사용자_예외_테스트() {
-    // // Given
-    // when(userRepository.existsByName("기존 닉네임")).thenReturn(true);
-    // when(userRepository.findByName("기존 닉네임")).thenReturn(Optional.of(testUser));
-
-    // // When & Then
-    // assertThrows(DuplicateNameException.class, () -> {
-    // userService.validateDuplicateName("기존 닉네임");
-    // });
-    // }
 
     @Test
     void 사용자_정보_수정_성공_테스트() {
