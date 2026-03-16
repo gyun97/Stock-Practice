@@ -209,21 +209,19 @@ public class PortfolioServiceImpl implements PortfolioService {
         try {
             String rankingKey = "user:rank:totalAsset";
 
-            // Redis Sorted Set에서 상위 limit개 사용자 ID 조회 (내림차순)
+            // 무효 데이터를 고려하여 설정된 limit보다 넉넉하게(2배) 가져오기
+            int fetchLimit = limit * 2;
             Set<String> topUserIds = redisTemplate.opsForZSet()
-                    .reverseRange(rankingKey, 0, limit - 1);
+                    .reverseRange(rankingKey, 0, fetchLimit - 1);
 
             if (topUserIds == null || topUserIds.isEmpty()) {
                 log.debug("랭킹 Sorted Set이 비어있음 - 전체 포트폴리오로 초기화 시도");
-                // Sorted Set이 비어있으면 모든 포트폴리오를 조회하여 초기화
                 List<Portfolio> allPortfolios = portfolioRepository.findAll();
                 for (Portfolio portfolio : allPortfolios) {
-                    // 포트폴리오 데이터 계산 및 Sorted Set에 추가
                     calculateAndCacheReturnRate(portfolio);
                 }
-                // 초기화 후 다시 조회
                 topUserIds = redisTemplate.opsForZSet()
-                        .reverseRange(rankingKey, 0, limit - 1);
+                        .reverseRange(rankingKey, 0, fetchLimit - 1);
 
                 if (topUserIds == null || topUserIds.isEmpty()) {
                     log.warn("랭킹 초기화 후에도 데이터가 없음");
@@ -231,19 +229,25 @@ public class PortfolioServiceImpl implements PortfolioService {
                 }
             }
 
-            // 각 사용자의 상세 정보 조회
+            // 각 사용자의 상세 정보 조회 및 유효성 검증
             int rank = 1;
             for (String userIdStr : topUserIds) {
+                // 이미 limit 개수를 채웠으면 중단
+                if (rankings.size() >= limit) {
+                    break;
+                }
+
                 try {
                     Long userId = Long.parseLong(userIdStr);
 
                     // 사용자 정보 조회
                     Portfolio portfolio = portfolioRepository.findByUserId(userId).orElse(null);
                     if (portfolio == null) {
-                        log.warn("랭킹 조회 - 포트폴리오를 찾을 수 없음 (사용자 ID: {})", userId);
+                        log.warn("랭킹 조회 - 삭제된 유저 ID 발견 및 클린업 (사용자 ID: {})", userId);
+                        // 삭제된 유저가 Redis에 남아있는 경우 즉시 삭제 (클린업)
+                        redisTemplate.opsForZSet().remove(rankingKey, userIdStr);
                         continue;
                     }
-
 
                     // 포트폴리오 데이터 조회 (캐시 우선)
                     String cacheKey = "portfolio:data:" + userId;
@@ -282,14 +286,13 @@ public class PortfolioServiceImpl implements PortfolioService {
 
                 } catch (NumberFormatException e) {
                     log.warn("랭킹 조회 - 잘못된 사용자 ID 형식: {}", userIdStr);
-                    continue;
+                    redisTemplate.opsForZSet().remove(rankingKey, userIdStr);
                 } catch (Exception e) {
                     log.warn("랭킹 조회 - 사용자 정보 조회 실패 (사용자 ID: {}): {}", userIdStr, e.getMessage());
-                    continue;
                 }
             }
 
-            log.debug("랭킹 조회 완료 - 상위 {}명", rankings.size());
+            log.debug("랭킹 조회 완료 - 요청: {}명, 반환: {}명", limit, rankings.size());
 
         } catch (Exception e) {
             log.error("랭킹 조회 오류", e);

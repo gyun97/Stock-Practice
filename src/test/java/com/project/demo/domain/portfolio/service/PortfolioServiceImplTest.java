@@ -161,7 +161,7 @@ class PortfolioServiceImplTest {
                 org.springframework.data.redis.core.ValueOperations.class);
 
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
-        when(zSetOps.reverseRange("user:rank:totalAsset", 0, limit - 1)).thenReturn(topUserIds);
+        when(zSetOps.reverseRange("user:rank:totalAsset", 0, (limit * 2) - 1)).thenReturn(topUserIds);
         when(portfolioRepository.findByUserId(1L)).thenReturn(Optional.of(testPortfolio));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get(anyString())).thenReturn(null); // 캐시 없음
@@ -182,7 +182,7 @@ class PortfolioServiceImplTest {
 
         // Then
         assertNotNull(rankings);
-        verify(zSetOps, atLeastOnce()).reverseRange("user:rank:totalAsset", 0, limit - 1);
+        verify(zSetOps, atLeastOnce()).reverseRange("user:rank:totalAsset", 0, (limit * 2) - 1);
     }
 
     @Test
@@ -190,7 +190,7 @@ class PortfolioServiceImplTest {
         // Given
         int limit = 10;
         when(redisTemplate.opsForZSet()).thenReturn(mock(org.springframework.data.redis.core.ZSetOperations.class));
-        when(redisTemplate.opsForZSet().reverseRange("user:rank:totalAsset", 0, limit - 1))
+        when(redisTemplate.opsForZSet().reverseRange("user:rank:totalAsset", 0, (limit * 2) - 1))
                 .thenReturn(Collections.emptySet());
         when(portfolioRepository.findAll()).thenReturn(Collections.emptyList());
 
@@ -261,7 +261,7 @@ class PortfolioServiceImplTest {
                 org.springframework.data.redis.core.ValueOperations.class);
 
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
-        when(zSetOps.reverseRange("user:rank:totalAsset", 0, limit - 1)).thenReturn(topUserIds);
+        when(zSetOps.reverseRange("user:rank:totalAsset", 0, (limit * 2) - 1)).thenReturn(topUserIds);
         when(portfolioRepository.findByUserId(1L)).thenReturn(Optional.of(testPortfolio));
         when(portfolioRepository.findByUserId(2L)).thenReturn(Optional.of(portfolio2));
         when(portfolioRepository.findByUserId(3L)).thenReturn(Optional.of(testPortfolio));
@@ -283,7 +283,7 @@ class PortfolioServiceImplTest {
         // Then
         assertNotNull(rankings);
         assertTrue(rankings.size() <= 3);
-        verify(zSetOps, atLeastOnce()).reverseRange("user:rank:totalAsset", 0, limit - 1);
+        verify(zSetOps, atLeastOnce()).reverseRange("user:rank:totalAsset", 0, (limit * 2) - 1);
     }
 
     @Test
@@ -316,5 +316,50 @@ class PortfolioServiceImplTest {
         // Then
         assertNotNull(response);
         assertEquals(0L, response.getStockAsset()); // 보유 주식 없음
+    }
+
+    @Test
+    void 랭킹_조회_무효_데이터_필터링_및_클린업_테스트() {
+        // Given
+        int limit = 2;
+        // Redis는 1, 2, 3번 ID를 반환 (limit=2인데 넉넉히 가져온 상황 가정)
+        Set<String> topUserIds = new LinkedHashSet<>(Arrays.asList("1", "2", "3"));
+        
+        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
+                org.springframework.data.redis.core.ZSetOperations.class);
+        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
+                org.springframework.data.redis.core.ValueOperations.class);
+
+        when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
+        // reverseRange는 fetchLimit(limit * 2 = 4) 범위로 호출됨
+        when(zSetOps.reverseRange("user:rank:totalAsset", 0, 3)).thenReturn(topUserIds);
+        
+        // 1번 유저는 유효, 2번 유저는 삭제됨(null), 3번 유저는 유효
+        when(portfolioRepository.findByUserId(1L)).thenReturn(Optional.of(testPortfolio));
+        when(portfolioRepository.findByUserId(2L)).thenReturn(Optional.empty());
+        
+        Portfolio portfolio3 = Portfolio.builder()
+                .balance(20000000)
+                .totalAsset(20000000)
+                .user(testUser)
+                .build();
+        ReflectionTestUtils.setField(portfolio3, "id", 3L);
+        when(portfolioRepository.findByUserId(3L)).thenReturn(Optional.of(portfolio3));
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(anyString())).thenReturn(null);
+        when(zSetOps.score(anyString(), anyString())).thenReturn(10000000.0);
+
+        // When
+        List<RankingResponse> rankings = portfolioService.getRanking(limit);
+
+        // Then
+        assertNotNull(rankings);
+        assertEquals(2, rankings.size()); // 2번이 걸러졌으므로 1, 3번이 포함되어 2개가 되어야 함
+        assertEquals(1L, rankings.get(0).getUserId());
+        assertEquals(3L, rankings.get(1).getUserId());
+
+        // 2번 유저 ID는 Redis에서 삭제되어야 함
+        verify(zSetOps, times(1)).remove("user:rank:totalAsset", "2");
     }
 }
