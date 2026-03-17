@@ -1,33 +1,29 @@
 package com.project.demo.domain.user.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.index.Indexed;
 
 import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Entity
-@Table(name = "refresh_tokens")
+@RedisHash(value = "refreshToken", timeToLive = 1209600) // 14 days = 2 weeks TTL
 public class RefreshToken {
 
     @Id
-    @Column(name = "id", length = 36, nullable = false)
     private String id; // 세션 UUID (기기별 고유 식별자)
 
-    @Column(name = "user_id", nullable = false)
+    @Indexed
     private Long userId; // 유저 PK
 
-    @Column(name = "rt_value", nullable = false, length = 500)
+    @Indexed
     private String value; // 토큰 값
 
-    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Builder

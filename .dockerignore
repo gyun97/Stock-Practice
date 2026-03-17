@@ -1,0 +1,14 @@
+.git
+.idea
+.vscode
+.gradle
+build/
+out/
+bin/
+*.log
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+mysql/
+redis/
+data/

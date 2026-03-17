@@ -32,6 +32,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -215,12 +217,17 @@ class UserServiceImplTest {
         // Given
         Long userId = 1L;
         String refreshToken = "validRefreshToken";
+        RefreshToken mockToken = RefreshToken.builder()
+                .userId(userId)
+                .value(refreshToken)
+                .build();
+        when(refreshTokenRepository.findByValue(refreshToken)).thenReturn(Optional.of(mockToken));
 
         // When
         userService.logout(userId, refreshToken);
 
         // Then
-        verify(refreshTokenRepository, times(1)).deleteByUserIdAndValue(userId, refreshToken);
+        verify(refreshTokenRepository, times(1)).delete(mockToken);
     }
 
     @Test
@@ -228,7 +235,11 @@ class UserServiceImplTest {
         // Given
         Long userId = 1L;
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        
+
+        List<RefreshToken> mockTokens = Collections.singletonList(
+                RefreshToken.builder().userId(userId).value("token").build());
+        when(refreshTokenRepository.findAllByUserId(userId)).thenReturn(mockTokens);
+
         // Redis Mock Stubbing (NPE 방지)
         ZSetOperations zSetOperations = mock(ZSetOperations.class);
         when(redisTemplate.opsForZSet()).thenReturn(zSetOperations);
@@ -239,7 +250,7 @@ class UserServiceImplTest {
         // Then
         assertNotNull(result);
         assertTrue(result.contains(String.valueOf(userId)));
-        verify(refreshTokenRepository, times(1)).deleteAllByUserId(userId);
+        verify(refreshTokenRepository, times(1)).deleteAll(mockTokens);
         verify(userRepository, times(1)).delete(any(User.class));
     }
 
@@ -480,7 +491,6 @@ class UserServiceImplTest {
         });
     }
 
-
     @Test
     void 사용자_정보_수정_성공_테스트() {
         // Given
@@ -569,7 +579,7 @@ class UserServiceImplTest {
         when(jwtUtil.createAccessToken(anyLong(), anyString(), any(), anyString())).thenReturn("Bearer newAccessToken");
         when(jwtUtil.createRefreshToken(anyLong())).thenReturn("newRefreshToken");
         when(refreshTokenRepository.save(any(RefreshToken.class))).thenAnswer(i -> i.getArgument(0));
-        doNothing().when(refreshTokenRepository).deleteById(anyString());
+        doNothing().when(refreshTokenRepository).delete(any(RefreshToken.class));
 
         // When
         TokensResponse result = userService.refreshAccessToken(refreshToken);
@@ -578,7 +588,7 @@ class UserServiceImplTest {
         assertNotNull(result);
         assertEquals("Bearer newAccessToken", result.getAccessToken());
         verify(refreshTokenRepository, times(1)).findByValue(refreshToken);
-        verify(refreshTokenRepository, times(1)).deleteById("session-uuid-1");
+        verify(refreshTokenRepository, times(1)).delete(existingToken);
     }
 
     @Test
