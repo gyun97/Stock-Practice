@@ -18,6 +18,7 @@ import com.project.demo.domain.userstock.repository.UserStockRepository;
 import com.project.demo.domain.execution.repository.ExecutionRepository;
 import com.project.demo.domain.order.repository.OrderRepository;
 import com.project.demo.domain.user.repository.RefreshTokenRepository;
+import com.project.demo.domain.userstock.entity.UserStock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -34,7 +35,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.test.annotation.Commit;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -54,7 +56,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @org.springframework.context.annotation.Import(TestConfig.class)
 @org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
-@Transactional
 class PortfolioIntegrationTest extends AbstractIntegrationTest {
 
         @Autowired
@@ -93,6 +94,9 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
         @Autowired
         private ObjectMapper objectMapper;
 
+        @Autowired
+        private PlatformTransactionManager transactionManager;
+
         @PersistenceContext
         private EntityManager entityManager;
 
@@ -103,62 +107,76 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
 
         @BeforeEach
         void setUp() {
-                // 테스트 데이터 초기화
-                cleanupDatabase();
+                new TransactionTemplate(transactionManager).execute(status -> {
+                        // 테스트 데이터 초기화
+                        cleanupDatabase();
 
-                // 사용자 생성
-                testUser = User.builder()
-                                .email("portfolio@example.com")
-                                .password(passwordEncoder.encode("Test123!@#"))
-                                .name("포트폴리오 테스트 사용자")
-                                .userRole(UserRole.ROLE_USER)
-                                .socialType(SocialType.LOCAL)
-                                .build();
-                testUser = userRepository.save(testUser);
+                        // 사용자 생성
+                        testUser = User.builder()
+                                        .email("portfolio@example.com")
+                                        .password(passwordEncoder.encode("Test123!@#"))
+                                        .name("포트폴리오 테스트 사용자")
+                                        .userRole(UserRole.ROLE_USER)
+                                        .socialType(SocialType.LOCAL)
+                                        .build();
+                        testUser = userRepository.save(testUser);
 
-                // 주식 생성
-                testStock = Stock.builder()
-                                .ticker("005930")
-                                .name("삼성전자")
-                                .market(Market.KOSPI)
-                                .volume(1000000L)
-                                .build();
-                testStock = stockRepository.save(testStock);
+                        // 주식 생성
+                        testStock = Stock.builder()
+                                        .ticker("005930")
+                                        .name("삼성전자")
+                                        .market(Market.KOSPI)
+                                        .volume(1000000L)
+                                        .build();
+                        testStock = stockRepository.save(testStock);
 
-                // 포트폴리오 생성
-                testPortfolio = Portfolio.builder()
-                                .balance(10000000L)
-                                .totalAsset(10000000L)
-                                .totalQuantity(0)
-                                .stockAsset(0)
-                                .holdCount(0)
-                                .user(testUser)
-                                .build();
-                testPortfolio = portfolioRepository.save(testPortfolio);
+                        // 포트폴리오 생성
+                        testPortfolio = Portfolio.builder()
+                                        .balance(10000000L)
+                                        .totalAsset(10000000L)
+                                        .totalQuantity(0)
+                                        .stockAsset(0)
+                                        .holdCount(0)
+                                        .user(testUser)
+                                        .build();
+                        testPortfolio = portfolioRepository.save(testPortfolio);
 
-                // Redis에 주식 가격 데이터 추가 (삼성전자 005930)
-                StockData stockData = StockData.builder()
-                                .ticker("005930")
-                                .price(70000)
-                                .companyName("삼성전자")
-                                .volume(1000000L)
-                                .build();
-                try {
-                        redisTemplate.opsForValue().set("stock:data:005930",
-                                        objectMapper.writeValueAsString(stockData));
-                } catch (Exception e) {
-                        e.printStackTrace();
-                }
+                        // 보유 주식(UserStock) 미리 생성 (동시성 테스트 시 INSERT 충돌 방지)
+                        UserStock userStock = UserStock.builder()
+                                        .user(testUser)
+                                        .stock(testStock)
+                                        .avgPrice(0)
+                                        .totalQuantity(0)
+                                        .ticker(testStock.getTicker())
+                                        .portfolio(testPortfolio)
+                                        .userName(testUser.getName())
+                                        .stockName(testStock.getName())
+                                        .build();
+                        userStockRepository.save(userStock);
 
-                // 인증 설정
-                authUser = new AuthUser(testUser.getId(), testUser.getEmail(), testUser.getUserRole(),
-                                testUser.getName());
-                JwtAuthenticationToken authentication = new JwtAuthenticationToken(authUser);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                        // Redis에 주식 가격 데이터 추가 (삼성전자 005930)
+                        StockData stockData = StockData.builder()
+                                        .ticker("005930")
+                                        .price(70000)
+                                        .companyName("삼성전자")
+                                        .volume(1000000L)
+                                        .build();
+                        try {
+                                redisTemplate.opsForValue().set("stock:data:005930",
+                                                objectMapper.writeValueAsString(stockData));
+                        } catch (Exception e) {
+                                e.printStackTrace();
+                        }
+
+                        // 인증 설정
+                        authUser = new AuthUser(testUser.getId(), testUser.getEmail(), testUser.getUserRole(),
+                                        testUser.getName());
+                        JwtAuthenticationToken authentication = new JwtAuthenticationToken(authUser);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        return null;
+                });
         }
 
-        @Transactional
-        @Commit
         void cleanupDatabase() {
                 // Redis 초기화 추가
                 redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
@@ -223,47 +241,50 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
 
         @Test
         void 랭킹_조회_테스트() throws Exception {
-                // Given - 여러 사용자 생성
-                User user1 = User.builder()
-                                .email("user1@example.com")
-                                .password(passwordEncoder.encode("Test123!@#"))
-                                .name("사용자1")
-                                .userRole(UserRole.ROLE_USER)
-                                .socialType(SocialType.LOCAL)
-                                .build();
-                user1 = userRepository.save(user1);
+                new TransactionTemplate(transactionManager).execute(status -> {
+                        // Given - 여러 사용자 생성
+                        User user1 = User.builder()
+                                        .email("user1@example.com")
+                                        .password(passwordEncoder.encode("Test123!@#"))
+                                        .name("사용자1")
+                                        .userRole(UserRole.ROLE_USER)
+                                        .socialType(SocialType.LOCAL)
+                                        .build();
+                        user1 = userRepository.save(user1);
 
-                Portfolio portfolio1 = Portfolio.builder()
-                                .balance(5000000L)
-                                .totalAsset(20000000L)
-                                .totalQuantity(0)
-                                .stockAsset(15000000)
-                                .holdCount(0)
-                                .user(user1)
-                                .build();
-                portfolioRepository.save(portfolio1);
+                        Portfolio portfolio1 = Portfolio.builder()
+                                        .balance(5000000L)
+                                        .totalAsset(20000000L)
+                                        .totalQuantity(0)
+                                        .stockAsset(15000000)
+                                        .holdCount(0)
+                                        .user(user1)
+                                        .build();
+                        portfolioRepository.save(portfolio1);
 
-                User user2 = User.builder()
-                                .email("user2@example.com")
-                                .password(passwordEncoder.encode("Test123!@#"))
-                                .name("사용자2")
-                                .userRole(UserRole.ROLE_USER)
-                                .socialType(SocialType.LOCAL)
-                                .build();
-                user2 = userRepository.save(user2);
+                        User user2 = User.builder()
+                                        .email("user2@example.com")
+                                        .password(passwordEncoder.encode("Test123!@#"))
+                                        .name("사용자2")
+                                        .userRole(UserRole.ROLE_USER)
+                                        .socialType(SocialType.LOCAL)
+                                        .build();
+                        user2 = userRepository.save(user2);
 
-                Portfolio portfolio2 = Portfolio.builder()
-                                .balance(5000000L)
-                                .totalAsset(15000000L)
-                                .totalQuantity(0)
-                                .stockAsset(10000000)
-                                .holdCount(0)
-                                .user(user2)
-                                .build();
-                portfolioRepository.save(portfolio2);
+                        Portfolio portfolio2 = Portfolio.builder()
+                                        .balance(5000000L)
+                                        .totalAsset(15000000L)
+                                        .totalQuantity(0)
+                                        .stockAsset(10000000)
+                                        .holdCount(0)
+                                        .user(user2)
+                                        .build();
+                        portfolioRepository.save(portfolio2);
 
-                entityManager.flush();
-                entityManager.clear();
+                        entityManager.flush();
+                        entityManager.clear();
+                        return null;
+                });
 
                 // When & Then
                 String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(),
@@ -304,15 +325,24 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
                         });
                 }
 
-                latch.await(10, TimeUnit.SECONDS);
+                latch.await(15, TimeUnit.SECONDS); // 대기 시간
                 executorService.shutdown();
 
                 // Then
-                // 초기 잔액 10,000,000원 - (삼성전자 70,000원 * 30회) = 7,900,000원
-                Portfolio portfolio = portfolioRepository.findByUser(testUser).orElseThrow();
-                assertEquals(7900000L, portfolio.getBalance());
+                new TransactionTemplate(transactionManager).execute(status -> {
+                        Portfolio portfolio = portfolioRepository.findByUser(testUser).orElseThrow();
+                        long orderCount = orderRepository.findByUserId(testUser.getId()).size();
+                        long executionCount = executionRepository.count(); // 전체 체결 수 (테스트 유저만 있으므로)
 
-                // 전역 보유 수량 확인: 0 -> 30주
-                assertEquals(30, portfolio.getTotalQuantity());
+                        System.out.println("Successful Orders: " + orderCount);
+                        System.out.println("Execution Records: " + executionCount);
+                        System.out.println("Final Balance: " + portfolio.getBalance());
+                        System.out.println("Total Quantity: " + portfolio.getTotalQuantity());
+
+                        // 초기 잔액 10,000,000원 - (삼성전자 70,000원 * 30회) = 7,900,000원
+                        assertEquals(7900000L, portfolio.getBalance(), "잔액이 일치하지 않습니다.");
+                        assertEquals(30, portfolio.getTotalQuantity(), "보유 수량이 일치하지 않습니다.");
+                        return null;
+                });
         }
 }

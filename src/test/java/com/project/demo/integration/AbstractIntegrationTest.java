@@ -48,10 +48,15 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.driver-class-name", () -> "com.mysql.cj.jdbc.Driver");
 
         // Redis 설정
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
         registry.add("spring.redis.host", redis::getHost);
-        registry.add("spring.redis.port", () -> String.valueOf(redis.getMappedPort(6379)));
-        registry.add("spring.redis.sentinel.master", () -> "");
-        registry.add("spring.redis.sentinel.nodes", () -> "");
+        registry.add("spring.redis.port", () -> redis.getMappedPort(6379));
+        
+        // Redisson 설정 (Sentinel 우회하고 Single Server 설정 강제)
+        registry.add("spring.redisson.config", () -> 
+            String.format("singleServerConfig:\n  address: \"redis://%s:%d\"", 
+                redis.getHost(), redis.getMappedPort(6379)));
 
         // 환경 변수 설정
         registry.add("JWT_SECRET_KEY", () -> 
