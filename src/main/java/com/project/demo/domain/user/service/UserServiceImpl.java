@@ -23,10 +23,12 @@ import com.project.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -40,7 +42,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
     private final PasswordEncoder passwordEncoder;
-    private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${ADMIN_TOKEN}")
     private String ADMIN_TOKEN; // 관리자가 맞는지 확인 토큰
@@ -123,7 +125,6 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(inputEmail)
                 .orElseThrow(NotFoundUserException::new);
 
-
         String correctPassword = user.getPassword();
 
         // 비밀번호 검증
@@ -147,8 +148,12 @@ public class UserServiceImpl implements UserService {
      */
     @Transactional
     public void logout(Long userId, String refreshToken) {
-        // 현재 기기의 세션(토큰)만 삭제 (다른 기기 세션 유지)
-        refreshTokenRepository.deleteByUserIdAndValue(userId, refreshToken);
+        // Spring Data Redis는 deleteBy... 파생 쿼리를 제대로 지원하지 않으므로 직접 조회 후 삭제
+        refreshTokenRepository.findByValue(refreshToken).ifPresent(token -> {
+            if (token.getUserId().equals(userId)) {
+                refreshTokenRepository.delete(token);
+            }
+        });
     }
 
     /*
@@ -160,7 +165,8 @@ public class UserServiceImpl implements UserService {
         User user = getUserById(userId);
 
         // 1. Refresh Token 모든 기기에서 삭제 (JPA 관계가 아니므로 명시적 삭제 필요)
-        refreshTokenRepository.deleteAllByUserId(userId);
+        List<RefreshToken> tokens = refreshTokenRepository.findAllByUserId(userId);
+        refreshTokenRepository.deleteAll(tokens);
 
         // 2. Redis 랭킹에서도 즉시 삭제
         String rankingKey = "user:rank:totalAsset";
@@ -302,7 +308,8 @@ public class UserServiceImpl implements UserService {
         TokensResponse newTokens = issueTokens(user);
 
         // 4. 이전 세션(현재 기기)의 행 삭제 (issueTokens에서 새 행을 추가하므로 중복 방지)
-        refreshTokenRepository.deleteById(session.getId());
+        // deleteById 대신 delete(entity)를 사용해야 보조 인덱스(userId, value)까지 확실히 정리됨
+        refreshTokenRepository.delete(session);
 
         return newTokens;
     }
@@ -316,6 +323,5 @@ public class UserServiceImpl implements UserService {
             throw new IncorrectPasswordException();
         }
     }
-
 
 }
