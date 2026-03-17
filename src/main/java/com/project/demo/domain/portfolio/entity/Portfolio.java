@@ -9,7 +9,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 @Entity
 @Table(name = "portfolios")
@@ -46,7 +47,7 @@ public class Portfolio extends TimeStamped {
     private User user;
 
     @OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserStock> userStocks = new java.util.ArrayList<>();
+    private Set<UserStock> userStocks = new HashSet<>();
 
     @Builder
     public Portfolio(Long id, long balance, long totalAsset, int totalQuantity, long stockAsset, int holdCount,
@@ -108,10 +109,12 @@ public class Portfolio extends TimeStamped {
         this.totalAsset = this.balance + this.stockAsset;
     }
 
-    /*
-     * 수익률 변화 반영
+    /**
+     * UserStock 안전하게 추가 (중복 방지)
      */
-    // public void updateReturnRate() {
-    // this.returnRate = ((double) (this.totalAsset - PRINCIPAL) / PRINCIPAL) * 100;
-    // }
+    public void addUserStock(UserStock userStock) {
+        if (!this.userStocks.contains(userStock)) {
+            this.userStocks.add(userStock);
+        }
+    }
 }

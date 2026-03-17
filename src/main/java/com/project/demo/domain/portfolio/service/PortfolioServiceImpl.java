@@ -4,6 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.exception.portfolio.NotFoundPortfolioException;
 import com.project.demo.common.websocket.WebSocketSessionManager;
+import java.util.List;
+import java.util.Set;
+import java.util.Map;
 import com.project.demo.domain.portfolio.dto.response.PortfolioResponse;
 import com.project.demo.domain.portfolio.dto.response.RankingResponse;
 import com.project.demo.domain.portfolio.entity.Portfolio;
@@ -97,7 +100,7 @@ public class PortfolioServiceImpl implements PortfolioService {
             }
         }
 
-        List<UserStock> userStocks = portfolio.getUserStocks();
+        Set<UserStock> userStocks = portfolio.getUserStocks();
         long stockAsset = 0; // 현재 보유하고 있는 주식 자산 - long으로 변경하여 오버플로우 방지
 
         // 가지고 있는 종목들의 가격 합 계산

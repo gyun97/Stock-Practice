@@ -22,6 +22,9 @@ cookie:
   secure: false  # localhost(HTTP)에서는 false, HTTPS에서는 true
   domain: null  # localhost에서는 null, 프로덕션에서는 실제 도메인
 
+server:
+  forward-headers-strategy: framework  # Nginx 등의 프록시 환경에서 HTTPS 인식을 위해 필수
+
 spring:
   config:
     import: optional:file:.env.local[.properties]

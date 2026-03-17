@@ -10,6 +10,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Objects;
+
 @Entity
 @Table(name = "user_stocks")
 @Getter
@@ -65,10 +67,6 @@ public class UserStock extends TimeStamped {
         this.stockName = stockName;
     }
 
-    // public double getAvgPrice() {
-    // return totalQuantity == 0 ? 0 : (double) purchaseAmount / totalQuantity;
-    // }
-
     /*
      * 매수 시 총 구매액 증가
      */
@@ -97,4 +95,32 @@ public class UserStock extends TimeStamped {
         this.totalQuantity = totalQuantity;
     }
 
+    /**
+     * 매수 후 수량 및 평균 단가 갱신
+     */
+    public void updateAfterBuy(int price, int quantity) {
+        int currentQuantity = this.totalQuantity;
+        int currentAvgPrice = this.avgPrice;
+
+        int newTotalQuantity = currentQuantity + quantity;
+        // 평균 단가 계산 시 거대 수량 고려하여 long 연산 수행
+        int newAvgPrice = (int) (((long) currentAvgPrice * currentQuantity + (long) price * quantity)
+                / newTotalQuantity);
+
+        this.avgPrice = newAvgPrice;
+        this.totalQuantity = newTotalQuantity;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserStock userStock = (UserStock) o;
+        return Objects.equals(id, userStock.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

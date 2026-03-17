@@ -159,8 +159,9 @@ public class JwtUtil {
      */
     public String getRefreshTokenFromCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
-        if (cookies == null)
-            throw new IllegalStateException("Cookie가 없습니다.");
+        if (cookies == null) {
+            return null; // Cookie가 없으면 null 반환 (상위 로직에서 401 등으로 처리하도록 유도)
+        }
 
         for (Cookie cookie : cookies) {
             if (REFRESH_COOKIE_NAME.equals(cookie.getName())) {
