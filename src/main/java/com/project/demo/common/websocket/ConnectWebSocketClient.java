@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Component
@@ -35,11 +36,12 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private String key;
     private String approvalKey;
     private List<String> tickers;
+    private final AtomicBoolean isReconnecting = new AtomicBoolean(false);
 
     public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate,
-                                StockRepository stockRepository, SimpMessagingTemplate messagingTemplate,
-                                OrderService orderService, KisApprovalKeyService approvalKeyService,
-                                @Value("${kis.url.ws}") String wsUrl)
+            StockRepository stockRepository, SimpMessagingTemplate messagingTemplate,
+            OrderService orderService, KisApprovalKeyService approvalKeyService,
+            @Value("${kis.url.ws}") String wsUrl)
             throws Exception {
         super(new URI(wsUrl));
         this.objectMapper = objectMapper;
@@ -48,6 +50,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
         this.messagingTemplate = messagingTemplate;
         this.orderService = orderService;
         this.approvalKeyService = approvalKeyService;
+        this.setConnectionLostTimeout(0);
     }
 
     /**
@@ -59,7 +62,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
     }
 
     public void tryConnect() {
-        if (this.isOpen()) return;
+        if (this.isOpen())
+            return;
 
         new Thread(() -> {
             try {
@@ -78,7 +82,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
     }
 
     public void setSubscriptionInfo(String approvalKey, List<String> tickers) {
-        // approvalKeyService를 통해 직접 관리하므로 매개변수로 넘어온 approvalKey는 무시해도 될 수 있지만 하위 호환성을 위해 유지
+        // approvalKeyService를 통해 직접 관리하므로 매개변수로 넘어온 approvalKey는 무시해도 될 수 있지만 하위 호환성을
+        // 위해 유지
         if (approvalKey != null) {
             this.approvalKey = approvalKey;
         }
@@ -97,6 +102,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
         for (String ticker : tickers) {
             try {
                 subscribeStock(ticker);
+                Thread.sleep(100);
             } catch (Exception e) {
                 log.error("종목 구독 실패: {}", ticker, e);
             }
@@ -147,6 +153,16 @@ public class ConnectWebSocketClient extends WebSocketClient {
         try {
             if (message.startsWith("{")) {
                 var json = objectMapper.readTree(message);
+
+                if (json.has("header") && json.get("header").has("tr_id")) {
+                    String trId = json.get("header").get("tr_id").asText();
+                    if ("PINGPONG".equals(trId)) {
+                        log.info("PINGPONG 메시지 수신, 에코 응답 전송: {}", message);
+                        this.send(message);
+                        return;
+                    }
+                }
+
                 if (json.has("body") && json.get("body").has("output")) {
                     this.iv = json.get("body").get("output").get("iv").asText();
                     this.key = json.get("body").get("output").get("key").asText();
@@ -191,14 +207,26 @@ public class ConnectWebSocketClient extends WebSocketClient {
 
             String json = objectMapper.writeValueAsString(out);
 
-            redisTemplate.opsForValue().set("stock:data:" + ticker, json);
-            redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
-            redisTemplate.opsForZSet().add("stock:rank:price", ticker, price);
-            redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate);
+            // 1. Redis 저장 (예외 발생 시에도 STOMP 전송은 진행되도록 격리)
+            try {
+                redisTemplate.opsForValue().set("stock:data:" + ticker, json);
+                redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
+                redisTemplate.opsForZSet().add("stock:rank:price", ticker, price);
+                redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate);
+            } catch (Exception e) {
+                log.error("Redis 저장 중 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
+            }
 
-            messagingTemplate.convertAndSend("/topic/stocks", json);
-            log.info("Redis 저장 & STOMP 직접 전송(WS) → {}", json);
+            // 2. STOMP 직접 전송 (화면 갱신)
+            try {
+                messagingTemplate.convertAndSend("/topic/stocks", json);
+            } catch (Exception e) {
+                log.error("STOMP 전송 중 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
+            }
 
+            log.info("실시간 주가 처리 완료 (Redis & STOMP) → {}", json);
+
+            // 3. 예약 주문 체결 확인
             try {
                 orderService.executeReservedOrdersForTicker(ticker, price);
             } catch (Exception e) {
@@ -217,6 +245,12 @@ public class ConnectWebSocketClient extends WebSocketClient {
     }
 
     private void scheduleReconnection() {
+        if (!isReconnecting.compareAndSet(false, true)) { // compareAndSet() 메서드는 현재 값이 예상 값과 같을 경우에만 새 값으로 업데이트(예상값,
+                                                          // 변경할 값)
+            log.info("이미 재연결이 진행 중입니다. 중복 실행 방지.");
+            return;
+        }
+
         new Thread(() -> {
             try {
                 while (!this.isOpen() && MarketTime.isMarketOpen()) {
@@ -237,6 +271,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
             } catch (InterruptedException e) {
                 log.error("재연결 루프 중단", e);
                 Thread.currentThread().interrupt();
+            } finally {
+                isReconnecting.set(false);
             }
         }).start();
     }
