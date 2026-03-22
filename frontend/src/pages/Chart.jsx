@@ -79,9 +79,10 @@ export default function Chart() {
   // 회사 정보 및 실시간 시세 로드 함수
   const loadCompanyInfo = async () => {
     if (!ticker) return
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
 
     try {
-      const response = await fetch(`/api/v1/stocks`)
+      const response = await fetch(`${apiBase}/api/v1/stocks`)
       if (response.ok) {
         const result = await response.json()
         const stocks = result.data
@@ -109,7 +110,8 @@ export default function Chart() {
 
       // 기업 개요 로드
       try {
-        const outlineResponse = await fetch(`/api/v1/stocks/${ticker}/outline`)
+        const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+        const outlineResponse = await fetch(`${apiBase}/api/v1/stocks/${ticker}/outline`)
         if (outlineResponse.ok) {
           const outlineResult = await outlineResponse.json()
           console.log('기업 개요 응답:', outlineResult)
@@ -359,7 +361,8 @@ export default function Chart() {
             const startDateStr = dateObj.toISOString().split('T')[0].replace(/-/g, '')
             const endDateStr = (parseInt(oldestDate) - 1).toString()
 
-            const response = await fetch(`/api/v1/stocks/${currentTicker}/period/range?period=${currentPeriod}&startDate=${startDateStr}&endDate=${endDateStr}`)
+            const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+            const response = await fetch(`${apiBase}/api/v1/stocks/${currentTicker}/period/range?period=${currentPeriod}&startDate=${startDateStr}&endDate=${endDateStr}`)
 
             if (!response.ok) {
               throw new Error(`추가 데이터 로드 실패: ${response.status}`)
@@ -485,9 +488,10 @@ export default function Chart() {
     try {
       console.log(`데이터 로드 시작: ${ticker}, period: ${period}`)
 
+      const apiBase = import.meta.env.VITE_API_BASE_URL || ''
       let response
       // 모든 기간별 데이터는 기존 API 사용
-      response = await fetch(`/api/v1/stocks/${ticker}/period?period=${period}`)
+      response = await fetch(`${apiBase}/api/v1/stocks/${ticker}/period?period=${period}`)
 
       console.log('응답 상태:', response.status)
 

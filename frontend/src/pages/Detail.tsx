@@ -16,9 +16,10 @@ export default function Detail() {
   // 회사 정보 및 초기 주식 데이터 로드 함수
   const loadCompanyInfo = async () => {
     if (!ticker) return
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
     
     try {
-      const response = await fetch(`/api/v1/stocks`)
+      const response = await fetch(`${apiBase}/api/v1/stocks`)
       if (response.ok) {
         const result = await response.json()
         const stocks = result.data

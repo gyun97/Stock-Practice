@@ -68,8 +68,9 @@ export default function OrderManagement() {
   }
 
   const fetchStocks = async () => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
     try {
-      const response = await fetch('/api/v1/stocks')
+      const response = await fetch(`${apiBase}/api/v1/stocks`)
       if (response.ok) {
         const result = await response.json()
         setStocks(result.data || [])
