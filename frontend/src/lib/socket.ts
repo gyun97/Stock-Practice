@@ -15,8 +15,11 @@ export function createStompClient(onMessage: StompMessageHandler) {
     connectHeaders['Authorization'] = authHeader
   }
 
+  const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+  const wsUrl = apiBase ? `${apiBase.replace(/^http/, 'ws')}/ws` : '/ws'
+
   const client = new Client({
-    webSocketFactory: () => new SockJS('/ws'),
+    webSocketFactory: () => new SockJS(wsUrl),
     reconnectDelay: 3000,
     debug: (str) => console.log(str),
     connectHeaders: connectHeaders

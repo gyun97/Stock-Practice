@@ -10,21 +10,29 @@ if (!fs.existsSync(logosDir)) {
     process.exit(0);
 }
 
-const files = fs.readdirSync(logosDir);
-let count = 0;
+try {
+    const files = fs.readdirSync(logosDir);
+    console.log(`Found ${files.length} file(s) in logos directory.`);
+    let count = 0;
 
-files.forEach((file) => {
-    const normalized = file.normalize('NFC');
-    if (file !== normalized) {
-        fs.renameSync(
-            path.join(logosDir, file),
-            path.join(logosDir, normalized)
-        );
-        console.log(`Normalized: ${file} -> ${normalized}`);
-        count++;
+    files.forEach((file) => {
+        const normalized = file.normalize('NFC');
+        if (file !== normalized) {
+            fs.renameSync(
+                path.join(logosDir, file),
+                path.join(logosDir, normalized)
+            );
+            console.log(`Normalized: ${file} -> ${normalized}`);
+            count++;
+        }
+    });
+
+    if (count > 0) {
+        console.log(`Successfully normalized ${count} logo(s).`);
+    } else {
+        console.log('No files needed normalization.');
     }
-});
-
-if (count > 0) {
-    console.log(`Successfully normalized ${count} logo(s).`);
+} catch (error) {
+    console.error('Error during normalization:', error);
+    // process.exit(0); // Optionally exit gracefully if this script is not critical
 }
