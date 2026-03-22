@@ -31,7 +31,8 @@ export default function App() {
 
   // 장외 대비: 초기 진입 시 모의 분봉 시드 주입
   useEffect(() => {
-    fetch('/api/mock/candles?symbol=005930&count=120')
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+    fetch(`${apiBase}/api/mock/candles?symbol=005930&count=120`)
       .then((res) => res.ok ? res.json() : Promise.reject(res))
       .then((json) => {
         const arr = Array.isArray(json?.data) ? json.data : []
