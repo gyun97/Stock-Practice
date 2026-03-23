@@ -4,7 +4,7 @@ import { tokenManager } from './tokenManager'
 
 export type StompMessageHandler = (data: any, raw: string) => void
 
-export function createStompClient(onMessage: StompMessageHandler) {
+export function createStompClient(onMessage: StompMessageHandler, onConnect?: (frame: any) => void) {
   // 토큰 가져오기
   const token = tokenManager.getAccessToken()
 
@@ -16,29 +16,45 @@ export function createStompClient(onMessage: StompMessageHandler) {
   }
 
   const apiBase = import.meta.env.VITE_API_BASE_URL || ''
-  const wsUrl = apiBase ? `${apiBase.replace(/^http/, 'ws')}/ws` : '/ws'
+  const wsUrl = apiBase ? `${apiBase}/ws` : '/ws'
+
+  console.log('[STOMP] Connecting to:', wsUrl)
 
   const client = new Client({
     webSocketFactory: () => new SockJS(wsUrl),
     reconnectDelay: 3000,
-    debug: (str) => console.log(str),
-    connectHeaders: connectHeaders
-  })
-  client.onConnect = () => {
-    const handle = (msg: IMessage) => {
-      const raw = msg.body
-      try {
-        const json = JSON.parse(raw)
-        onMessage(json, raw)
-      } catch {
-        onMessage(parseCaretPayload(raw), raw)
+    debug: (str) => console.log('[STOMP Debug]', str),
+    connectHeaders: connectHeaders,
+    onConnect: (frame) => {
+      console.log('[STOMP] Connected!')
+      
+      const handle = (msg: IMessage) => {
+        const raw = msg.body
+        try {
+          const json = JSON.parse(raw)
+          onMessage(json, raw)
+        } catch {
+          onMessage(parseCaretPayload(raw), raw)
+        }
       }
+
+      // 기본 토픽 구독
+      client.subscribe('/topic/stocks', handle)
+      client.subscribe('/topic/stock/updates', handle)
+      
+      // 추가 연결 콜백이 있으면 실행
+      if (onConnect) {
+        onConnect(frame)
+      }
+    },
+    onStompError: (frame) => {
+      console.error('[STOMP Error]', frame)
+    },
+    onDisconnect: () => {
+      console.warn('[STOMP] Disconnected')
     }
-    // 기본 토픽
-    client.subscribe('/topic/stocks', handle)
-    // Redis bridge 전용 토픽도 함께 시도 (백엔드 설정에 따라 미등록이면 무시)
-    client.subscribe('/topic/stock/updates', handle)
-  }
+  })
+
   return client
 }
 

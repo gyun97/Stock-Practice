@@ -20,9 +20,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const client = createStompClient((data) => handler(data))
-    client.onConnect = () => setConnected(true)
-    client.onStompError = () => setConnected(false)
+    const client = createStompClient(
+      (data) => handler(data),
+      () => setConnected(true)
+    )
+    client.onStompError = (frame) => {
+      console.error('STOMP error', frame)
+      setConnected(false)
+    }
     client.onWebSocketClose = () => setConnected(false)
     client.activate()
     clientRef.current = client

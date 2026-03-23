@@ -350,30 +350,25 @@ export default function MyPage() {
   useEffect(() => {
     if (userInfo) {
       console.log('마이페이지 WebSocket 연결 시작')
-      const client = createStompClient(onPortfolioUpdate)
-
-      // 포트폴리오 업데이트 토픽 구독
-      client.onConnect = () => {
+      const userId = userInfo.userId
+      
+      const client = createStompClient(onPortfolioUpdate, () => {
+        console.log('마이페이지 WebSocket 연결 성공, 구독 시작 - 사용자 ID:', userId)
+        
         // 사용자별 포트폴리오 업데이트 구독
-        const userId = userInfo.userId
-        console.log('WebSocket 구독할 사용자 ID:', userId)
         client.subscribe(`/topic/portfolio/updates/${userId}`, (msg) => {
           const raw = msg.body
           console.log('포트폴리오 WebSocket 메시지 수신:', raw)
-
           try {
-            // JSON 형태인지 확인
             if (raw.startsWith('{')) {
               const portfolioData = JSON.parse(raw)
               onPortfolioUpdate(portfolioData, raw)
             } else {
-              // 숫자 형태인 경우
               const returnRate = parseFloat(raw)
               onPortfolioUpdate(returnRate, raw)
             }
           } catch (error) {
             console.error('포트폴리오 업데이트 파싱 오류:', error)
-            // 파싱 실패 시 원본 데이터로 시도
             onPortfolioUpdate(raw, raw)
           }
         })
@@ -382,12 +377,8 @@ export default function MyPage() {
         client.subscribe(`/topic/userstock/updates/${userId}`, (msg) => {
           const raw = msg.body
           console.log('보유 주식 WebSocket 메시지 수신:', raw)
-
           try {
             const userStockData = JSON.parse(raw)
-            console.log('보유 주식 업데이트 데이터:', userStockData)
-
-            // 사용자별 토픽이므로 바로 업데이트
             setUserStocks(userStockData.userStocks)
           } catch (error) {
             console.error('보유 주식 업데이트 파싱 오류:', error)
@@ -398,14 +389,8 @@ export default function MyPage() {
         client.subscribe(`/topic/order/notifications/${userId}`, (msg) => {
           const raw = msg.body
           console.log('=== 마이페이지 주문 알림 WebSocket 메시지 수신 ===')
-          console.log('원본 메시지:', raw)
-          console.log('메시지 타입:', typeof raw)
-
           try {
             const notificationData = JSON.parse(raw)
-            console.log('주문 알림 데이터 (파싱 성공):', notificationData)
-
-            // 알림 추가
             setNotifications(prev => {
               const newNotification = {
                 id: Date.now(),
@@ -413,32 +398,24 @@ export default function MyPage() {
                 type: notificationData.type || '',
                 timestamp: new Date()
               }
-              return [newNotification, ...prev].slice(0, 10) // 최대 10개 유지
+              return [newNotification, ...prev].slice(0, 10)
             })
 
-            // 브라우저 알림 (사용자가 페이지에 있을 때)
-            console.log('브라우저 알림 권한 상태:', Notification.permission)
             if ('Notification' in window && Notification.permission === 'granted') {
-              console.log('브라우저 알림 생성 시도...')
               try {
-                const notification = new Notification('주문 체결 알림', {
+                new Notification('주문 체결 알림', {
                   body: notificationData.message,
                   icon: '/favicon.ico'
                 })
-                console.log('브라우저 알림 생성 성공:', notification)
-                notification.onshow = () => console.log('브라우저 알림 표시됨')
-                notification.onerror = (e) => console.error('브라우저 알림 오류:', e)
               } catch (e) {
-                console.error('브라우저 알림 생성 실패:', e)
+                console.log('브라우저 알림 생성 실패:', e)
               }
-            } else {
-              console.warn('브라우저 알림 권한이 없음:', Notification.permission)
             }
           } catch (error) {
             console.error('주문 알림 파싱 오류:', error)
           }
         })
-      }
+      })
 
       client.activate()
       stompRef.current = client
