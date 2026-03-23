@@ -21,6 +21,7 @@ cookie:
 
 server:
   port: 8080
+  shutdown: graceful  # 우아한 종료 설정 추가
   forward-headers-strategy: framework  # 'native'보다 'framework'가 필터 기반으로 동작하여 더 안정적임
 #  ssl:
 #    enabled: true
@@ -33,6 +34,8 @@ management:
 
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s  # 종료 시 최대 대기 시간 설정
   config:
     import: optional:file:.env.prod[.properties]
 
