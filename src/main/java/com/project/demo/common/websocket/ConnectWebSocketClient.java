@@ -10,6 +10,7 @@ import com.project.demo.domain.stock.repository.StockRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.exceptions.WebsocketNotConnectedException;
 import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -92,20 +93,42 @@ public class ConnectWebSocketClient extends WebSocketClient {
         }
     }
 
+    @Override
+    public void onOpen(ServerHandshake handshake) {
+        log.info("KIS WebSocket 서버와 연결됨: {}", handshake.getHttpStatusMessage());
+        
+        // 구독 프로세스를 별도 스레드에서 실행하여 WebSocket 스레드 블로킹 방지
+        new Thread(this::subscribeAll).start();
+    }
+
     private void subscribeAll() {
-        if (approvalKey == null || tickers == null) {
-            log.warn("구독 정보(Approval Key 또는 Tickers)가 없어 구독을 생략합니다.");
+        if (tickers == null || tickers.isEmpty()) {
             return;
         }
-        log.info("전체 종목 구독 시작 (개수: {})", tickers.size());
+
+        log.info("전체 종목 구독 시작 (총 {}종목)", tickers.size());
         for (String ticker : tickers) {
+            if (!this.isOpen()) {
+                log.warn("WebSocket 연결이 닫혀 있어 구독을 중단합니다. (종목: {})", ticker);
+                break;
+            }
+            
             try {
                 subscribeStock(ticker);
-                Thread.sleep(100);
+                // KIS 가이드에 따라 요청 간 간격 유지
+                Thread.sleep(100); 
+            } catch (WebsocketNotConnectedException e) {
+                log.error("구독 중 연결 끊김 감지: {}", e.getMessage());
+                break;
+            } catch (InterruptedException e) {
+                log.error("구독 루프 인터럽트 발생", e);
+                Thread.currentThread().interrupt();
+                break;
             } catch (Exception e) {
                 log.error("종목 구독 실패: {}", ticker, e);
             }
         }
+        log.info("전체 종목 구독 프로세스 완료");
     }
 
     private void subscribeStock(String ticker) throws Exception {
@@ -162,11 +185,6 @@ public class ConnectWebSocketClient extends WebSocketClient {
         }
     }
 
-    @Override
-    public void onOpen(ServerHandshake handshake) {
-        log.info("KIS WebSocket 서버와 연결됨: {}", handshake.getHttpStatusMessage());
-        subscribeAll();
-    }
 
     @Override
     public void onMessage(String message) {
@@ -265,10 +283,21 @@ public class ConnectWebSocketClient extends WebSocketClient {
         }
     }
 
+    private volatile long lastConnectTimestamp = 0;
+
     @Override
     public void onClose(int code, String reason, boolean remote) {
         log.warn("WebSocket 연결 종료. code={}, reason={}, remote={}", code, reason, remote);
+        
+        // 연결이 너무 빨리 끊겼거나(예: 5초 이내), 서버에 의해 끊긴 경우(원격 종료) 키가 부정확할 가능성이 큼
+        long connectedDuration = System.currentTimeMillis() - lastConnectTimestamp;
+        boolean isInstantDrop = connectedDuration < 5000;
+        
         if (MarketTime.isMarketOpen()) {
+            if (remote || isInstantDrop) {
+                log.warn("빠른 연결 끊김 또는 서버 강제 종료 감지 (유지시간: {}ms). 다음 재연결 시 Approval Key를 강제 갱신합니다.", connectedDuration);
+                approvalKeyService.refreshApprovalKey();
+            }
             log.info("장 시간 중 연결 종료 → 재연결 루프 시작...");
             scheduleReconnection();
         }
@@ -282,11 +311,16 @@ public class ConnectWebSocketClient extends WebSocketClient {
 
         new Thread(() -> {
             try {
+                int retryCount = 0;
                 while (!this.isOpen() && MarketTime.isMarketOpen()) {
-                    log.info("5초 후 WebSocket 재연결 시도...");
-                    Thread.sleep(5000);
+                    // 재시도 횟수에 따른 지연 시간 증가 (최대 30초)
+                    long delay = Math.min(5000 + (retryCount * 5000), 30000);
+                    log.info("{}초 후 WebSocket 재연결 시도... (시도 횟수: {})", delay / 1000, retryCount + 1);
+                    Thread.sleep(delay);
+                    
                     try {
                         this.approvalKey = approvalKeyService.getApprovalKey();
+                        this.lastConnectTimestamp = System.currentTimeMillis();
                         this.reconnectBlocking();
                         if (this.isOpen()) {
                             log.info("WebSocket 재연결 성공");
@@ -295,6 +329,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
                     } catch (Exception e) {
                         log.error("WebSocket 재연결 시도 중 오류 발생", e);
                     }
+                    retryCount++;
                 }
             } catch (InterruptedException e) {
                 log.error("재연결 루프 중단", e);
