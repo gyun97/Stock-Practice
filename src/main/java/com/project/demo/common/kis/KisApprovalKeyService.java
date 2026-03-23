@@ -30,13 +30,24 @@ public class KisApprovalKeyService {
     private LocalDateTime expiredAt;
 
     public synchronized String getApprovalKey() {
-        if (approvalKey == null || LocalDateTime.now().isAfter(expiredAt)) {
+        if (approvalKey == null || expiredAt == null || LocalDateTime.now().isAfter(expiredAt)) {
             log.info("새로 Approval Key를 발급합니다");
             requestApprovalKey();
         } else {
             log.info("기존 Approval Key가 존재합니다.");
         }
         return approvalKey;
+    }
+
+    /**
+     * 기존 키를 즉시 만료시키고 새로운 키를 강제로 발급받습니다.
+     * WebSocket 연결이 즉시 끊어지는 등 키가 의심스러울 때 사용합니다.
+     */
+    public synchronized String refreshApprovalKey() {
+        log.info("Approval Key 강제 갱신 요청됨");
+        this.approvalKey = null;
+        this.expiredAt = null;
+        return getApprovalKey();
     }
 
     private void requestApprovalKey() {
