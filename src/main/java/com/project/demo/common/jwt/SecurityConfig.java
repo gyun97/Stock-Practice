@@ -72,6 +72,8 @@ public class SecurityConfig {
                                                                 "/oauth2/authorization/**", // OAuth2 인증 경로
                                                                 "/login/oauth2/code/**", // OAuth2 콜백 경로
                                                                 "/actuator/**",
+                                                                "/api/health",
+                                                                "/api/profile",
                                                                 "/swagger-ui/**",
                                                                 "/v3/api-docs/**",
                                                                 "/api/v1/stocks/**",
