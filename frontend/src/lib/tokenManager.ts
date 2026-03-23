@@ -96,10 +96,12 @@ export class TokenManager {
 
   private async performTokenRefresh(): Promise<string> {
     // httpOnly 쿠키는 자동으로 전송되므로 별도 체크 불필요
-    console.log('🔄 토큰 재발급 시작 - /api/v1/users/reissue 호출')
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+    const url = `${apiBase}/api/v1/users/reissue`
+    console.log(`🔄 토큰 재발급 시작 - ${url} 호출`)
     try {
       // 토큰 재발급 API는 전역 인터셉터를 우회하기 위해 원본 fetch를 직접 사용
-      const response = await this.getOriginalFetch()('/api/v1/users/reissue', {
+      const response = await this.getOriginalFetch()(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,9 +163,11 @@ export class TokenManager {
 
   // fetch 요청 래퍼 (자동 토큰 갱신 포함)
   public async authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+    const fullUrl = url.startsWith('http') ? url : `${apiBase}${url}`
     const headers = await this.getAuthHeaders()
 
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       ...options,
       headers: {
         ...headers,
@@ -181,7 +185,7 @@ export class TokenManager {
           'Authorization': `Bearer ${newAccessToken}`
         }
 
-        return fetch(url, {
+        return fetch(fullUrl, {
           ...options,
           headers: {
             ...newHeaders,

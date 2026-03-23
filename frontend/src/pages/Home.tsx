@@ -221,9 +221,10 @@ export default function Home() {
 
   // 랭킹 데이터 가져오기
   const fetchRankings = async () => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
     try {
-      console.log('랭킹 API 호출 시작:', '/api/v1/portfolios/ranking?limit=10')
-      const response = await fetch('/api/v1/portfolios/ranking?limit=10')
+      console.log('랭킹 API 호출 시작:', `${apiBase}/api/v1/portfolios/ranking?limit=10`)
+      const response = await fetch(`${apiBase}/api/v1/portfolios/ranking?limit=10`)
       console.log('랭킹 API 응답 상태:', response.status)
       if (response.ok) {
         const result = await response.json()
@@ -242,7 +243,8 @@ export default function Home() {
 
   // 초기 페이지 로드
   useEffect(() => {
-    fetch(`/api/v1/stocks`)
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+    fetch(`${apiBase}/api/v1/stocks`)
       .then(r => r.ok ? r.json() : Promise.reject(r))
       .then(json => {
         const raw = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : [])

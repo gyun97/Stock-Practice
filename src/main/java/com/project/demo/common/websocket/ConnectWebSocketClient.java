@@ -37,6 +37,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private String approvalKey;
     private List<String> tickers;
     private final AtomicBoolean isReconnecting = new AtomicBoolean(false);
+    private volatile long lastMessageTimestamp = System.currentTimeMillis();
 
     public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate,
             StockRepository stockRepository, SimpMessagingTemplate messagingTemplate,
@@ -82,8 +83,6 @@ public class ConnectWebSocketClient extends WebSocketClient {
     }
 
     public void setSubscriptionInfo(String approvalKey, List<String> tickers) {
-        // approvalKeyService를 통해 직접 관리하므로 매개변수로 넘어온 approvalKey는 무시해도 될 수 있지만 하위 호환성을
-        // 위해 유지
         if (approvalKey != null) {
             this.approvalKey = approvalKey;
         }
@@ -131,14 +130,35 @@ public class ConnectWebSocketClient extends WebSocketClient {
         this.send(json);
     }
 
-    /**
-     * 장 마감 15:20에 1회 실행 → WebSocket 종료
-     */
     @Scheduled(cron = "0 40 15 * * MON-FRI", zone = "Asia/Seoul")
     public void closeAtMarketClose() {
         if (this.isOpen()) {
             log.info("장 마감 시각 도달 → WebSocket 연결 종료");
             this.close();
+        }
+    }
+
+    /**
+     * 30초마다 연결 상태 확인 (스태일 커넥션 감지)
+     */
+    @Scheduled(fixedDelay = 30000)
+    public void checkConnectionHealth() {
+        if (!MarketTime.isMarketOpen()) {
+            return;
+        }
+
+        if (this.isOpen()) {
+            long now = System.currentTimeMillis();
+            long diff = now - lastMessageTimestamp;
+
+            if (diff > 60000) { // 60초 넘게 메시지가 없으면
+                log.warn("WebSocket 연결은 유지 중이나 60초간 메시지 수신 없음 (Stale). 강제 재연결 시도. (마지막 수신: {}ms 전)", diff);
+                this.close(); // onClose()가 호출되어 재연결 루프가 실행됨
+            } else {
+                log.info("WebSocket 연결 건강함 (최근 메시지 수신: {}ms 전)", diff);
+            }
+        } else {
+            log.info("WebSocket 연결이 닫혀있음 (장 중). 재연결 시도 중일 수 있음.");
         }
     }
 
@@ -150,6 +170,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
 
     @Override
     public void onMessage(String message) {
+        this.lastMessageTimestamp = System.currentTimeMillis();
         try {
             if (message.startsWith("{")) {
                 var json = objectMapper.readTree(message);
@@ -172,14 +193,18 @@ public class ConnectWebSocketClient extends WebSocketClient {
                 receiveRealTimeData(message);
             }
         } catch (Exception e) {
-            log.error("메시지 처리 실패", e);
+            log.error("메시지 처리 실패 (메시지: {}): {}", message, e.getMessage(), e);
         }
     }
 
     private void receiveRealTimeData(String message) throws Exception {
         String[] parts = message.split("\\|");
+        if (parts.length < 4) {
+            log.warn("올바르지 않은 실시간 데이터 형식 (parts < 4): {}", message);
+            return;
+        }
+        
         String encFlag = parts[0];
-        String trId = parts[1];
         String data = parts[3];
 
         if ("1".equals(encFlag)) {
@@ -187,50 +212,55 @@ public class ConnectWebSocketClient extends WebSocketClient {
             log.info("복호화 결과: {}", decrypted);
         } else {
             String[] fields = data.split("\\^");
-
-            String ticker = fields[0];
-            String tradeTime = fields[1];
-            int price = Integer.parseInt(fields[2]);
-            double changeAmount = Double.parseDouble(fields[4]);
-            double changeRate = Double.parseDouble(fields[5]);
-            long volume = Long.parseLong(fields[13]);
-            String companyName = stockRepository.findNameByTicker(ticker);
-
-            ObjectNode out = objectMapper.createObjectNode();
-            out.put("ticker", ticker);
-            out.put("price", price);
-            out.put("changeAmount", changeAmount);
-            out.put("changeRate", changeRate);
-            out.put("companyName", companyName);
-            out.put("tradeTime", tradeTime);
-            out.put("volume", volume);
-
-            String json = objectMapper.writeValueAsString(out);
-
-            // 1. Redis 저장 (예외 발생 시에도 STOMP 전송은 진행되도록 격리)
-            try {
-                redisTemplate.opsForValue().set("stock:data:" + ticker, json);
-                redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
-                redisTemplate.opsForZSet().add("stock:rank:price", ticker, price);
-                redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate);
-            } catch (Exception e) {
-                log.error("Redis 저장 중 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
+            if (fields.length < 14) {
+                log.warn("올바르지 않은 실시간 데이터 필드 개수 (fields < 14): {}", data);
+                return;
             }
 
-            // 2. STOMP 직접 전송 (화면 갱신)
             try {
-                messagingTemplate.convertAndSend("/topic/stocks", json);
-            } catch (Exception e) {
-                log.error("STOMP 전송 중 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
-            }
+                String ticker = fields[0];
+                String tradeTime = fields[1];
+                int price = Integer.parseInt(fields[2]);
+                double changeAmount = Double.parseDouble(fields[4]);
+                double changeRate = Double.parseDouble(fields[5]);
+                long volume = Long.parseLong(fields[13]);
+                String companyName = stockRepository.findNameByTicker(ticker);
 
-            log.info("실시간 주가 처리 완료 (Redis & STOMP) → {}", json);
+                ObjectNode out = objectMapper.createObjectNode();
+                out.put("ticker", ticker);
+                out.put("price", price);
+                out.put("changeAmount", changeAmount);
+                out.put("changeRate", changeRate);
+                out.put("companyName", companyName);
+                out.put("tradeTime", tradeTime);
+                out.put("volume", volume);
 
-            // 3. 예약 주문 체결 확인
-            try {
-                orderService.executeReservedOrdersForTicker(ticker, price);
+                String json = objectMapper.writeValueAsString(out);
+
+                try {
+                    redisTemplate.opsForValue().set("stock:data:" + ticker, json);
+                    redisTemplate.opsForZSet().add("stock:rank:volume", ticker, volume);
+                    redisTemplate.opsForZSet().add("stock:rank:price", ticker, price);
+                    redisTemplate.opsForZSet().add("stock:rank:changeRate", ticker, changeRate);
+                } catch (Exception e) {
+                    log.error("Redis 저장 중 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
+                }
+
+                try {
+                    messagingTemplate.convertAndSend("/topic/stocks", json);
+                } catch (Exception e) {
+                    log.error("STOMP 전송 중 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
+                }
+
+                log.info("실시간 주가 처리 완료 (Redis & STOMP) → {}", json);
+
+                try {
+                    orderService.executeReservedOrdersForTicker(ticker, price);
+                } catch (Exception e) {
+                    log.error("예약 주문 체결 중 오류 발생 - 종목: {}, 현재가: {}, 오류: {}", ticker, price, e.getMessage(), e);
+                }
             } catch (Exception e) {
-                log.error("예약 주문 체결 중 오류 발생 - 종목: {}, 현재가: {}, 오류: {}", ticker, price, e.getMessage(), e);
+                log.error("실시간 데이터 파싱 중 상세 오류 발생 (data: {}): {}", data, e.getMessage());
             }
         }
     }
@@ -245,8 +275,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
     }
 
     private void scheduleReconnection() {
-        if (!isReconnecting.compareAndSet(false, true)) { // compareAndSet() 메서드는 현재 값이 예상 값과 같을 경우에만 새 값으로 업데이트(예상값,
-                                                          // 변경할 값)
+        if (!isReconnecting.compareAndSet(false, true)) {
             log.info("이미 재연결이 진행 중입니다. 중복 실행 방지.");
             return;
         }
@@ -257,7 +286,6 @@ public class ConnectWebSocketClient extends WebSocketClient {
                     log.info("5초 후 WebSocket 재연결 시도...");
                     Thread.sleep(5000);
                     try {
-                        // reconnectBlocking() 호출 전에도 key 갱신 시도
                         this.approvalKey = approvalKeyService.getApprovalKey();
                         this.reconnectBlocking();
                         if (this.isOpen()) {

@@ -61,7 +61,10 @@ export default function Login() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* 카카오 로그인 버튼 */}
           <button
-            onClick={() => window.location.href = '/oauth2/authorization/kakao'}
+            onClick={() => {
+              const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+              window.location.href = `${apiBase}/oauth2/authorization/kakao`
+            }}
             style={{
               width: '100%',
               padding: '12px',
@@ -109,7 +112,10 @@ export default function Login() {
 
           {/* 네이버 로그인 버튼 */}
           <button
-            onClick={() => window.location.href = '/oauth2/authorization/naver'}
+            onClick={() => {
+              const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+              window.location.href = `${apiBase}/oauth2/authorization/naver`
+            }}
             style={{
               width: '100%',
               padding: '12px',

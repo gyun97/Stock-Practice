@@ -206,8 +206,9 @@ export default function MyPage() {
 
   useEffect(() => {
     const checkServerStatus = async () => {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || ''
       try {
-        const response = await fetch('/api/v1/stocks', { method: 'HEAD' })
+        const response = await fetch(`${apiBase}/api/v1/stocks`, { method: 'HEAD' })
         setServerStatus(response.ok ? 'online' : 'offline')
       } catch {
         setServerStatus('offline')
