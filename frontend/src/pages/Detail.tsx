@@ -86,13 +86,10 @@ export default function Detail() {
     console.log('Detail 페이지 마운트, ticker:', ticker)
     loadCompanyInfo()
     
-    const client = createStompClient(onTick)
+    const client = createStompClient(onTick, () => {
+      console.log('Detail 페이지 소켓 연결 성공')
+    })
     console.log('WebSocket 클라이언트 생성:', client)
-    
-    // WebSocket 연결 상태 확인을 위한 추가 로그
-    client.onConnect = () => {
-      console.log('Detail 페이지 WebSocket 연결 성공!')
-    }
     
     client.onStompError = (frame) => {
       console.error('Detail 페이지 WebSocket STOMP 오류:', frame)
@@ -102,10 +99,9 @@ export default function Detail() {
     stompRef.current = client
     
     return () => { 
-      console.log('Detail 페이지 언마운트, WebSocket 연결 해제')
       client.deactivate() 
     }
-  }, [onTick])
+  }, [onTick, ticker])
 
 
   return (
