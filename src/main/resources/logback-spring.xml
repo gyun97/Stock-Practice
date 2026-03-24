@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Spring Boot 기본 로깅 설정 포함 (%clr, %highlight 등을 위해 필수) -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml" />
+
+    <!-- ===================================================
+         공통 설정: Spring Profile 기반 분기
+         dev  → Console(색상) + Logstash TCP(JSON)
+         prod → Logstash TCP(JSON) 전용
+         =================================================== -->
+
+    <!-- 공통 변수 -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="stock-app"/>
+    <springProperty scope="context" name="LOGSTASH_HOST" source="logstash.host" defaultValue="localhost"/>
+    <springProperty scope="context" name="LOGSTASH_PORT" source="logstash.port" defaultValue="5044"/>
+
+    <!-- ===================================================
+         Appender 1: 컬러 콘솔 출력 (dev 전용)
+         =================================================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level){highlight} %clr([%thread]){faint} %clr(%logger{36}){cyan} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ===================================================
+         Appender 1-1: Console JSON (운영 환경 docker logs 연동용)
+         =================================================== -->
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"app":"${APP_NAME}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <!-- ===================================================
+         Appender 2: Logstash JSON TCP (ELK 수집)
+         traceId / spanId 자동 포함 (Micrometer Tracing 연동)
+         =================================================== -->
+    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+        <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"app":"${APP_NAME}"}</customFields>
+            <!-- MDC에 있는 traceId, spanId를 자동으로 JSON 필드로 포함 -->
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+        </encoder>
+        <!-- Logstash 연결 실패 시 애플리케이션이 죽지 않도록 비동기 처리 -->
+        <reconnectionDelay>10 seconds</reconnectionDelay>
+        <connectionTimeout>5000</connectionTimeout>
+        <writeTimeout>5000</writeTimeout>
+    </appender>
+
+    <!-- 비동기 래퍼: 로깅이 메인 스레드를 블로킹하지 않도록 -->
+    <appender name="ASYNC_LOGSTASH" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="LOGSTASH"/>
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>512</queueSize>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <!-- ===================================================
+         Profile: dev
+         =================================================== -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_LOGSTASH"/>
+        </root>
+
+        <!-- 애플리케이션 패키지는 DEBUG 레벨 -->
+        <logger name="com.project.demo" level="DEBUG"/>
+
+        <!-- SQL 로깅 (Hibernate) -->
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+    </springProfile>
+
+    <!-- ===================================================
+         Profile: prod
+         =================================================== -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <!-- Docker 로깅을 Alloy가 JSON으로 수집하여 파싱하기 쉽도록 CONSOLE_JSON 사용 -->
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+
+        <logger name="com.project.demo" level="INFO"/>
+
+        <!-- prod에서 Hibernate SQL 로그 끔 -->
+        <logger name="org.hibernate.SQL" level="WARN"/>
+    </springProfile>
+
+    <!-- ===================================================
+         Profile: test (테스트 환경 - 콘솔만)
+         =================================================== -->
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+</configuration>

@@ -1,0 +1,112 @@
+groups:
+  - name: stock-app-alerts
+    rules:
+
+      # ────────────────────────────
+      # 1. 앱 인스턴스 다운 감지
+      # ────────────────────────────
+      - alert: AppInstanceDown
+        expr: up{job=~"stock-app.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 [CRITICAL] 앱 인스턴스 다운"
+          description: "{{ $labels.instance }} 인스턴스가 1분간 응답 없음 (job: {{ $labels.job }})"
+
+      # ────────────────────────────
+      # 2. JVM Heap 사용률 80% 초과
+      # ────────────────────────────
+      - alert: JvmHeapHighUsage
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ [WARNING] JVM Heap 사용률 높음"
+          description: "{{ $labels.instance }} Heap 사용률 {{ $value | printf \"%.1f\" }}% (임계값: 80%)"
+
+      # ────────────────────────────
+      # 3. JVM Heap 사용률 95% 초과 (위험)
+      # ────────────────────────────
+      - alert: JvmHeapCritical
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) * 100 > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔴 [CRITICAL] JVM Heap 위험 수준"
+          description: "{{ $labels.instance }} Heap 사용률 {{ $value | printf \"%.1f\" }}% - OOM 위험!"
+
+      # ────────────────────────────
+      # 4. HTTP 5xx 에러율 5% 초과
+      # ────────────────────────────
+      - alert: Http5xxErrorRateHigh
+        expr: |
+          (
+            rate(http_server_requests_seconds_count{status=~"5.."}[5m])
+            /
+            rate(http_server_requests_seconds_count[5m])
+          ) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ [WARNING] HTTP 5xx 에러율 높음"
+          description: "{{ $labels.instance }} 5xx 에러율 {{ $value | printf \"%.1f\" }}% (임계값: 5%)"
+
+      # ────────────────────────────
+      # 5. HTTP 평균 응답시간 2초 초과
+      # ────────────────────────────
+      - alert: HttpSlowResponse
+        expr: |
+          rate(http_server_requests_seconds_sum[5m])
+          /
+          rate(http_server_requests_seconds_count[5m]) > 2
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ [WARNING] HTTP 응답 지연"
+          description: "{{ $labels.instance }} 평균 응답시간 {{ $value | printf \"%.2f\" }}s 초과 (임계값: 2s)"
+
+      # ────────────────────────────
+      # 6. KIS API 에러율 급증
+      # ────────────────────────────
+      - alert: KisApiErrorRateHigh
+        expr: |
+          rate(stock_kis_api_error_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ [WARNING] KIS API 에러 급증"
+          description: "{{ $labels.instance }} KIS API 오류율 {{ $value | printf \"%.2f\" }}/s 초과"
+
+      # ────────────────────────────
+      # 7. HikariCP 커넥션 풀 고갈
+      # ────────────────────────────
+      - alert: HikariConnectionPoolExhausted
+        expr: |
+          hikaricp_connections_pending > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ [WARNING] DB 커넥션 풀 부족"
+          description: "{{ $labels.instance }} 대기 중인 DB 연결 요청 {{ $value }}개"
+
+      # ────────────────────────────
+      # 8. CPU 사용률 50% 초과
+      # ────────────────────────────
+      - alert: CpuHighUsage
+        expr: |
+          system_cpu_usage * 100 > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "⚠️ [WARNING] CPU 사용률 높음"
+          description: "{{ $labels.instance }} CPU 사용률 {{ $value | printf \"%.1f\" }}% 초과 (임계값: 50%)"

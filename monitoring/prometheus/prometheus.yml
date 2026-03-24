@@ -1,0 +1,56 @@
+global:
+  scrape_interval: 15s          # 지표 수집 주기
+  evaluation_interval: 15s      # 알림 규칙 평가 주기
+  scrape_timeout: 10s
+
+# AlertManager 연동
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# 알림 규칙 파일 로드
+rule_files:
+  - "alert.rules.yml"
+
+# ──────────────────────────────────────────────────
+# 스크레이핑 대상(Job) 설정
+# ──────────────────────────────────────────────────
+scrape_configs:
+
+  # 1. Prometheus 자체 메트릭
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # 2. Spring Boot Application (Actuator /actuator/prometheus)
+  - job_name: "stock-app"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["app:8080"]          # docker-compose 서비스명:포트
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: "app:(.*)"
+        replacement: "stock-app"
+
+  # 3. Spring Boot Blue (prod blue-green)
+  - job_name: "stock-app-blue"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["app-blue:8080"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "stock-app-blue"
+
+  # 4. Spring Boot Green (prod blue-green)
+  - job_name: "stock-app-green"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["app-green:8080"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "stock-app-green"

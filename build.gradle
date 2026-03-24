@@ -67,6 +67,16 @@ dependencies {
 	// Actuator
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
+	// Micrometer Prometheus Registry (메트릭 수집)
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+	// Micrometer Tracing - Brave bridge (Jaeger/Zipkin 분산 추적)
+	implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+	implementation 'io.zipkin.reporter2:zipkin-reporter-brave'
+
+	// Logstash Logback Encoder (JSON 구조화 로깅)
+	implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+
 	// SpringFlux의 WebClient
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 

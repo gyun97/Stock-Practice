@@ -1,0 +1,78 @@
+global:
+  # resolve_timeout: 알림이 resolve 된 후 몇 분 뒤 resolved 알림을 보낼지
+  resolve_timeout: 5m
+
+  # ────────────────────────────────────────────
+  # [선택] Slack 알림 설정
+  # SLACK_WEBHOOK_URL 환경변수로 주입하거나 직접 입력
+  # ────────────────────────────────────────────
+  slack_api_url: "${SLACK_WEBHOOK_URL}"  # 없으면 slack 관련 receiver 무시됨
+
+# 알림 라우팅 규칙
+route:
+  receiver: "default-receiver"
+  group_by: ["alertname", "instance"]
+  group_wait: 30s       # 그룹 첫 알림 30초 대기 (배치)
+  group_interval: 5m    # 동일 그룹 재알림 간격
+  repeat_interval: 4h   # 동일 알림 반복 간격
+
+  routes:
+    # Critical → Slack #alert-critical (즉시 알림)
+    - receiver: "slack-critical"
+      matchers:
+        - severity = "critical"
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning → Slack #alert-warning
+    - receiver: "slack-warning"
+      matchers:
+        - severity = "warning"
+      repeat_interval: 2h
+
+# 수신자 정의
+receivers:
+  # 기본 수신자 (fallback - 로그만)
+  - name: "default-receiver"
+
+  # Critical 알림 채널
+  - name: "slack-critical"
+    slack_configs:
+      - channel: "#alert-critical"
+        send_resolved: true
+        icon_emoji: ":rotating_light:"
+        username: "Stock AlertManager"
+        title: '{{ template "slack.default.title" . }}'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* {{ .CommonLabels.severity }}
+          *Instance:* {{ .CommonLabels.instance }}
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+
+  # Warning 알림 채널
+  - name: "slack-warning"
+    slack_configs:
+      - channel: "#alert-warning"
+        send_resolved: true
+        icon_emoji: ":warning:"
+        username: "Stock AlertManager"
+        title: '{{ template "slack.default.title" . }}'
+        text: |
+          *Alert:* {{ .GroupLabels.alertname }}
+          *Severity:* {{ .CommonLabels.severity }}
+          *Instance:* {{ .CommonLabels.instance }}
+          {{ range .Alerts }}
+          *Summary:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+
+# 알림 억제 규칙 (critical 발생 시 warning 억제)
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ["alertname", "instance"]

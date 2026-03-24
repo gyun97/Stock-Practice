@@ -11,7 +11,25 @@ management:
   endpoints:
     web:
       exposure:
-        include: mappings
+        include: health,info,prometheus,metrics,mappings
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: stock-app
+      env: dev
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans  # Jaeger Zipkin 수신 포트
+
+tracing:
+  sampling:
+    probability: 1.0  # 로컬 전체 트레이싱
+
+logstash:
+  host: localhost
+  port: 5044
 
 jwt:
   secret:
