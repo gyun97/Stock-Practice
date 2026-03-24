@@ -72,8 +72,9 @@ jobs:
             # 4. 서버에서 Docker Hub 로그인 (Private 이미지 Pull 권한 확보)
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             
-            # 5. 최신 도커 이미지 Pull
-            docker-compose --env-file .env.prod -f docker-compose.prod.yml pull
+            # 5. 환경변수 로드 및 최신 도커 이미지 Pull (docker compose v2)
+            set -a && source .env.prod && set +a
+            docker compose -f docker-compose.prod.yml pull
             
             # 6. 무중단 배포 스크립트 실행
             chmod +x scripts/deploy.sh
