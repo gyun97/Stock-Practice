@@ -26,11 +26,11 @@ fi
 echo ">>> Deploying to $TARGET (port: $IDLE_PORT)..."
 
 # 2. 새로운 대상(Target) 컨테이너 실행
-docker compose --env-file $ENV_FILE -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
+docker-compose --env-file $ENV_FILE -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
 
 # 3. 헬스 체크 (Spring Boot Actuator 활용)
 echo ">>> Health checking app-$TARGET..."
-for retry in {1..30}
+for retry in {1..60}
 do
     # 컨테이너 내부 포트 8080에 대해 헬스 체크 수행 (호스트에서는 IDLE_PORT)
     HEALTH_CHECK=$(curl -s http://localhost:$IDLE_PORT/actuator/health | grep 'UP')
@@ -38,14 +38,14 @@ do
         echo ">>> app-$TARGET is UP!"
         break
     fi
-    echo ">>> Waiting for app-$TARGET... ($retry/30)"
+    echo ">>> Waiting for app-$TARGET... ($retry/60)"
     sleep 5
 done
 
 if [ -z "$HEALTH_CHECK" ]; then
     echo ">>> Deployment failed. app-$TARGET did NOT come up."
     # 실패 시 새 컨테이너 중지 (롤백 성격)
-    docker compose --env-file $ENV_FILE -f $DOCKER_COMPOSE_FILE stop app-$TARGET
+    docker-compose --env-file $ENV_FILE -f $DOCKER_COMPOSE_FILE stop app-$TARGET
     exit 1
 fi
 
@@ -62,7 +62,7 @@ echo ">>> Nginx reloaded. Traffic switched to $TARGET."
 # 5. 이전 컨테이너 중지
 if [ -n "$(docker ps -q -f name=${APP_NAME}-$OLD_TARGET)" ]; then
     echo ">>> Stopping old service: app-$OLD_TARGET..."
-    docker compose --env-file $ENV_FILE -f $DOCKER_COMPOSE_FILE stop app-$OLD_TARGET
+    docker-compose --env-file $ENV_FILE -f $DOCKER_COMPOSE_FILE stop app-$OLD_TARGET
 fi
 
 echo ">>> Deployment completed successfully!"
