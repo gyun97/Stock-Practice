@@ -38,9 +38,9 @@ management:
     tags:
       application: stock-app
       env: prod
-  zipkin:
-    tracing:
-      endpoint: http://jaeger:9411/api/v2/spans  # Docker Compose 내 Jaeger 서비스
+#  zipkin:
+#    tracing:
+#      endpoint: http://jaeger:9411/api/v2/spans  # Docker Compose 내 Jaeger 서비스 제거됨
 
 tracing:
   sampling:

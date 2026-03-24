@@ -30,10 +30,10 @@ set -a
 source $ENV_FILE
 set +a
 
-# 2. 기반 인프라 서비스(MySQL, Redis, Nginx, 모니터링 등) 기동 확인
+# 2. 기반 인퍼라 서비스(MySQL, Redis, Nginx, Alloy 등) 기동 확인
 # 이미 실행 중이면 영향을 주지 않으며, 죽어있거나 없는 경우에만 새로 띄움
 echo ">>> Ensuring infrastructure services are UP..."
-docker compose -f $DOCKER_COMPOSE_FILE up -d mysql redis nginx prometheus grafana alertmanager jaeger loki alloy
+docker compose -f $DOCKER_COMPOSE_FILE up -d --remove-orphans mysql redis nginx alloy
 
 # 2.1. 새로운 대상(Target) 컨테이너 파일 적용 및 실행
 docker compose -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
