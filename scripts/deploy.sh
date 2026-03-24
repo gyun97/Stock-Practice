@@ -30,12 +30,17 @@ set -a
 source $ENV_FILE
 set +a
 
-# 2. 새로운 대상(Target) 컨테이너 실행 (docker compose v2 사용, --env-file 옵션 제거)
+# 2. 기반 인프라 서비스(MySQL, Redis, Nginx, 모니터링 등) 기동 확인
+# 이미 실행 중이면 영향을 주지 않으며, 죽어있거나 없는 경우에만 새로 띄움
+echo ">>> Ensuring infrastructure services are UP..."
+docker compose -f $DOCKER_COMPOSE_FILE up -d mysql redis nginx prometheus grafana alertmanager jaeger loki alloy
+
+# 2.1. 새로운 대상(Target) 컨테이너 파일 적용 및 실행
 docker compose -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
 
 # 3. 헬스 체크 (Spring Boot Actuator 활용)
 echo ">>> Health checking app-$TARGET..."
-for retry in {1..60}
+for retry in {1..30}
 do
     # 컨테이너 내부 포트 8080에 대해 헬스 체크 수행 (호스트에서는 IDLE_PORT)
     HEALTH_CHECK=$(curl -s http://localhost:$IDLE_PORT/actuator/health | grep 'UP')
@@ -60,9 +65,17 @@ echo ">>> app-$TARGET is running with profile: $CURRENT_PROFILE"
 
 # 4. Nginx 설정 업데이트 (포트 전환)
 echo "set \$service_url http://app-$TARGET:8080;" > $SERVICE_ENV_FILE
-docker exec stock-nginx nginx -s reload
 
-echo ">>> Nginx reloaded. Traffic switched to $TARGET."
+# Nginx 컨테이너가 존재하는지 확인 후 reload 실행
+if [ -n "$(docker ps -q -f name=stock-nginx)" ]; then
+    echo ">>> Reloading Nginx..."
+    docker exec stock-nginx nginx -s reload
+    echo ">>> Nginx reloaded. Traffic switched to $TARGET."
+else
+    echo ">>> [ERROR] stock-nginx container is NOT running. Traffic switch failed!"
+    # 인프라 전체 재기동 시도
+    docker compose -f $DOCKER_COMPOSE_FILE up -d nginx
+fi
 
 # 5. 이전 컨테이너 중지
 if [ -n "$(docker ps -q -f name=${APP_NAME}-$OLD_TARGET)" ]; then
