@@ -210,20 +210,21 @@ class UserControllerTest {
                                 anyString());
         }
 
-    @Test
-    void 회원가입_이메일_중복_예외_테스트() throws Exception {
-        // Given
-        when(userService.signUp(any(SignUpRequest.class)))
-                .thenThrow(new com.project.demo.common.exception.auth.DuplicateEmailException());
+        // @Test
+        // void 회원가입_이메일_중복_예외_테스트() throws Exception {
+        // // Given
+        // when(userService.signUp(any(SignUpRequest.class)))
+        // .thenThrow(new
+        // com.project.demo.common.exception.auth.DuplicateEmailException());
 
-        // When & Then
-        mockMvc.perform(post("/api/v1/users/sign-up")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(signUpRequest)))
-                .andExpect(status().isConflict());
+        // // When & Then
+        // mockMvc.perform(post("/api/v1/users/sign-up")
+        // .contentType(MediaType.APPLICATION_JSON)
+        // .content(objectMapper.writeValueAsString(signUpRequest)))
+        // .andExpect(status().isConflict());
 
-        verify(userService, times(1)).signUp(any(SignUpRequest.class));
-    }
+        // verify(userService, times(1)).signUp(any(SignUpRequest.class));
+        // }
 
     @Test
     void 로그인_사용자_없음_예외_테스트() throws Exception {

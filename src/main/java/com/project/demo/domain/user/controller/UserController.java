@@ -77,11 +77,7 @@ public class UserController {
         LoginResponse response = userService.login(loginRequest);
 
         jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
-        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain); // 응답
-                                                                                                                      // 쿠키에
-                                                                                                                      // refresh
-                                                                                                                      // token
-                                                                                                                      // 저장
+        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain);
 
         return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
     }

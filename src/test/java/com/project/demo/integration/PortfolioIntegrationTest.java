@@ -303,8 +303,9 @@ class PortfolioIntegrationTest extends AbstractIntegrationTest {
         void 동시에_매수_주문_시_자산_정합성_테스트() throws Exception {
                 // Given
                 int threadCount = 30;
-                ExecutorService executorService = Executors.newFixedThreadPool(threadCount);
-                CountDownLatch latch = new CountDownLatch(threadCount);
+                ExecutorService executorService = Executors.newFixedThreadPool(threadCount); // 스레드 풀(Thread Pool)을 기반으로
+                                                                                             // 비동기 작업
+                CountDownLatch latch = new CountDownLatch(threadCount); // 하나 이상의 스레드가 다른 스레드에서 작업이 완료될 때까지 대기
 
                 String accessToken = jwtUtil.createAccessToken(testUser.getId(), testUser.getEmail(),
                                 testUser.getUserRole(), testUser.getName());

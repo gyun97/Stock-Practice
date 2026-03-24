@@ -1,7 +1,35 @@
 logging {
-  level = "info"
+  level  = "info"
   format = "logfmt"
 }
+
+// ---------------------------------------------------------
+// 1. Metrics (Prometheus) 수집 및 전송
+// ---------------------------------------------------------
+
+// Spring Boot 앱들로부터 메트릭을 스크레이핑합니다.
+prometheus.scrape "stock_apps" {
+  targets = [
+    {"__address__" = "app-blue:8080", "instance" = "stock-app-blue"},
+    {"__address__" = "app-green:8080", "instance" = "stock-app-green"},
+  ]
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Grafana Cloud Prometheus로 메트릭 전송
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
+
+// ---------------------------------------------------------
+// 2. Logs (Loki) 수집 및 전송
+// ---------------------------------------------------------
 
 // Docker 소켓을 통해 실행 중인 컨테이너들을 자동 검색합니다.
 discovery.docker "containers" {
@@ -14,21 +42,25 @@ discovery.relabel "containers" {
 
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex = "/(.*)"
+    regex         = "/(.*)"
     target_label  = "container"
   }
 }
 
-// 컨테이너 로그를 읽어서 Loki로 포워딩합니다.
+// 컨테이너 로그를 읽어서 Grafana Cloud Loki로 포워딩합니다.
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.relabel.containers.output
-  forward_to = [loki.write.local.receiver]
+  forward_to = [loki.write.grafana_cloud.receiver]
 }
 
-// Loki 서버 위치 설정
-loki.write "local" {
+// Grafana Cloud Loki로 로그 전송
+loki.write "grafana_cloud" {
   endpoint {
-    url = "http://loki:3100/loki/api/v1/push"
+    url = sys.env("GRAFANA_CLOUD_LOKI_URL")
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_LOKI_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
   }
 }

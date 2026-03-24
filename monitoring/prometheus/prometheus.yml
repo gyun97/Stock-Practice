@@ -24,18 +24,7 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  # 2. Spring Boot Application (Actuator /actuator/prometheus)
-  - job_name: "stock-app"
-    metrics_path: "/actuator/prometheus"
-    static_configs:
-      - targets: ["app:8080"]          # docker-compose 서비스명:포트
-    relabel_configs:
-      - source_labels: [__address__]
-        target_label: instance
-        regex: "app:(.*)"
-        replacement: "stock-app"
-
-  # 3. Spring Boot Blue (prod blue-green)
+  # 2. Spring Boot Blue (prod blue-green)
   - job_name: "stock-app-blue"
     metrics_path: "/actuator/prometheus"
     static_configs:
@@ -45,7 +34,7 @@ scrape_configs:
         target_label: instance
         replacement: "stock-app-blue"
 
-  # 4. Spring Boot Green (prod blue-green)
+  # 3. Spring Boot Green (prod blue-green)
   - job_name: "stock-app-green"
     metrics_path: "/actuator/prometheus"
     static_configs:

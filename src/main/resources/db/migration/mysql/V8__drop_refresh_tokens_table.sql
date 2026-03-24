@@ -1,2 +1,2 @@
--- 테이블 완전 삭제 (강제 로그아웃 감수)
+-- refresh token 테이블 삭제 -> Reids 이전    
 DROP TABLE IF EXISTS refresh_tokens;
