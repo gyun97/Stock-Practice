@@ -28,7 +28,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
      * 이중 체결 방지를 위한 비관적 잠금 조회
-     * 체결 처리 시작 전 DB에서 최신 상태를 잠금과 함께 읽어, 중복 체결을 원천 차단합니다.
+     * 체결 처리 시작 전 DB에서 최신 상태를 잠금과 함께 읽어, 중복 체결을 원천 차단
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o WHERE o.id = :orderId")

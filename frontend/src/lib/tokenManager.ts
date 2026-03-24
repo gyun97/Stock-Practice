@@ -98,7 +98,7 @@ export class TokenManager {
     // httpOnly 쿠키는 자동으로 전송되므로 별도 체크 불필요
     const apiBase = import.meta.env.VITE_API_BASE_URL || ''
     const url = `${apiBase}/api/v1/users/reissue`
-    console.log(`🔄 토큰 재발급 시작 - ${url} 호출`)
+    console.log(`토큰 재발급 시작 - ${url} 호출`)
     try {
       // 토큰 재발급 API는 전역 인터셉터를 우회하기 위해 원본 fetch를 직접 사용
       const response = await this.getOriginalFetch()(url, {
@@ -113,7 +113,6 @@ export class TokenManager {
 
       if (response.ok) {
         const result = await response.json()
-        console.log('토큰 재발급 응답 데이터:', result)
         let newAccessToken = result.data || result.accessToken
 
         // "Bearer " prefix 제거 (백엔드에서 이미 포함시켜서 보내므로)

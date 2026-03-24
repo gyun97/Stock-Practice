@@ -18,6 +18,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.*;
@@ -210,10 +212,8 @@ class PortfolioServiceImplTest {
         String invalidJson = "invalid-json";
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
-                org.springframework.data.redis.core.ValueOperations.class);
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
-                org.springframework.data.redis.core.ZSetOperations.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+        ZSetOperations<String, String> zSetOps = mock(ZSetOperations.class);
 
         when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(testPortfolio));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
@@ -293,10 +293,8 @@ class PortfolioServiceImplTest {
         String cacheKey = "portfolio:data:" + userId;
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
 
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
-                org.springframework.data.redis.core.ValueOperations.class);
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
-                org.springframework.data.redis.core.ZSetOperations.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+        ZSetOperations<String, String> zSetOps = mock(ZSetOperations.class);
 
         when(portfolioRepository.findByUserId(userId)).thenReturn(Optional.of(testPortfolio));
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
@@ -324,7 +322,7 @@ class PortfolioServiceImplTest {
         int limit = 2;
         // Redis는 1, 2, 3번 ID를 반환 (limit=2인데 넉넉히 가져온 상황 가정)
         Set<String> topUserIds = new LinkedHashSet<>(Arrays.asList("1", "2", "3"));
-        
+
         org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
                 org.springframework.data.redis.core.ZSetOperations.class);
         org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
@@ -333,11 +331,11 @@ class PortfolioServiceImplTest {
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
         // reverseRange는 fetchLimit(limit * 2 = 4) 범위로 호출됨
         when(zSetOps.reverseRange("user:rank:totalAsset", 0, 3)).thenReturn(topUserIds);
-        
+
         // 1번 유저는 유효, 2번 유저는 삭제됨(null), 3번 유저는 유효
         when(portfolioRepository.findByUserId(1L)).thenReturn(Optional.of(testPortfolio));
         when(portfolioRepository.findByUserId(2L)).thenReturn(Optional.empty());
-        
+
         Portfolio portfolio3 = Portfolio.builder()
                 .balance(20000000)
                 .totalAsset(20000000)

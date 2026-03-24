@@ -159,4 +159,4 @@ SELECT
     END AS '결과'
 FROM perf_results;
 
-SELECT '성능 테스트 완료. 쓰기 성능(6번)의 오버헤드가 크지 않음을 확인하세요.' AS final_message;
+SELECT '성능 테스트 완료.' AS final_message;

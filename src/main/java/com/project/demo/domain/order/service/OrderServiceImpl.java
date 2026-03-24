@@ -120,8 +120,11 @@ public class OrderServiceImpl implements OrderService {
                 Portfolio portfolio = portfolioRepository.findWithLockByUserId(user.getId())
                                 .orElseThrow(NotFoundPortfolioException::new);
 
-                // 2. MySQL REPEATABLE READ 격리 수준에서 스냅샷을 우회하고 최신 데이터를 강제 로드하기 위해 락 모드와 함께 refresh
-                entityManager.refresh(portfolio, LockModeType.PESSIMISTIC_WRITE);
+                // 2. MySQL REPEATABLE READ 격리 수준에서 스냅샷을 우회하고 최신 데이터를 강제 로드하기 위해 락 모드와 함께
+                // refresh
+                // portfolios 테이블의 현재 잔고 확인
+                entityManager.refresh(portfolio, LockModeType.PESSIMISTIC_WRITE); // 영속성 컨텍스트(1차 캐시)에 있는 엔티티의 데이터를
+                                                                                  // 데이터베이스(DB)에서 다시 읽어와 최신 상태로 갱신하는 기능
 
                 // 잔고 확인
                 if (portfolio.getBalance() < totalPrice) {
@@ -142,12 +145,13 @@ public class OrderServiceImpl implements OrderService {
                 // 4. 보유 주식(UserStock) 비관적 락 조회
                 UserStock userStock;
                 try {
-                        Optional<UserStock> optionalUserStock = userStockRepository.findByUserAndStockWithLock(user.getId(),
+                        Optional<UserStock> optionalUserStock = userStockRepository.findByUserAndStockWithLock(
+                                        user.getId(),
                                         stock.getId());
 
                         if (optionalUserStock.isPresent()) {
                                 userStock = optionalUserStock.get();
-                                // unblock된 후 최신 상태 반영을 위해 락 모드와 함께 refresh (snapshot 우회)
+                                // user_stocks 테이블의 현재 주식수량 확인
                                 entityManager.refresh(userStock, LockModeType.PESSIMISTIC_WRITE);
                                 userStock.updateAfterBuy(price, quantity);
                         } else {
@@ -434,7 +438,8 @@ public class OrderServiceImpl implements OrderService {
                                 }
 
                                 try {
-                                        executeBuy(lockedOrder, lockedOrder.getUser(), lockedOrder.getStock(), currentPrice,
+                                        executeBuy(lockedOrder, lockedOrder.getUser(), lockedOrder.getStock(),
+                                                        currentPrice,
                                                         lockedOrder.getQuantity(),
                                                         (long) currentPrice * lockedOrder.getQuantity());
                                         lockedOrder.markExecuted(); // 체결 완료로 갱신
@@ -475,7 +480,8 @@ public class OrderServiceImpl implements OrderService {
                                 }
 
                                 try {
-                                        executeSell(lockedOrder, lockedOrder.getUser(), lockedOrder.getStock(), currentPrice,
+                                        executeSell(lockedOrder, lockedOrder.getUser(), lockedOrder.getStock(),
+                                                        currentPrice,
                                                         lockedOrder.getQuantity(),
                                                         (long) currentPrice * lockedOrder.getQuantity());
                                         lockedOrder.markExecuted();
