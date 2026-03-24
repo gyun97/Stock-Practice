@@ -99,6 +99,113 @@ services:
     ports:
       - "8082:8080"
 
+  # =================================================
+  # 모니터링 스택 (prod)
+  # =================================================
+
+  # -----------------
+  # Prometheus
+  # -----------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: stock-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+
+  # -----------------
+  # Grafana
+  # -----------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: stock-grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # -----------------
+  # AlertManager
+  # -----------------
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: stock-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+    restart: unless-stopped
+
+  # -----------------
+  # Jaeger (all-in-one)
+  # -----------------
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: stock-jaeger
+    ports:
+      - "16686:16686"  # UI
+      - "9411:9411"    # Zipkin 수신
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=9411
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   redis_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+  # -----------------
+  # Loki (경량형 로그 저장소)
+  # -----------------
+  loki:
+    image: grafana/loki:latest
+    container_name: stock-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+
+  # -----------------
+  # Alloy (로그 수집기 - Promtail 후속)
+  # -----------------
+  alloy:
+    image: grafana/alloy:latest
+    container_name: stock-alloy
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker 컨테이너 로그를 읽기 위해 필수
+    command: 
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/alloy/config.alloy
+    depends_on:
+      - loki
+    restart: unless-stopped

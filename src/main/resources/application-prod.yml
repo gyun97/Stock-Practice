@@ -30,7 +30,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: "health,info,prometheus,metrics"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: stock-app
+      env: prod
+  zipkin:
+    tracing:
+      endpoint: http://jaeger:9411/api/v2/spans  # Docker Compose 내 Jaeger 서비스
+
+tracing:
+  sampling:
+    probability: 0.1  # prod에서는 10% 샘플링
 
 
 spring:

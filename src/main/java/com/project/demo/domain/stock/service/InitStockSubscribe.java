@@ -44,6 +44,7 @@ public class InitStockSubscribe {
     private final SimpMessagingTemplate messagingTemplate;
     private final StockOutlineService stockOutlineService;
     private final RestTemplate restTemplate;
+    private final StockMetrics stockMetrics;  // 커스텀 메트릭
 
     @Value("${kis.app.key}")
     private String appKey;
@@ -96,6 +97,7 @@ public class InitStockSubscribe {
 
                 client.setSubscriptionInfo(null, FIXED_TICKERS);
                 client.tryConnect();
+                stockMetrics.setSubscribeCount(FIXED_TICKERS.size()); // 구독 종목 수 Gauge 설정
 
                 for (String ticker : FIXED_TICKERS) {
                     try {
@@ -175,9 +177,11 @@ public class InitStockSubscribe {
         
         ResponseEntity<Map> response;
         try {
+            stockMetrics.recordKisApiCall();  // KIS API 호출 카운팅
             response = restTemplate.exchange(
                     builder.toUriString(), HttpMethod.GET, entity, Map.class);
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            stockMetrics.recordKisApiError();  // KIS API 에러 카운팅
             String errorBody = e.getResponseBodyAsString();
             if (errorBody.contains("EGW00123") && !isRetry) {
                 log.warn("[TOKEN EXPIRED] EGW00123 감지 → 토큰 재발급 후 재시도 (티커: {})", trKey);
@@ -248,6 +252,7 @@ public class InitStockSubscribe {
             String json = mapper.writeValueAsString(out);
 
             redisTemplate.opsForValue().set(key, json); // Redis에 주가 정보 저장
+            stockMetrics.recordRedisSave();  // Redis 저장 카운팅
 
             // 정렬용 ZSET 업데이트
             redisTemplate.opsForZSet().add("stock:rank:volume", trKey, volume); // 거래량 많은 순으로 정렬 redis 저장
@@ -256,6 +261,7 @@ public class InitStockSubscribe {
 
             // STOMP로 직접 전송
             messagingTemplate.convertAndSend("/topic/stocks", json);
+            stockMetrics.recordStompBroadcast();  // STOMP 브로드캐스트 카운팅
 
             log.info("Redis 저장 & STOMP 직접 전송(REST) → {}", json);
 
