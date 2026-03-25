@@ -72,14 +72,13 @@ echo ">>> app-$TARGET is running with profile: $CURRENT_PROFILE"
 # 파일을 새로 생성하면 도커 Inode 문제로 인식이 안 될 수 있으므로 sed로 내용만 교체
 sed -i "s|set \$service_url .*|set \$service_url http://app-$TARGET:8080;|" $SERVICE_ENV_FILE
 
-# Nginx 컨테이너가 존재하는지 확인 후 reload 실행
+# Nginx 컨테이너 재시작 (reload는 파일 디스크립터 캐시 문제로 설정 변경을 반영 못할 수 있음)
 if [ -n "$(docker ps -q -f name=stock-nginx)" ]; then
-    echo ">>> Reloading Nginx..."
-    docker exec stock-nginx nginx -s reload
-    echo ">>> Nginx reloaded. Traffic switched to $TARGET."
+    echo ">>> Restarting Nginx to apply new config..."
+    docker restart stock-nginx
+    echo ">>> Nginx restarted. Traffic switched to $TARGET."
 else
     echo ">>> [ERROR] stock-nginx container is NOT running. Traffic switch failed!"
-    # 인프라 전체 재기동 시도
     docker compose -f $DOCKER_COMPOSE_FILE up -d nginx
 fi
 
