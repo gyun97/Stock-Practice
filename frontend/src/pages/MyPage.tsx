@@ -44,6 +44,7 @@ export default function MyPage() {
   const [pwMessage, setPwMessage] = useState('')
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editForm, setEditForm] = useState({ newEmail: '', newName: '', newProfileImage: '' as string | undefined })
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editMessage, setEditMessage] = useState('')
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
@@ -462,14 +463,15 @@ export default function MyPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 1024 * 1024) { // 1MB 제한
-      setEditMessage('이미지 크기는 1MB 이하여야 합니다.')
+    if (file.size > 5 * 1024 * 1024) { // 5MB 제한
+      setEditMessage('이미지 크기는 5MB 이하여야 합니다.')
       return
     }
 
     const reader = new FileReader()
     reader.onloadend = () => {
       setEditForm(prev => ({ ...prev, newProfileImage: reader.result as string }))
+      setSelectedFile(file)
     }
     reader.readAsDataURL(file)
   }
@@ -483,26 +485,63 @@ export default function MyPage() {
       return
     }
 
-    // 빈 값이면 null로 전송 (백엔드에서 기존 값 유지)
-    const requestBody: { newEmail?: string; newName?: string; newProfileImage?: string } = {}
-    if (editForm.newEmail && editForm.newEmail.trim() !== '') {
-      requestBody.newEmail = editForm.newEmail.trim()
-    }
-    if (editForm.newName && editForm.newName.trim() !== '') {
-      requestBody.newName = editForm.newName.trim()
-    }
-    if (editForm.newProfileImage !== userInfo.profileImage) {
-      requestBody.newProfileImage = editForm.newProfileImage
-    }
-
-    // 둘 다 비어있으면 수정할 내용이 없음
-    if (Object.keys(requestBody).length === 0) {
-      setEditMessage('수정할 내용을 입력해주세요.')
-      return
-    }
+    let finalImageUrl = editForm.newProfileImage
 
     try {
       setEditSubmitting(true)
+
+      // S3 직접 업로드
+      if (selectedFile) {
+        setEditMessage('이미지를 업로드 중입니다...')
+        const presignedRes = await tokenManager.authenticatedFetch(
+          `/api/v1/s3/presigned-url?directory=profiles&originalFilename=${encodeURIComponent(selectedFile.name)}`
+        )
+        
+        if (presignedRes.ok) {
+          const presignedData = await presignedRes.json()
+          const { presignedUrl } = presignedData.data
+
+          // S3로 직접 PUT 요청
+          const uploadRes = await fetch(presignedUrl, {
+            method: 'PUT',
+            body: selectedFile,
+            headers: {
+              'Content-Type': selectedFile.type
+            }
+          })
+
+          if (!uploadRes.ok) {
+            throw new Error('이미지 S3 업로드에 실패했습니다.')
+          }
+
+          // 파라미터를 제외한 순수 URL 추출
+          finalImageUrl = presignedUrl.split('?')[0]
+        } else {
+          throw new Error('업로드 주소를 서버에서 가져오지 못했습니다.')
+        }
+      }
+
+      setEditMessage('사용자 정보를 저장하는 중입니다...')
+
+      // 빈 값이면 null로 전송 (백엔드에서 기존 값 유지)
+      const requestBody: { newEmail?: string; newName?: string; newProfileImage?: string } = {}
+      if (editForm.newEmail && editForm.newEmail.trim() !== '') {
+        requestBody.newEmail = editForm.newEmail.trim()
+      }
+      if (editForm.newName && editForm.newName.trim() !== '') {
+        requestBody.newName = editForm.newName.trim()
+      }
+      if (finalImageUrl !== userInfo.profileImage) {
+        requestBody.newProfileImage = finalImageUrl
+      }
+
+      // 수정할 내용 체크
+      if (Object.keys(requestBody).length === 0) {
+        setEditMessage('수정할 내용을 입력해주세요.')
+        setEditSubmitting(false)
+        return
+      }
+
       const res = await tokenManager.authenticatedFetch(`/api/v1/users/${userInfo.userId}`, {
         method: 'PATCH',
         headers: {

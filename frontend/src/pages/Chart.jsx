@@ -91,7 +91,8 @@ export default function Chart() {
           if (stock) {
             if (stock.companyName) {
               setCompanyName(stock.companyName)
-              setLogoUrl(`/logos/${stock.companyName}.png`)
+              const s3BaseUrl = import.meta.env.VITE_S3_URL || ''
+              setLogoUrl(s3BaseUrl ? `${s3BaseUrl}/logos/${stock.companyName}.png` : `/logos/${stock.companyName}.png`)
             }
             if (stock.stockId || stock.id) {
               setCurrentStockId(stock.stockId ?? stock.id)

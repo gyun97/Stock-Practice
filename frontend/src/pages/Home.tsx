@@ -1090,7 +1090,9 @@ function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; log
   const fallbackBg = '#e5e7eb'
   const initials = (name || ticker || '?').slice(0, 2)
   const safeName = (name || '').replace(/[\\/#?&%:"*<>|]/g, '').replace(/\s+/g, '')
-  const src = logoUrl ?? `/logos/${safeName}.png`
+  const s3BaseUrl = import.meta.env.VITE_S3_URL || ''
+  const defaultSrc = s3BaseUrl ? `${s3BaseUrl}/logos/${safeName}.png` : `/logos/${safeName}.png`
+  const src = logoUrl ?? defaultSrc
   const onError = (e: any) => {
     e.currentTarget.style.display = 'none'
     const sib = e.currentTarget.nextSibling as HTMLElement | null
