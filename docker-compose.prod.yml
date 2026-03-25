@@ -120,7 +120,7 @@ services:
       - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
       - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
       - GRAFANA_CLOUD_API_KEY=${GRAFANA_CLOUD_API_KEY}
-    command: 
+    command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
       - /etc/alloy/config.alloy
@@ -129,3 +129,5 @@ services:
 volumes:
   mysql_data:
   redis_data:
+
+
