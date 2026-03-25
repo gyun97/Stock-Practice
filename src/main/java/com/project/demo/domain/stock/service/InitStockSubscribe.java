@@ -99,8 +99,7 @@ public class InitStockSubscribe {
 
                 client.setSubscriptionInfo(null, FIXED_TICKERS);
                 client.tryConnect();
-                stockMetrics.setSubscribeCount(FIXED_TICKERS.size()); // 구독 종목 수 Gauge 설정
-
+ 
                 for (String ticker : FIXED_TICKERS) {
                     try {
                         // RDB에 종목 기본 정보 저장 및 갱신
