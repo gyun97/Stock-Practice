@@ -35,35 +35,35 @@
     </appender>
 
     <!-- ===================================================
-         Appender 2: Logstash JSON TCP (ELK 수집)
-         traceId / spanId 자동 포함 (Micrometer Tracing 연동)
-         =================================================== -->
-    <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-        <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"app":"${APP_NAME}"}</customFields>
-            <!-- MDC에 있는 traceId, spanId를 자동으로 JSON 필드로 포함 -->
-            <includeMdcKeyName>traceId</includeMdcKeyName>
-            <includeMdcKeyName>spanId</includeMdcKeyName>
-        </encoder>
-        <!-- Logstash 연결 실패 시 애플리케이션이 죽지 않도록 비동기 처리 -->
-        <reconnectionDelay>10 seconds</reconnectionDelay>
-        <connectionTimeout>5000</connectionTimeout>
-        <writeTimeout>5000</writeTimeout>
-    </appender>
-
-    <!-- 비동기 래퍼: 로깅이 메인 스레드를 블로킹하지 않도록 -->
-    <appender name="ASYNC_LOGSTASH" class="ch.qos.logback.classic.AsyncAppender">
-        <appender-ref ref="LOGSTASH"/>
-        <discardingThreshold>0</discardingThreshold>
-        <queueSize>512</queueSize>
-        <includeCallerData>false</includeCallerData>
-    </appender>
-
-    <!-- ===================================================
          Profile: dev
          =================================================== -->
     <springProfile name="dev">
+        <!-- ===================================================
+             Appender 2: Logstash JSON TCP (ELK 수집)
+             traceId / spanId 자동 포함 (Micrometer Tracing 연동)
+             =================================================== -->
+        <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+            <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app":"${APP_NAME}"}</customFields>
+                <!-- MDC에 있는 traceId, spanId를 자동으로 JSON 필드로 포함 -->
+                <includeMdcKeyName>traceId</includeMdcKeyName>
+                <includeMdcKeyName>spanId</includeMdcKeyName>
+            </encoder>
+            <!-- Logstash 연결 실패 시 애플리케이션이 죽지 않도록 비동기 처리 -->
+            <reconnectionDelay>10 seconds</reconnectionDelay>
+            <connectionTimeout>5000</connectionTimeout>
+            <writeTimeout>5000</writeTimeout>
+        </appender>
+
+        <!-- 비동기 래퍼: 로깅이 메인 스레드를 블로킹하지 않도록 -->
+        <appender name="ASYNC_LOGSTASH" class="ch.qos.logback.classic.AsyncAppender">
+            <appender-ref ref="LOGSTASH"/>
+            <discardingThreshold>0</discardingThreshold>
+            <queueSize>512</queueSize>
+            <includeCallerData>false</includeCallerData>
+        </appender>
+
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="ASYNC_LOGSTASH"/>
