@@ -9,7 +9,8 @@ on:
       - 'docker-compose.prod.yml' # 운영 설정이 바뀔 때 실행
       - 'scripts/**'         # 배포 스크립트가 바뀔 때 실행
       - '.github/workflows/deploy.yml' # 워크플로우 자체가 바뀔 때 실행
-      - '!frontend/**'       # 프론트엔드 폴더 내 파일이 바뀔 때는 이 워크플로우 제외
+      - 'frontend/nginx.conf' # 프록시 설정이 바뀔 때 실행
+      - '!frontend/**'       # 나머지 프론트엔드 파일 바뀔 때는 제외
 
 jobs:
   build-and-push:
