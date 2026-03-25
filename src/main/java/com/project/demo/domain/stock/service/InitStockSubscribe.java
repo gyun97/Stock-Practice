@@ -88,12 +88,14 @@ public class InitStockSubscribe {
                 log.info("[ASYNC INIT] 고정 종목 40개 정보 초기화 시작...");
                 accessToken = kisApiAccessTokenService.getAccessToken();
 
-                log.info("서버 가동: Redis 주식 관련 데이터 초기화 시작...");
+                log.info("서버 가동: 기존 Redis 주식 데이터 유지 (Blue-Green 배포 시 공유 Redis 데이터 유실 방지)");
+                /* Redis 초기화 로직 주석 처리 (블루-그린 배포 시 데이터 유실 방지)
                 java.util.Set<String> stockKeys = redisTemplate.keys("stock:*");
                 if (stockKeys != null && !stockKeys.isEmpty()) {
                     redisTemplate.delete(stockKeys);
                     log.info("Redis 주식 데이터 {}개 삭제 완료", stockKeys.size());
                 }
+                */
 
                 client.setSubscriptionInfo(null, FIXED_TICKERS);
                 client.tryConnect();

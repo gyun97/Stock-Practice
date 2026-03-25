@@ -69,6 +69,7 @@ services:
     container_name: stock-app-blue
     environment:
       - SPRING_PROFILES_ACTIVE=prod,set1
+      - JAVA_TOOL_OPTIONS=-Xmx384m
     env_file:
       - .env.prod
     depends_on:
@@ -88,6 +89,7 @@ services:
     container_name: stock-app-green
     environment:
       - SPRING_PROFILES_ACTIVE=prod,set2
+      - JAVA_TOOL_OPTIONS=-Xmx384m
     env_file:
       - .env.prod
     depends_on:
