@@ -69,7 +69,8 @@ CURRENT_PROFILE=$(curl -s http://localhost:$IDLE_PORT/api/profile)
 echo ">>> app-$TARGET is running with profile: $CURRENT_PROFILE"
 
 # 4. Nginx 설정 업데이트 (포트 전환)
-echo "set \$service_url http://app-$TARGET:8080;" > $SERVICE_ENV_FILE
+# 파일을 새로 생성하면 도커 Inode 문제로 인식이 안 될 수 있으므로 sed로 내용만 교체
+sed -i "s|set \$service_url .*|set \$service_url http://app-$TARGET:8080;|" $SERVICE_ENV_FILE
 
 # Nginx 컨테이너가 존재하는지 확인 후 reload 실행
 if [ -n "$(docker ps -q -f name=stock-nginx)" ]; then
