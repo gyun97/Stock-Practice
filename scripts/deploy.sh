@@ -30,8 +30,13 @@ set -a
 source $ENV_FILE
 set +a
 
-# 2. 기반 인퍼라 서비스(MySQL, Redis, Nginx, Alloy 등) 기동 확인
-# 이미 실행 중이면 영향을 주지 않으며, 죽어있거나 없는 경우에만 새로 띄움
+# 2. 기반 인프라 서비스(MySQL, Redis, Nginx, Alloy 등) 기동 확인
+# Nginx 설정파일(service-env.inc)이 없으면 기동에 실패하므로 미리 생성
+if [ ! -f "$SERVICE_ENV_FILE" ]; then
+    echo ">>> Creating default $SERVICE_ENV_FILE..."
+    echo "set \$service_url http://app-blue:8080;" > $SERVICE_ENV_FILE
+fi
+
 echo ">>> Ensuring infrastructure services are UP..."
 docker compose -f $DOCKER_COMPOSE_FILE up -d --remove-orphans mysql redis nginx alloy
 
