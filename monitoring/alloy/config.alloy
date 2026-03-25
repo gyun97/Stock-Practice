@@ -10,6 +10,7 @@ logging {
 // Spring Boot 앱들로부터 메트릭을 스크레이핑합니다.
 prometheus.scrape "stock_apps" {
   scrape_interval = "60s"
+  metrics_path    = "/actuator/prometheus"
   targets = [
     {"__address__" = "app-blue:8080", "instance" = "stock-app-blue", "job" = "integrations/springboot"},
     {"__address__" = "app-green:8080", "instance" = "stock-app-green", "job" = "integrations/springboot"},
