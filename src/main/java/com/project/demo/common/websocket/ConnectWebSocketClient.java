@@ -7,6 +7,7 @@ import com.project.demo.common.kis.KisApprovalKeyService;
 import com.project.demo.common.util.MarketTime;
 import com.project.demo.domain.order.service.OrderService;
 import com.project.demo.domain.stock.repository.StockRepository;
+import com.project.demo.domain.stock.service.StockMetrics;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
@@ -32,7 +33,8 @@ public class ConnectWebSocketClient extends WebSocketClient {
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderService orderService;
     private final KisApprovalKeyService approvalKeyService;
-
+    private final StockMetrics stockMetrics;
+ 
     private String iv;
     private String key;
     private String approvalKey;
@@ -43,6 +45,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
     public ConnectWebSocketClient(ObjectMapper objectMapper, StringRedisTemplate redisTemplate,
             StockRepository stockRepository, SimpMessagingTemplate messagingTemplate,
             OrderService orderService, KisApprovalKeyService approvalKeyService,
+            StockMetrics stockMetrics,
             @Value("${kis.url.ws}") String wsUrl)
             throws Exception {
         super(new URI(wsUrl));
@@ -52,6 +55,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
         this.messagingTemplate = messagingTemplate;
         this.orderService = orderService;
         this.approvalKeyService = approvalKeyService;
+        this.stockMetrics = stockMetrics;
         this.setConnectionLostTimeout(0);
     }
 
@@ -129,6 +133,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
             }
         }
         log.info("전체 종목 구독 프로세스 완료");
+        stockMetrics.setSubscribeCount(tickers != null ? tickers.size() : 0);
     }
 
     private void subscribeStock(String ticker) throws Exception {
@@ -158,6 +163,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
         if (this.isOpen()) {
             log.info("장 마감 시각 도달 → WebSocket 연결 종료");
             this.close();
+            stockMetrics.setSubscribeCount(0);
         }
     }
 
@@ -288,6 +294,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
     @Override
     public void onClose(int code, String reason, boolean remote) {
         log.warn("WebSocket 연결 종료. code={}, reason={}, remote={}", code, reason, remote);
+        stockMetrics.setSubscribeCount(0);
         
         // 연결이 너무 빨리 끊겼거나(예: 5초 이내), 서버에 의해 끊긴 경우(원격 종료) 키가 부정확할 가능성이 큼
         long connectedDuration = System.currentTimeMillis() - lastConnectTimestamp;
