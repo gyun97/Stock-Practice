@@ -10,8 +10,8 @@ logging {
 // Spring Boot 앱들로부터 메트릭을 스크레이핑합니다.
 prometheus.scrape "stock_apps" {
   targets = [
-    {"__address__" = "app-blue:8080", "instance" = "stock-app-blue"},
-    {"__address__" = "app-green:8080", "instance" = "stock-app-green"},
+    {"__address__" = "app-blue:8080", "instance" = "stock-app-blue", "job" = "integrations/springboot"},
+    {"__address__" = "app-green:8080", "instance" = "stock-app-green", "job" = "integrations/springboot"},
   ]
   forward_to = [prometheus.remote_write.grafana_cloud.receiver]
 }
