@@ -28,8 +28,9 @@ export default function Detail() {
           if (stock) {
             if (stock.companyName) {
               setCompanyName(stock.companyName)
-              // 로고 URL을 기업명으로 직접 생성
-              setLogoUrl(`/logos/${stock.companyName}.png`)
+              // 로고 URL을 기업명으로 직접 생성 (S3 URL이 설정되어 있으면 사용)
+              const s3BaseUrl = import.meta.env.VITE_S3_URL || ''
+              setLogoUrl(s3BaseUrl ? `${s3BaseUrl}/logos/${stock.companyName}.png` : `/logos/${stock.companyName}.png`)
             }
             
             // 초기 주식 데이터 설정
@@ -217,9 +218,11 @@ function isMarketOpen(): boolean {
 function LogoCell({ name, ticker, logoUrl }: { name: string; ticker: string; logoUrl?: string }) {
   const fallbackBg = '#e5e7eb'
   const initials = (name || ticker || '?').slice(0, 2)
+  const s3BaseUrl = import.meta.env.VITE_S3_URL || ''
   
-  // 로고 URL 우선 사용, 없으면 기업명으로 생성
-  const src = logoUrl || `/logos/${name || ticker}.png`
+  // 로고 URL 우선 사용, 없으면 기업명으로 S3 또는 로컬 경로 생성
+  const defaultSrc = s3BaseUrl ? `${s3BaseUrl}/logos/${name || ticker}.png` : `/logos/${name || ticker}.png`
+  const src = logoUrl || defaultSrc
   
   console.log('로고 로딩 시도:', { name, ticker, logoUrl, src })
   
