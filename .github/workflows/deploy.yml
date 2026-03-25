@@ -8,6 +8,7 @@ on:
       - '!docker-compose.yml' # 로컬 설정이 바뀔 때는 이 워크플로우 제외
       - 'docker-compose.prod.yml' # 운영 설정이 바뀔 때 실행
       - 'scripts/**'         # 배포 스크립트가 바뀔 때 실행
+      - '.github/workflows/deploy.yml' # 워크플로우 자체가 바뀔 때 실행
       - '!frontend/**'       # 프론트엔드 폴더 내 파일이 바뀔 때는 이 워크플로우 제외
 
 jobs:
