@@ -73,7 +73,7 @@ jobs:
             
             # [추가] 권한 복구 및 메모리 정리 (OOM 및 Permission Denied 방지)
             sudo chown -R $USER:$USER .
-            docker system prune -f --volumes || true
+            docker system prune -f || true
             
             # 2. 최신 코드 레포지토리 가져오기 (충돌 방지를 위해 reset 사용)
             git fetch origin main
