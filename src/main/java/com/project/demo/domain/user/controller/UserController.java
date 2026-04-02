@@ -83,6 +83,21 @@ public class UserController {
     }
 
     /**
+     * 게스트 로그인 API
+     * 
+     * @return [Access Token, Refresh Token]
+     */
+    @PostMapping("/guest-login")
+    public ResponseEntity<ApiResponse<LoginResponse>> guestLogin(HttpServletResponse httpServletResponse) {
+        LoginResponse response = userService.loginAsGuest();
+
+        jwtUtil.addAccessTokenToHeader(response.getAccessToken(), httpServletResponse); // 응답 헤더에 Access Token 저장
+        jwtUtil.addRefreshTokenToCookie(response.getRefreshToken(), httpServletResponse, cookieSecure, cookieDomain);
+
+        return ResponseEntity.ok(ApiResponse.createdSuccess(response)); // 201 코드
+    }
+
+    /**
      * 로그아웃 API
      * 
      * @param authUser

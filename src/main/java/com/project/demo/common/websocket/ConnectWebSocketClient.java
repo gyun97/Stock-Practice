@@ -56,7 +56,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
         this.orderService = orderService;
         this.approvalKeyService = approvalKeyService;
         this.stockMetrics = stockMetrics;
-        this.setConnectionLostTimeout(0);
+        this.setConnectionLostTimeout(60); // 60초간 응답 없으면 연결 끊김으로 처리
     }
 
     /**
@@ -77,12 +77,15 @@ public class ConnectWebSocketClient extends WebSocketClient {
                     log.info("장 시간 → WebSocket 연결 시도 중...");
                     // 연결 직전에 신선한 Approval Key를 가져온다 (만료 시 자동 갱신됨)
                     this.approvalKey = approvalKeyService.getApprovalKey();
-                    this.connectBlocking();
+                    this.connectBlocking(10, java.util.concurrent.TimeUnit.SECONDS);
                 } else {
                     log.info("장 외 시간 → WebSocket 연결 대기");
                 }
+            } catch (InterruptedException e) {
+                log.error("WebSocket 연결 대기 중 인터럽트 발생", e);
+                Thread.currentThread().interrupt();
             } catch (Exception e) {
-                log.error("WebSocket 연결 시도 실패", e);
+                log.error("WebSocket 연결 시도 중 상세 오류 발생", e);
             }
         }).start();
     }
@@ -187,7 +190,11 @@ public class ConnectWebSocketClient extends WebSocketClient {
                 log.info("WebSocket 연결 건강함 (최근 메시지 수신: {}ms 전)", diff);
             }
         } else {
-            log.info("WebSocket 연결이 닫혀있음 (장 중). 재연결 시도 중일 수 있음.");
+            log.info("WebSocket 연결이 닫혀있음 (장 중). 재연결 시도 여부 확인 중... (isReconnecting={})", isReconnecting.get());
+            if (!isReconnecting.get()) {
+                log.warn("연결이 닫혀있으나 재연결 루프가 동작하지 않음. 강제 재연결 시도.");
+                scheduleReconnection();
+            }
         }
     }
 
@@ -329,12 +336,15 @@ public class ConnectWebSocketClient extends WebSocketClient {
                         this.approvalKey = approvalKeyService.getApprovalKey();
                         this.lastConnectTimestamp = System.currentTimeMillis();
                         this.reconnectBlocking();
+                        // reconnectBlocking은 성공하면 true, 실패하면 false를 반환하거나 예외를 던짐
                         if (this.isOpen()) {
                             log.info("WebSocket 재연결 성공");
                             break;
+                        } else {
+                            log.warn("WebSocket 재연결 시도했으나 Open 상태가 아님 (시도 횟수: {})", retryCount + 1);
                         }
                     } catch (Exception e) {
-                        log.error("WebSocket 재연결 시도 중 오류 발생", e);
+                        log.error("WebSocket 재연결 시도 중 오류 발생 (시도 횟수: {}): {}", retryCount + 1, e.getMessage());
                     }
                     retryCount++;
                 }
@@ -342,6 +352,7 @@ public class ConnectWebSocketClient extends WebSocketClient {
                 log.error("재연결 루프 중단", e);
                 Thread.currentThread().interrupt();
             } finally {
+                log.info("재연결 루프 종료 (isOpen={})", this.isOpen());
                 isReconnecting.set(false);
             }
         }).start();

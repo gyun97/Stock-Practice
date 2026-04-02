@@ -21,19 +21,20 @@ import com.project.demo.domain.user.enums.UserRole;
 import com.project.demo.domain.user.repository.RefreshTokenRepository;
 import com.project.demo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
@@ -144,6 +145,54 @@ public class UserServiceImpl implements UserService {
     }
 
     /*
+     * 게스트 로그인 처리 메서드
+     */
+    @Transactional
+    public LoginResponse loginAsGuest() {
+        String uuid = UUID.randomUUID().toString();
+        String email = "stockking_" + uuid.substring(0, 8) + "@stockking.com";
+        String name = generateGuestName();
+        String password = passwordEncoder.encode(UUID.randomUUID().toString());
+
+        User guestUser = User.createNewUser(email, name, password, UserRole.ROLE_USER, SocialType.LOCAL, "");
+
+        User savedUser = userRepository.save(guestUser);
+
+        TokensResponse tokens = issueTokens(savedUser);
+
+        Portfolio newPortfolio = Portfolio.builder()
+                .balance(100000000)
+                .totalAsset(100000000)
+                .totalQuantity(0)
+                .holdCount(0)
+                .stockAsset(0)
+                .user(savedUser)
+                .build();
+        portfolioRepository.save(newPortfolio);
+
+        return LoginResponse.builder()
+                .accessToken(tokens.getAccessToken())
+                .refreshToken(tokens.getRefreshToken())
+                .userId(savedUser.getId())
+                .email(savedUser.getEmail())
+                .name(savedUser.getName())
+                .profileImage(savedUser.getProfileImage())
+                .build();
+    }
+
+    private String generateGuestName() {
+        String[] adjectives = { "행복한", "용감한", "신비로운", "귀여운", "멋진", "강력한", "친절한", "지혜로운", "날랜", "푸른" };
+        String[] animals = { "호랑이", "독수리", "돌고래", "부엉이", "여우", "곰", "사자", "토끼", "고양이", "강아지" };
+
+        Random random = new Random();
+        String adjective = adjectives[random.nextInt(adjectives.length)];
+        String animal = animals[random.nextInt(animals.length)];
+        int number = random.nextInt(9000) + 1000; // 1000 ~ 9999
+
+        return adjective + " " + animal + " " + number;
+    }
+
+    /*
      * 유저 로그아웃
      */
     @Transactional
@@ -176,6 +225,35 @@ public class UserServiceImpl implements UserService {
         userRepository.delete(user);
 
         return "PK ID " + userId + "인 유저가 영구 삭제되었습니다.";
+    }
+
+    /**
+     * 주기적으로 오래된 게스트 계정 삭제 (2일 경과)
+     * 매일 새벽 3시에 실행
+     */
+    @Transactional
+    @Scheduled(cron = "0 0 3 * * *")
+    public void cleanupOldGuestAccounts() {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(2);
+        List<User> oldGuests = userRepository.findBySocialTypeAndEmailStartingWithAndCreatedAtBefore(
+                SocialType.LOCAL, "stockking_", cutoff);
+
+        if (oldGuests.isEmpty()) {
+            return;
+        }
+
+        String rankingKey = "user:rank:totalAsset";
+        for (User guest : oldGuests) {
+            // 1. Refresh Token 삭제
+            List<RefreshToken> tokens = refreshTokenRepository.findAllByUserId(guest.getId());
+            refreshTokenRepository.deleteAll(tokens);
+
+            // 2. Redis 랭킹 삭제
+            redisTemplate.opsForZSet().remove(rankingKey, guest.getId().toString());
+
+            // 3. 유저 삭제 (Cascade로 Portfolio 등 삭제)
+            userRepository.delete(guest);
+        }
     }
 
     /*
