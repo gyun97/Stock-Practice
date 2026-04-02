@@ -22,6 +22,8 @@ public interface UserService {
 
     public LoginResponse login(LoginRequest loginRequest);
 
+    public LoginResponse loginAsGuest();
+
     public void logout(Long userId, String refreshToken);
 
     public String deleteUser(Long userId);

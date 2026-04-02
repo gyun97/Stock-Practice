@@ -219,6 +219,42 @@ export default function Home() {
     }
   }
 
+  // 게스트 로그인 함수
+  const handleGuestLogin = async () => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+    try {
+      const response = await fetch(`${apiBase}/api/v1/users/guest-login`, {
+        method: 'POST',
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const result = await response.json()
+        const data = result.data || result
+        const newUserInfo = {
+          userId: String(data.userId || ''),
+          email: data.email || '',
+          name: data.name || '',
+          profileImage: data.profileImage || ''
+        }
+        localStorage.removeItem('accessToken')
+        tokenManager.setTokens(data.accessToken)
+        localStorage.setItem('userInfo', JSON.stringify(newUserInfo))
+        localStorage.setItem('loginMethod', 'guest')
+        // 게스트 계정 보관 정책 안내
+        alert('체험용 계정은 보안 및 정책상 2일 후 자동 삭제됩니다.\n데이터를 보존하려면 정식 회원가입을 이용해 주세요.')
+        // 메인 페이지 새로고침하여 앱 전체 상태 갱신
+        window.location.href = '/'
+      } else {
+        const errorMsg = `게스트 로그인 실패: ${response.status}`
+        console.error(errorMsg)
+        alert('게스트 로그인에 실패했습니다. 서버 상태를 확인해주세요.')
+      }
+    } catch (err) {
+      console.error('게스트 로그인 오류:', err)
+      alert('네트워크 오류가 발생했습니다.')
+    }
+  }
+
   // 랭킹 데이터 가져오기
   const fetchRankings = async () => {
     const apiBase = import.meta.env.VITE_API_BASE_URL || ''
@@ -534,37 +570,63 @@ export default function Home() {
             )}
           </div>
         ) : (
-          <>
-            <Link
-              to="/login"
-              style={{
-                padding: '10px 20px',
-                borderRadius: 10,
-                background: '#2962FF',
-                color: 'white',
-                textDecoration: 'none',
-                fontSize: 14,
-                fontWeight: 700,
-                border: '1px solid #2962FF',
-                transition: 'all 0.2s ease',
-                display: 'inline-block'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#1d4ed8'
-                e.currentTarget.style.transform = 'translateY(-1px)'
-                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = '#2962FF'
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = 'none'
-              }}
-            >
-              로그인
-            </Link>
-          </>
-        )}
-      </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleGuestLogin}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  background: '#10b981',
+                  color: 'white',
+                  border: '1px solid #10b981',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'inline-block'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#059669'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#10b981'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                게스트로 체험하기
+              </button>
+              <Link
+                to="/login"
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  background: '#2962FF',
+                  color: 'white',
+                  textDecoration: 'none',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  border: '1px solid #2962FF',
+                  transition: 'all 0.2s ease',
+                  display: 'inline-block'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#1d4ed8'
+                  e.currentTarget.style.transform = 'translateY(-1px)'
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#2962FF'
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                로그인
+              </Link>
+            </div>
+        )}      </div>
       {/* 상단 히어로 (센터 정렬, 대형 타이틀) */}
       <div className="hero-section container">
         <div className="hero-title-container">
