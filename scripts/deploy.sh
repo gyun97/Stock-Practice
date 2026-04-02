@@ -7,7 +7,11 @@ DOCKER_COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.prod"
 SERVICE_ENV_FILE="./frontend/service-env.inc"
 
-# 1. 현재 실행 중인 서비스 확인
+# 1. 환경 분석 및 메모리 확보
+echo ">>> Checking server memory status..."
+free -h
+
+# 2. 현재 실행 중인 서비스 확인
 EXISTING_BLUE=$(docker ps -q -f name=${APP_NAME}-blue)
 EXISTING_GREEN=$(docker ps -q -f name=${APP_NAME}-green)
 
@@ -25,65 +29,98 @@ fi
 
 echo ">>> Deploying to $TARGET (port: $IDLE_PORT)..."
 
-# 환경 변수를 스크립트 실행 환경에 안전하게 주입
+# 환경 변수 로드
 set -a
 source $ENV_FILE
 set +a
 
-# 2. 기반 인프라 서비스(MySQL, Redis, Nginx, Alloy 등) 기동 확인
-# Nginx 설정파일(service-env.inc)이 없으면 기동에 실패하므로 미리 생성
+# 3. 기반 인프라 서비스(MySQL, Redis, Nginx, Alloy 등) 상태 점검 및 복구
+# Nginx 설정파일(service-env.inc) 권한 및 존재 확인
 if [ ! -f "$SERVICE_ENV_FILE" ]; then
     echo ">>> Creating default $SERVICE_ENV_FILE..."
     echo "set \$service_url http://app-blue:8080;" > $SERVICE_ENV_FILE
 fi
+sudo chown $USER:$USER $SERVICE_ENV_FILE
 
 echo ">>> Ensuring infrastructure services are UP..."
+# --force-recreate를 사용하여 'exited (1)' 상태의 컨테이너를 강제로 다시 띄움
 docker compose -f $DOCKER_COMPOSE_FILE up -d --remove-orphans mysql redis nginx alloy
-docker restart stock-alloy
 
-# 2.1. 새로운 대상(Target) 컨테이너 파일 적용 및 실행
+# 만약 인프라 서비스가 정상적으로 뜨지 않았다면 로그 출력 후 종료
+if [ $? -ne 0 ]; then
+    echo ">>> [ERROR] Infrastructure services failed to start. Checking MySQL logs..."
+    docker logs stock-mysql --tail 20
+    exit 1
+fi
+
+# Redis 헬스 체크 (Redis가 죽어있으면 앱이 DNS 오류로 실패하기 때문에 선제적으로 확인)
+echo ">>> Waiting for Redis to be ready..."
+for i in {1..10}; do
+    if docker exec stock-redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
+        echo ">>> Redis is UP!"
+        break
+    fi
+    if [ $i -eq 10 ]; then
+        echo ">>> [ERROR] Redis failed to start. Checking logs..."
+        docker logs stock-redis --tail 20
+        echo ">>> TIP: AOF 파일이 손상되었을 수 있습니다. 다음 명령으로 복구하세요:"
+        echo ">>>   docker run --rm -v stock_redis_data:/bitnami/redis/data redis:latest redis-check-aof --fix /bitnami/redis/data/appendonlydir/appendonly.aof.74.incr.aof"
+        exit 1
+    fi
+    echo ">>> Waiting for Redis... ($i/10)"
+    sleep 3
+done
+
+docker restart stock-alloy || true
+
+# 4. 새로운 대상(Target) 컨테이너 실행
+echo ">>> Launching app-$TARGET..."
 docker compose -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
 
-# 3. 헬스 체크 (Spring Boot Actuator 활용)
+# 5. 헬스 체크
 echo ">>> Health checking app-$TARGET..."
 for retry in {1..30}
 do
-    # 컨테이너 내부 포트 8080에 대해 헬스 체크 수행 (호스트에서는 IDLE_PORT)
     HEALTH_CHECK=$(curl -s http://localhost:$IDLE_PORT/actuator/health | grep 'UP')
     if [ -n "$HEALTH_CHECK" ]; then
         echo ">>> app-$TARGET is UP!"
         break
     fi
-    echo ">>> Waiting for app-$TARGET... ($retry/60)"
+    
+    # 실패 시 이유 파악을 위해 간단한 상태 출력
+    if [ $((retry % 5)) -eq 0 ]; then
+        echo ">>> [DEBUG] Current container status:"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep $TARGET
+    fi
+
+    echo ">>> Waiting for app-$TARGET... ($retry/30)"
     sleep 5
 done
 
 if [ -z "$HEALTH_CHECK" ]; then
-    echo ">>> Deployment failed. app-$TARGET did NOT come up."
-    # 실패 시 새 컨테이너 중지 (docker compose v2 사용)
+    echo ">>> [ERROR] Deployment failed. Printing logs for app-$TARGET:"
+    docker logs ${APP_NAME}-$TARGET --tail 50
     docker compose -f $DOCKER_COMPOSE_FILE stop app-$TARGET
     exit 1
 fi
 
-# 3.1. 프로필 확인 (set1 or set2)
+# 6. 프로필 확인
 CURRENT_PROFILE=$(curl -s http://localhost:$IDLE_PORT/api/profile)
 echo ">>> app-$TARGET is running with profile: $CURRENT_PROFILE"
 
-# 4. Nginx 설정 업데이트 (포트 전환)
-# 파일을 새로 생성하면 도커 Inode 문제로 인식이 안 될 수 있으므로 sed로 내용만 교체
+# 7. Nginx 설정 업데이트
 sed -i "s|set \$service_url .*|set \$service_url http://app-$TARGET:8080;|" $SERVICE_ENV_FILE
 
-# Nginx 컨테이너 재시작 (reload는 파일 디스크립터 캐시 문제로 설정 변경을 반영 못할 수 있음)
 if [ -n "$(docker ps -q -f name=stock-nginx)" ]; then
     echo ">>> Restarting Nginx to apply new config..."
     docker restart stock-nginx
     echo ">>> Nginx restarted. Traffic switched to $TARGET."
 else
-    echo ">>> [ERROR] stock-nginx container is NOT running. Traffic switch failed!"
+    echo ">>> [ERROR] stock-nginx container is NOT running. Attempting to start..."
     docker compose -f $DOCKER_COMPOSE_FILE up -d nginx
 fi
 
-# 5. 이전 컨테이너 중지
+# 8. 이전 컨테이너 중지
 if [ -n "$(docker ps -q -f name=${APP_NAME}-$OLD_TARGET)" ]; then
     echo ">>> Stopping old service: app-$OLD_TARGET..."
     docker compose -f $DOCKER_COMPOSE_FILE stop app-$OLD_TARGET

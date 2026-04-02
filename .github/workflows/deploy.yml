@@ -71,6 +71,10 @@ jobs:
             # 1. 프로젝트 폴더로 위치 이동
             cd /home/ubuntu/stock 
             
+            # [추가] 권한 복구 및 메모리 정리 (OOM 및 Permission Denied 방지)
+            sudo chown -R $USER:$USER .
+            docker system prune -f || true
+            
             # 2. 최신 코드 레포지토리 가져오기 (충돌 방지를 위해 reset 사용)
             git fetch origin main
             git reset --hard origin/main
@@ -79,10 +83,10 @@ jobs:
             echo "${{ secrets.ENV_PROD }}" > .env.prod
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env.prod
             
-            # 4. 서버에서 Docker Hub 로그인 (Private 이미지 Pull 권한 확보)
+            # 4. 서버에서 Docker Hub 로그인
             echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             
-            # 5. 환경변수 로드 및 최신 도커 이미지 Pull (docker compose v2)
+            # 5. 환경변수 로드 및 최신 도커 이미지 Pull
             set -a && source .env.prod && set +a
             docker compose -f docker-compose.prod.yml pull
             
@@ -92,4 +96,4 @@ jobs:
             
             # 7. 정리
             docker image prune -f
-            docker logout
+            docker logout || true
