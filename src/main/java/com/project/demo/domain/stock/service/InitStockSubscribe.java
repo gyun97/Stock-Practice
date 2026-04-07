@@ -142,6 +142,20 @@ public class InitStockSubscribe {
     }
 
     /**
+     * 평일 8시 50분에 Approval Key를 미리 강제 갱신하여 
+     * 장중에 키가 만료되어 실시간 주가가 끊기는 현상 방지
+     */
+    @Scheduled(cron = "0 50 8 * * MON-FRI", zone = "Asia/Seoul")
+    public void refreshApprovalKeyBeforeMarketOpen() {
+        log.info("장 개시 전(8:50) Approval Key 강제 갱신");
+        try {
+            approvalKeyService.refreshApprovalKey();
+        } catch (Exception e) {
+            log.error("장 개시 전 Approval Key 강제 갱신 실패", e);
+        }
+    }
+
+    /**
      * 평일 9시에 자동으로 종목 구독
      * cron 표현식: 초 분 시 일 월 요일
      * 0 0 9 * * MON-FRI: 평일 9시 0분 0초

@@ -3,10 +3,11 @@ package com.project.demo.common.kis;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Map;
 
 @Service
@@ -15,7 +16,7 @@ import java.util.Map;
 public class KisApprovalKeyService {
 
     private final RestTemplate restTemplate;
-    private final KisApiAccessTokenService kisApiAccessTokenService;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${kis.app.key}")
     private String appKey;
@@ -26,17 +27,17 @@ public class KisApprovalKeyService {
     @Value("${kis.url.rest}")
     private String baseUrl;
 
-    private String approvalKey;
-    private LocalDateTime expiredAt;
+    private static final String KIS_APPROVAL_KEY = "kis:approval_key";
 
     public synchronized String getApprovalKey() {
-        if (approvalKey == null || expiredAt == null || LocalDateTime.now().isAfter(expiredAt)) {
+        String approvalKey = redisTemplate.opsForValue().get(KIS_APPROVAL_KEY);
+        if (approvalKey == null) {
             log.info("새로 Approval Key를 발급합니다");
-            requestApprovalKey();
+            return requestApprovalKey();
         } else {
             log.info("기존 Approval Key가 존재합니다.");
+            return approvalKey;
         }
-        return approvalKey;
     }
 
     /**
@@ -45,12 +46,11 @@ public class KisApprovalKeyService {
      */
     public synchronized String refreshApprovalKey() {
         log.info("Approval Key 강제 갱신 요청됨");
-        this.approvalKey = null;
-        this.expiredAt = null;
+        redisTemplate.delete(KIS_APPROVAL_KEY);
         return getApprovalKey();
     }
 
-    private void requestApprovalKey() {
+    private String requestApprovalKey() {
         String url = (baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl) + "/oauth2/Approval";
         log.info("KIS Approval Key 발급 요청 중... URL: {}", url);
         try {
@@ -64,10 +64,12 @@ public class KisApprovalKeyService {
                 throw new RuntimeException("Approval Key 발급 실패");
             }
 
-            approvalKey = (String) response.get("approval_key");
+            String approvalKey = (String) response.get("approval_key");
             log.info("approvalKey 발급 완료");
+            
             // 하루짜리라서 안전하게 23시간으로 설정
-            expiredAt = LocalDateTime.now().plusHours(23);
+            redisTemplate.opsForValue().set(KIS_APPROVAL_KEY, approvalKey, Duration.ofHours(23));
+            return approvalKey;
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
             log.error("KIS Approval Key 발급 실패! URL: {}, 상태코드: {}, 응답바디: {}", 
                     url, e.getStatusCode(), e.getResponseBodyAsString());

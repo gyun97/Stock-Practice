@@ -215,10 +215,30 @@ public class ConnectWebSocketClient extends WebSocketClient {
                     }
                 }
 
-                if (json.has("body") && json.get("body").has("output")) {
-                    this.iv = json.get("body").get("output").get("iv").asText();
-                    this.key = json.get("body").get("output").get("key").asText();
-                    log.info("iv={}, key={}", iv, key);
+                if (json.has("body")) {
+                    var body = json.get("body");
+                    
+                    // 오류 응답 처리 (키 만료 등)
+                    if (body.has("rt_cd") && !"0".equals(body.get("rt_cd").asText())) {
+                        String msgCd = body.has("msg_cd") ? body.get("msg_cd").asText() : "";
+                        String msg1 = body.has("msg1") ? body.get("msg1").asText() : "";
+                        
+                        log.warn("KIS WebSocket 오류 응답 수신: rt_cd={} msg_cd={} msg1={}", 
+                                body.get("rt_cd").asText(), msgCd, msg1);
+                                
+                        if ("EGW00123".equals(msgCd) || "OPSP0002".equals(msgCd) || msg1.contains("승인키") || msg1.contains("만료") || msg1.contains("유효하지")) {
+                            log.error("Approval Key 만료 또는 유효하지 않음 감지. 즉시 키 갱신 및 재연결 수행");
+                            approvalKeyService.refreshApprovalKey();
+                            this.close(); // 연결을 끊으면 onClose에서 자동으로 재연결 시도
+                            return;
+                        }
+                    }
+
+                    if (body.has("output") && body.get("output").has("iv") && body.get("output").has("key")) {
+                        this.iv = body.get("output").get("iv").asText();
+                        this.key = body.get("output").get("key").asText();
+                        log.info("iv={}, key={}", iv, key);
+                    }
                 }
             } else {
                 receiveRealTimeData(message);
