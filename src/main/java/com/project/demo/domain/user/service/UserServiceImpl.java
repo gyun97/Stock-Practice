@@ -229,10 +229,10 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 주기적으로 오래된 게스트 계정 삭제 (2일 경과)
-     * 매일 새벽 3시에 실행
+     * 매일 오후 6시에 실행
      */
     @Transactional
-    @Scheduled(cron = "0 0 3 * * *")
+    @Scheduled(cron = "0 0 18 * * *")
     public void cleanupOldGuestAccounts() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(2);
         List<User> oldGuests = userRepository.findBySocialTypeAndEmailStartingWithAndCreatedAtBefore(

@@ -46,7 +46,8 @@ public class PortfolioServiceImpl implements PortfolioService {
         Portfolio myPortfolio = portfolioRepository.findByUserId(userId)
                 .orElseThrow(NotFoundPortfolioException::new);
 
-        // Redis 캐시에서 먼저 확인
+        // Redis 캐시에서 먼저 확인 (부하 테스트를 위해 잠시 비활성화)
+
         String cacheKey = "portfolio:data:" + userId;
         String cachedJson = redisTemplate.opsForValue().get(cacheKey);
 
