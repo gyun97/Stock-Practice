@@ -13,13 +13,13 @@ wss.on('connection', function connection(ws) {
   ws.on('message', function incoming(message) {
     const msgString = message.toString();
     console.log('클라이언트로부터 구독 요청 수신:', msgString);
-    
+
     // 앱이 연결되자마자 PINGPONG이나 구독 요청을 보냅니다.
     // 우리는 그냥 무시하고 주가 데이터를 미친듯이 쏘기 시작합니다.
   });
 
   let totalSent = 0;
-  
+
   // 5분(300,000ms) 후에 테스트 자동 종료 설정
   const testDuration = 300000;
   setTimeout(() => {
@@ -30,23 +30,23 @@ wss.on('connection', function connection(ws) {
     process.exit(0);
   }, testDuration);
 
-  // 초당 500개의 주가 데이터를 쏘는 로직
+  // 초당 1000개의 주가 데이터를 쏘는 로직
   const interval = setInterval(() => {
-    // 초당 500건을 위해 한 번에 5개씩 발송 (100번/초 * 5 = 500 TPS)
-    for (let i = 0; i < 5; i++) {
-        // 랜덤 종목, 변동 가격 생성
-        const ticker = tickers[Math.floor(Math.random() * tickers.length)];
-        const time = new Date().toISOString().split('T')[1].replace(/[:.Z]/g, '').substring(0, 6);
-        const price = Math.floor(Math.random() * 100000) + 1000;
-        
-        // KIS 데이터 포맷: 암호화여부|...|...|티커^시간^현재가^...^전일대비^등락율^...^누적거래량
-        // ConnectWebSocketClient.java의 parse 로직에 맞춤 (최소 14개 필드 필요)
-        const fakeData = `0|H0STCNT0|001|${ticker}^${time}^${price}^0^100^0.5^0^0^0^0^0^0^0^1000000`;
-        
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(fakeData);
-            totalSent++;
-        }
+    // 초당 1000건을 위해 한 번에 10개씩 발송 (100번/초 * 10 = 1000 TPS)
+    for (let i = 0; i < 10; i++) {
+      // 랜덤 종목, 변동 가격 생성
+      const ticker = tickers[Math.floor(Math.random() * tickers.length)];
+      const time = new Date().toISOString().split('T')[1].replace(/[:.Z]/g, '').substring(0, 6);
+      const price = Math.floor(Math.random() * 100000) + 1000;
+
+      // KIS 데이터 포맷: 암호화여부|...|...|티커^시간^현재가^...^전일대비^등락율^...^누적거래량
+      // ConnectWebSocketClient.java의 parse 로직에 맞춤 (최소 14개 필드 필요)
+      const fakeData = `0|H0STCNT0|001|${ticker}^${time}^${price}^0^100^0.5^0^0^0^0^0^0^0^1000000`;
+
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(fakeData);
+        totalSent++;
+      }
     }
   }, 10);
 

@@ -44,10 +44,25 @@ public class RedisStreamConfig {
     @Bean
     public ThreadPoolTaskExecutor streamTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(8); // 4 -> 8 상향
-        executor.setMaxPoolSize(20); // 10 -> 20 상향
-        executor.setQueueCapacity(100); // 50 -> 100 상향
+        executor.setCorePoolSize(8); 
+        executor.setMaxPoolSize(20); 
+        executor.setQueueCapacity(100); 
         executor.setThreadNamePrefix("StreamConsumer-");
+        executor.initialize();
+        return executor;
+    }
+
+    /**
+     * Producer(XADD) 처리를 위한 전용 스레드 풀.
+     * Netty EventLoop를 블로킹하지 않기 위해 별도로 분리합니다.
+     */
+    @Bean
+    public ThreadPoolTaskExecutor producerTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(16);
+        executor.setQueueCapacity(500); // 큐를 넉넉하게 설정
+        executor.setThreadNamePrefix("StreamProducer-");
         executor.initialize();
         return executor;
     }

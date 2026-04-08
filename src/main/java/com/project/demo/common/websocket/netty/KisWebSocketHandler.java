@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.kis.KisApprovalKeyService;
 import com.project.demo.common.redis.RedisStreamProducer;
+import com.project.demo.domain.stock.service.StockMetrics;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -37,6 +38,7 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
     private final ObjectMapper objectMapper;
     private final KisApprovalKeyService approvalKeyService;
     private final RedisStreamProducer redisStreamProducer;
+    private final StockMetrics stockMetrics;
 
     /** AES 복호화 키 (구독 확인 응답 시 서버가 전달) */
     private volatile String iv;
@@ -54,6 +56,11 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
         }
 
         String message = textFrame.text();
+
+        // 실시간 데이터 수신 기록 (Ingress - 네트워크 인입 즉시)
+        if (stockMetrics != null) {
+            stockMetrics.recordRealtimeReceived();
+        }
 
         if (message.startsWith("{")) {
             handleJsonMessage(ctx, message);

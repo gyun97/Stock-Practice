@@ -1,11 +1,12 @@
 package com.project.demo.common.redis;
 
-import com.project.demo.domain.stock.service.StockMetrics;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -28,11 +29,17 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class RedisStreamProducer {
 
     private final StringRedisTemplate redisTemplate;
-    private final StockMetrics stockMetrics;
+    private final ThreadPoolTaskExecutor producerTaskExecutor;
+
+    public RedisStreamProducer(
+            StringRedisTemplate redisTemplate,
+            @Qualifier("producerTaskExecutor") ThreadPoolTaskExecutor producerTaskExecutor) {
+        this.redisTemplate = redisTemplate;
+        this.producerTaskExecutor = producerTaskExecutor;
+    }
 
     public static final String STREAM_KEY = "stock:stream:realtime";
 
@@ -52,21 +59,17 @@ public class RedisStreamProducer {
                     )
             ).withStreamKey(STREAM_KEY);
 
-            redisTemplate.opsForStream().add(record);
-            
-            // 메트릭 기록 (수신 성공 카운트 - Ingress)
-            if (stockMetrics != null) {
-                stockMetrics.recordRealtimeReceived(); 
-            }
-
-            // 로그 부하 및 Grafana Cloud 용량 관리를 위해 DEBUG로 하향
-            log.debug("실시간 주가 수신 완료 (Redis Stream 적재): ticker={}", ticker);
-            log.debug("Redis Streams XADD 완료: ticker={}", ticker);
+            CompletableFuture.runAsync(() -> {
+                try {
+                    redisTemplate.opsForStream().add(record);
+                    log.debug("실시간 주가 수신 완료 (Redis Stream 적재): ticker={}", ticker);
+                } catch (Exception e) {
+                    log.error("Redis Streams XADD 비동기 실패 (ticker={}): {}", ticker, e.getMessage());
+                }
+            }, producerTaskExecutor);
 
         } catch (Exception e) {
-            // Producer 실패 시 로그만 남기고 수신부로 예외를 전파하지 않음
-            // → Netty Event Loop를 절대 중단시키지 않는 것이 최우선
-            log.error("Redis Streams XADD 실패 (ticker={}): {}", ticker, e.getMessage());
+            log.error("Redis Streams 레코드 생성 실패 (ticker={}): {}", ticker, e.getMessage());
         }
     }
 
@@ -89,11 +92,17 @@ public class RedisStreamProducer {
                     )
             ).withStreamKey(STREAM_KEY);
 
-            redisTemplate.opsForStream().add(record);
-            log.debug("Redis Streams XADD (암호화) 완료");
+            CompletableFuture.runAsync(() -> {
+                try {
+                    redisTemplate.opsForStream().add(record);
+                    log.debug("Redis Streams XADD (암호화) 완료");
+                } catch (Exception e) {
+                    log.error("Redis Streams XADD (암호화) 비동기 실패: {}", e.getMessage());
+                }
+            }, producerTaskExecutor);
 
         } catch (Exception e) {
-            log.error("Redis Streams XADD (암호화) 실패: {}", e.getMessage());
+            log.error("Redis Streams (암호화) 레코드 생성 실패: {}", e.getMessage());
         }
     }
 }

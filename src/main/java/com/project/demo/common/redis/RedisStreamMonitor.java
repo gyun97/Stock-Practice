@@ -3,7 +3,6 @@ package com.project.demo.common.redis;
 import com.project.demo.domain.stock.service.StockMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.connection.stream.StreamInfo;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -28,25 +27,47 @@ public class RedisStreamMonitor {
     @Scheduled(fixedDelay = 1000)
     public void monitorRedisStreamLag() {
         try {
-            // 해당 스트림의 컨슈머 그룹 정보 조회
-            var groups = redisTemplate.opsForStream().groups(STREAM_KEY);
-            
-            for (StreamInfo.XInfoGroup group : groups) {
-                if (CONSUMER_GROUP.equals(group.groupName())) {
-                    long lag = group.pendingCount(); // 미처리(Pending) 메시지 수
-                    // 참고: 최신 Redis 버전(7+)에서는 group.lag()를 사용할 수 있으나 
-                    // 하위 호환성을 위해 pendingCount를 우선 활용하거나 로직에 따라 조절 가능
-                    
-                    stockMetrics.updateRedisLag((double) lag);
-                    
-                    if (lag > 100) {
-                        log.warn("Redis Stream Lag 발생 중! 현재 대기량: {}", lag);
-                    }
-                    break;
-                }
+            // Spring Data Redis의 StreamInfo.XInfoGroup은 lag 필드를 지원하지 않는 경우가 많으므로
+            // 직접 RAW 명령어를 실행하여 대기열(lag) 정보를 가져옵니다.
+            Long lagValue = redisTemplate
+                    .execute((org.springframework.data.redis.connection.RedisConnection connection) -> {
+                        // [XINFO, GROUPS, STREAM_KEY] 실행
+                        byte[] streamKeyBytes = STREAM_KEY.getBytes();
+                        Object result = connection.execute("XINFO", "GROUPS".getBytes(), streamKeyBytes);
+
+                        if (result instanceof java.util.List<?> groups) {
+                            for (Object groupObj : groups) {
+                                if (groupObj instanceof java.util.List<?> groupInfo) {
+                                    // 리스트 형태의 응답에서 name과 lag를 찾습니다.
+                                    String name = null;
+                                    Long lag = null;
+                                    for (int i = 0; i < groupInfo.size(); i += 2) {
+                                        String key = new String((byte[]) groupInfo.get(i));
+                                        Object val = groupInfo.get(i + 1);
+                                        if ("name".equals(key)) {
+                                            name = new String((byte[]) val);
+                                        } else if ("lag".equals(key)) {
+                                            lag = (Long) val;
+                                        }
+                                    }
+                                    if (CONSUMER_GROUP.equals(name)) {
+                                        return lag;
+                                    }
+                                }
+                            }
+                        }
+                        return 0L;
+                    });
+
+            long finalLag = (lagValue != null) ? lagValue : 0L;
+            stockMetrics.updateRedisLag((double) finalLag);
+
+            if (finalLag > 100) {
+                log.warn("Redis Stream Lag 발생 중! 현재 대기열(True Lag): {}", finalLag);
             }
+
         } catch (Exception e) {
-            // 스트림이 삭제되었거나 아직 생성되지 않았으면 수치를 0으로 강제 리셋
+            // log.error("Redis Stream Lag 모니터링 실패: {}", e.getMessage());
             stockMetrics.updateRedisLag(0);
         }
     }
