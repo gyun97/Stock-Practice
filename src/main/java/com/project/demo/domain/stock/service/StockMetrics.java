@@ -3,6 +3,7 @@ package com.project.demo.domain.stock.service;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,6 +33,14 @@ public class StockMetrics {
     private final Counter kisApiErrorCounter;
     private final Counter stompBroadcastCounter;
     private final Counter redisSaveCounter;
+    private final Counter realtimeReceivedCounter; // 추가: 수신 전용
+    private final Counter realtimeProcessedCounter; // 추가: 처리 전용
+    
+    // Timer - 처리 지연 시간 측정용
+    private final Timer processingTimer;
+
+    // Gauge - Redis Lag
+    private double redisLag = 0;
 
     public StockMetrics(MeterRegistry registry) {
         // Gauge: 현재 구독 종목 수
@@ -58,16 +67,42 @@ public class StockMetrics {
                 .tag("type", "stomp")
                 .register(registry);
 
-        // Counter: Redis 저장 횟수
+        // Counter: Redis 저장 횟수 (기존 유지)
         this.redisSaveCounter = Counter.builder("stock.redis.save")
                 .description("Redis 주가 데이터 저장 횟수")
                 .tag("type", "redis")
+                .register(registry);
+
+        // Counter: 수신(Ingress) 건수
+        this.realtimeReceivedCounter = Counter.builder("stock.realtime.received")
+                .description("Netty로부터 수신된 실시간 주가 건수")
+                .register(registry);
+
+        // Counter: 처리(Egress) 건수
+        this.realtimeProcessedCounter = Counter.builder("stock.realtime.processed")
+                .description("Consumer가 처리를 완료한 실시간 주가 건수")
+                .register(registry);
+                
+        // Timer: 주가 데이터 처리 지연 시간
+        this.processingTimer = Timer.builder("stock.processing.time")
+                .description("WebSocket 주가 수신부터 처리 완료까지 걸린 시간")
+                .publishPercentileHistogram() // 히스토그램 추가 (P95, P99 등 집계용)
+                .register(registry);
+
+        // Gauge: Redis Stream Lag 등록
+        Gauge.builder("stock.realtime.redis.lag", this, metrics -> metrics.redisLag)
+                .description("Redis Stream Lag (미처리 메시지 수)")
                 .register(registry);
     }
 
     // ──────────────────────────────────────────
     // 구독 종목 수 조작
     // ──────────────────────────────────────────
+
+    /** Redis Stream Lag 수치 업데이트 */
+    public void updateRedisLag(double lag) {
+        this.redisLag = lag;
+    }
 
     /** 구독 종목 수 설정 */
     public void setSubscribeCount(int count) {
@@ -106,5 +141,20 @@ public class StockMetrics {
     /** Redis 저장 기록 */
     public void recordRedisSave() {
         redisSaveCounter.increment();
+    }
+
+    /** 실시간 주가 수신 기록 (Ingress) */
+    public void recordRealtimeReceived() {
+        realtimeReceivedCounter.increment();
+    }
+
+    /** 실시간 주가 처리 완료 기록 (Egress) */
+    public void recordRealtimeProcessed() {
+        realtimeProcessedCounter.increment();
+    }
+    
+    /** 처리 지연 시간 기록 */
+    public void recordProcessingTime(Runnable runnable) {
+        processingTimer.record(runnable);
     }
 }

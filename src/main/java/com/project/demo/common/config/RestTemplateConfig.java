@@ -13,6 +13,7 @@ public class RestTemplateConfig {
     @Bean
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder
+                .requestFactory(org.springframework.http.client.SimpleClientHttpRequestFactory.class)
                 .connectTimeout(Duration.ofSeconds(10))
                 .readTimeout(Duration.ofSeconds(30))
                 .build();

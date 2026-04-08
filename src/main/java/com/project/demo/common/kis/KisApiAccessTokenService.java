@@ -62,8 +62,7 @@ public class KisApiAccessTokenService {
         Map<String, String> body = Map.of(
                 "grant_type", "client_credentials",
                 "appkey", appKey,
-                "appsecret", appSecret
-        );
+                "appsecret", appSecret);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -77,7 +76,7 @@ public class KisApiAccessTokenService {
             redisTemplate.opsForValue()
                     .set("kis:access_token", this.accessToken, Duration.ofHours(24));
         } catch (org.springframework.web.client.HttpStatusCodeException e) {
-            log.error("KIS Access Token 발급 실패! 상태코드: {}, 응답바디: {}", 
+            log.error("KIS Access Token 발급 실패! 상태코드: {}, 응답바디: {}",
                     e.getStatusCode(), e.getResponseBodyAsString());
             throw e;
         } catch (Exception e) {

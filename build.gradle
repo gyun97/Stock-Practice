@@ -57,9 +57,13 @@ dependencies {
 	//Redisson
 	implementation 'org.redisson:redisson-spring-boot-starter:3.24.3'
 
-	// 웹소켓
+	// 웹소켓 (서버측 STOMP용)
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.java-websocket:Java-WebSocket:1.5.6'
+
+	// Netty (KIS WebSocket 비동기 클라이언트 - WebFlux에 내장된 Netty 활용)
+	implementation 'io.netty:netty-codec-http:4.1.115.Final'
+	implementation 'io.netty:netty-handler:4.1.115.Final'
 
 	// 한국투자증권(KIS) 오픈 API
 //	implementation 'io.github.devngho:kt_kisopenapi:[VERSION]'
