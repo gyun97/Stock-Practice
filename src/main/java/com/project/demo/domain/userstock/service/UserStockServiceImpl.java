@@ -26,30 +26,26 @@ public class UserStockServiceImpl implements UserStockService {
 
     @Override
     public List<UserStockResponse> getUserStocksByUserId(Long userId) {
-        log.info("사용자 보유 주식 조회 - 사용자 ID: {}", userId);
-        
-        List<UserStock> userStocks = userStockRepository.findByUserId(userId);
 
-        log.info("조회된 보유 주식 수: {}", userStocks.size());
+        List<UserStock> userStocks = userStockRepository.findByUserId(userId);
 
         return userStocks.stream()
                 .map(userStock -> {
                     try {
                         // 현재 주가 조회
                         int currentPrice = stockService.getCurrentPrice(userStock.getTicker());
-                        
+
                         // 회사명 조회 (ticker를 사용하여)
                         String companyName = getCompanyNameByTicker(userStock.getTicker());
-                        
+
                         return UserStockResponse.of(
                                 userStock.getTicker(),
                                 companyName,
                                 userStock.getTotalQuantity(),
                                 userStock.getAvgPrice(),
-                                currentPrice
-                        );
+                                currentPrice);
                     } catch (Exception e) {
-                        log.error("보유 주식 정보 변환 실패 - 티커: {}, 오류: {}", 
+                        log.error("보유 주식 정보 변환 실패 - 티커: {}, 오류: {}",
                                 userStock.getTicker(), e.getMessage());
                         return null;
                     }
@@ -57,7 +53,7 @@ public class UserStockServiceImpl implements UserStockService {
                 .filter(response -> response != null)
                 .collect(Collectors.toList());
     }
-    
+
     /**
      * 티커로 회사명 조회
      */

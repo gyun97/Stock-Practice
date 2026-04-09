@@ -20,7 +20,7 @@ public class WebSocketSessionManager {
     private static final String USER_SESSION_KEY_PREFIX = "websocket:user:session:";
     private static final String SESSION_USER_KEY_PREFIX = "websocket:session:user:";
     private static final long SESSION_TTL_HOURS = 1; // 세션 TTL: 1시간
-    
+
     private SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -36,11 +36,11 @@ public class WebSocketSessionManager {
     public void addUserSession(Long userId, String sessionId) {
         String userSessionKey = USER_SESSION_KEY_PREFIX + userId;
         String sessionUserKey = SESSION_USER_KEY_PREFIX + sessionId;
-        
+
         // 양방향 매핑 저장 (userId -> sessionId, sessionId -> userId)
         redisTemplate.opsForValue().set(userSessionKey, sessionId, SESSION_TTL_HOURS, TimeUnit.HOURS);
         redisTemplate.opsForValue().set(sessionUserKey, userId.toString(), SESSION_TTL_HOURS, TimeUnit.HOURS);
-        
+
         log.info("사용자 세션 등록 (Redis) - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
     }
 
@@ -51,18 +51,18 @@ public class WebSocketSessionManager {
     public void removeUserSession(Long userId, String sessionId) {
         String userSessionKey = USER_SESSION_KEY_PREFIX + userId;
         String sessionUserKey = SESSION_USER_KEY_PREFIX + sessionId;
-        
+
         String savedSessionId = redisTemplate.opsForValue().get(userSessionKey);
-        
+
         // 현재 세션 아이디가 저장된 것과 일치할 때만 사용자 매핑 제거
         if (sessionId.equals(savedSessionId)) {
             redisTemplate.delete(userSessionKey);
             log.info("사용자 대표 세션 제거 (Redis) - 사용자 ID: {}, 세션 ID: {}", userId, sessionId);
         } else {
-            log.info("사용자 대표 세션 유지 (다른 세션 활성화 중) - 사용자 ID: {}, 종료 세션 ID: {}, 현재 세션 ID: {}", 
-                userId, sessionId, savedSessionId);
+            log.info("사용자 대표 세션 유지 (다른 세션 활성화 중) - 사용자 ID: {}, 종료 세션 ID: {}, 현재 세션 ID: {}",
+                    userId, sessionId, savedSessionId);
         }
-        
+
         // 개별 세션-사용자 매핑은 무조건 삭제
         redisTemplate.delete(sessionUserKey);
     }
@@ -120,9 +120,6 @@ public class WebSocketSessionManager {
         if (isUserConnected(userId) && messagingTemplate != null) {
             String destination = "/topic/portfolio/updates/" + userId;
             messagingTemplate.convertAndSend(destination, portfolioData);
-            log.info("포트폴리오 데이터 전송 - 사용자 ID: {}, 목적지: {}", userId, destination);
-        } else {
-            log.debug("사용자 세션이 없거나 MessagingTemplate이 설정되지 않음 - 사용자 ID: {}", userId);
         }
     }
 
@@ -149,17 +146,18 @@ public class WebSocketSessionManager {
             log.warn("MessagingTemplate이 설정되지 않음 - 사용자 ID: {}", userId);
             return;
         }
-        
+
         String destination = "/topic/order/notifications/" + userId;
-        
+
         // 사용자가 연결되어 있는지 확인
         boolean connected = isUserConnected(userId);
         if (connected) {
             log.info("주문 알림 전송 - 사용자 ID: {}, 목적지: {}, 연결 상태: 연결됨", userId, destination);
         } else {
-            log.warn("주문 알림 전송 시도 - 사용자 ID: {}, 목적지: {}, 연결 상태: 연결 안됨 (알림은 전송되지만 사용자가 받지 못할 수 있음)", userId, destination);
+            log.warn("주문 알림 전송 시도 - 사용자 ID: {}, 목적지: {}, 연결 상태: 연결 안됨 (알림은 전송되지만 사용자가 받지 못할 수 있음)", userId,
+                    destination);
         }
-        
+
         // 연결 여부와 관계없이 알림 전송 (사용자가 나중에 접속하면 받을 수 있도록)
         try {
             messagingTemplate.convertAndSend(destination, notification);
@@ -219,5 +217,3 @@ public class WebSocketSessionManager {
         return users;
     }
 }
-
-
