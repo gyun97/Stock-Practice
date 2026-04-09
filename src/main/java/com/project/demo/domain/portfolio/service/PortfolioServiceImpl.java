@@ -149,7 +149,7 @@ public class PortfolioServiceImpl implements PortfolioService {
 
                 // WebSocket 세션 관리자를 통해 직접 전송
                 sessionManager.sendPortfolioUpdate(userId, portfolioUpdate);
-                log.debug("포트폴리오 업데이트 전송 - 사용자 ID: {}, 수익률: {}%", userId, returnRate);
+
             } catch (Exception e) {
                 log.error("포트폴리오 WebSocket 전송 또는 캐시 저장 오류 (사용자 ID: {})", userId, e);
             }
