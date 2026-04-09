@@ -42,6 +42,7 @@ public class RedisStreamProducer {
     }
 
     public static final String STREAM_KEY = "stock:stream:realtime";
+    public static final String DLQ_STREAM_KEY = "stock:stream:realtime:dlq";
 
     /**
      * 평문 실시간 주가 데이터를 스트림에 적재합니다.

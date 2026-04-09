@@ -71,7 +71,7 @@ public class KisApiAccessTokenService {
 
         try {
             Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
-            log.info("Access Token 발급 완료: {}", response);
+            // log.info("Access Token 발급 완료: {}", response);
             this.accessToken = (String) response.get("access_token");
             redisTemplate.opsForValue()
                     .set("kis:access_token", this.accessToken, Duration.ofHours(24));

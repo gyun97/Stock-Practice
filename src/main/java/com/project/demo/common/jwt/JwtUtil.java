@@ -67,7 +67,7 @@ public class JwtUtil {
                         .signWith(key, signatureAlgorithm)
                         .compact();
 
-        log.info("Access Token 발급: {}", newAccessToken);
+        // log.info("Access Token 발급: {}", newAccessToken);
         return newAccessToken;
     }
 
@@ -89,7 +89,7 @@ public class JwtUtil {
                 .signWith(key, signatureAlgorithm)
                 .compact();
 
-        log.info("Refresh Token 발급: {}", refreshToken);
+        // log.info("Refresh Token 발급: {}", refreshToken);
 
         return refreshToken;
     }

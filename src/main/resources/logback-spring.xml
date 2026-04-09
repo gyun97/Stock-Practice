@@ -74,8 +74,7 @@
 
         <!-- 애플리케이션 및 SQL 로깅 레벨 상향 (Loki 용량 확보) -->
         <logger name="com.project.demo" level="INFO"/>
-        <logger name="org.hibernate.SQL" level="INFO"/>
-        <logger name="org.hibernate.SQL" level="INFO"/>
+        <logger name="org.hibernate.SQL" level="OFF"/>
     </springProfile>
 
     <!-- ===================================================
