@@ -32,7 +32,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -412,7 +411,6 @@ public class OrderServiceImpl implements OrderService {
          * 특정 종목의 예약 주문 체결 (이벤트 기반 - 주가 업데이트 시 호출)
          * WebSocket 스레드를 차단하지 않기 위해 비동기로 실행
          */
-        @Async
         @Transactional
         public void executeReservedOrdersForTicker(String ticker, int currentPrice) {
                 List<Order> reservedOrders = orderRepository.findReservedOrdersByTicker(ticker);

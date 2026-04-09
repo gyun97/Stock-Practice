@@ -42,6 +42,7 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
     private final OrderService orderService;
     private final StockMetrics stockMetrics;
     private final Executor broadcastExecutor;
+    private final Executor orderExecutor;
 
     // 종목명 캐싱을 위한 메모리 저장소 (DB 부하 방지)
     private final Map<String, String> companyNameCache = new ConcurrentHashMap<>();
@@ -53,7 +54,8 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
             @org.springframework.context.annotation.Lazy SimpMessagingTemplate messagingTemplate,
             @org.springframework.context.annotation.Lazy OrderService orderService,
             StockMetrics stockMetrics,
-            @Qualifier("broadcastExecutor") Executor broadcastExecutor) {
+            @Qualifier("broadcastExecutor") Executor broadcastExecutor,
+            @Qualifier("orderExecutor") Executor orderExecutor) {
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
         this.stockRepository = stockRepository;
@@ -61,14 +63,19 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
         this.orderService = orderService;
         this.stockMetrics = stockMetrics;
         this.broadcastExecutor = broadcastExecutor;
+        this.orderExecutor = orderExecutor;
     }
 
     @Override
     public void onMessage(MapRecord<String, String, String> message) {
+        String streamKey = message.getStream();
         try {
             Map<String, String> value = message.getValue();
-            if (value == null) return;
-            
+            if (value == null) {
+                redisTemplate.opsForStream().acknowledge(streamKey, "stock-group", message.getId());
+                return;
+            }
+
             String type = value.get("type");
 
             if ("ENC".equals(type)) {
@@ -81,95 +88,120 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
             } else if ("RAW".equals(type)) {
                 String data = value.get("data");
                 if (stockMetrics != null) {
-                    stockMetrics.recordProcessingTime(() -> processRawData(data));
+                    stockMetrics.recordProcessingTime(() -> {
+                        try {
+                            processRawData(data);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
                 } else {
                     processRawData(data);
                 }
             }
-            // 4단계: 처리 완료 보고 (Acknowledgment)
-            // 이를 통해 Consumer Group 내에서 메시지 중복 처리를 방지합니다.
-            redisTemplate.opsForStream().acknowledge("stock:stream:realtime", "stock-group", message.getId());
+            // 정상 처리 완료 보고 (Acknowledgment)
+            redisTemplate.opsForStream().acknowledge(streamKey, "stock-group", message.getId());
         } catch (Throwable t) {
-            log.error("스트림 메시지 처리 중 치명적 오류 발생 (Throwable): {}", t.getMessage(), t);
+            log.error("스트림 메시지 처리 중 오류 발생 - DLQ 이관 시도: {}", t.getMessage(), t);
+            moveToDlq(message, t);
         }
     }
 
-    private void processRawData(String data) {
+    /**
+     * 실패한 메시지를 Dead Letter Queue(DLQ)로 이관하고 원본 메시지를 Acknowledge 처리합니다.
+     */
+    private void moveToDlq(MapRecord<String, String, String> message, Throwable t) {
+        try {
+            Map<String, String> originalValue = message.getValue();
+            java.util.Map<String, String> dlqValue = new java.util.HashMap<>(originalValue);
+            dlqValue.put("error_message", t.getMessage());
+            dlqValue.put("error_class", t.getClass().getName());
+            dlqValue.put("failed_at", java.time.LocalDateTime.now().toString());
+
+            MapRecord<String, String, String> dlqRecord = MapRecord.create(
+                    RedisStreamProducer.DLQ_STREAM_KEY,
+                    dlqValue);
+
+            redisTemplate.opsForStream().add(dlqRecord);
+            log.info("메시지 DLQ 이관 완료: MessageId={}, DLQ_Key={}", message.getId(), RedisStreamProducer.DLQ_STREAM_KEY);
+
+            // DLQ 이관이 성공했으므로 원본 메시지 Ack 처리 (PEL 누수 방지)
+            redisTemplate.opsForStream().acknowledge(message.getStream(), "stock-group", message.getId());
+        } catch (Exception e) {
+            log.error("DLQ 이관 중 추가 오류 발생 (치명적): {}", e.getMessage(), e);
+        }
+    }
+
+    private void processRawData(String data) throws Exception {
         String[] fields = data.split("\\^");
         if (fields.length < 14) {
             log.warn("올바르지 않은 실시간 데이터 필드 개수 (fields < 14): {}", data);
             return;
         }
 
-        try {
-            String ticker = fields[0];
-            String tradeTime = fields[1];
-            int price = Integer.parseInt(fields[2]);
-            double changeAmount = Double.parseDouble(fields[4]);
-            double changeRate = Double.parseDouble(fields[5]);
-            long volume = Long.parseLong(fields[13]);
-            
-            // 캐시에서 종목명 조회, 없으면 DB 조회 후 캐시 저장
-            String companyName = companyNameCache.computeIfAbsent(ticker, k -> {
-                log.debug("캐시 미스 - DB에서 종목명 조회: {}", k);
-                return stockRepository.findNameByTicker(k);
-            });
+        String ticker = fields[0];
+        String tradeTime = fields[1];
+        int price = Integer.parseInt(fields[2]);
+        double changeAmount = Double.parseDouble(fields[4]);
+        double changeRate = Double.parseDouble(fields[5]);
+        long volume = Long.parseLong(fields[13]);
 
-            ObjectNode out = objectMapper.createObjectNode();
-            out.put("ticker", ticker);
-            out.put("price", price);
-            out.put("changeAmount", changeAmount);
-            out.put("changeRate", changeRate);
-            out.put("companyName", companyName);
-            out.put("tradeTime", tradeTime);
-            out.put("volume", volume);
+        // 캐시에서 종목명 조회, 없으면 DB 조회 후 캐시 저장
+        String companyName = companyNameCache.computeIfAbsent(ticker, k -> {
+            log.debug("캐시 미스 - DB에서 종목명 조회: {}", k);
+            return stockRepository.findNameByTicker(k);
+        });
 
-            String json = objectMapper.writeValueAsString(out);
+        ObjectNode out = objectMapper.createObjectNode();
+        out.put("ticker", ticker);
+        out.put("price", price);
+        out.put("changeAmount", changeAmount);
+        out.put("changeRate", changeRate);
+        out.put("companyName", companyName);
+        out.put("tradeTime", tradeTime);
+        out.put("volume", volume);
 
-            // 1. Redis 최신가 및 랭킹 저장 (Pipelining 적용 - 네트워크 왕복 1회로 통합)
+        String json = objectMapper.writeValueAsString(out);
+
+        redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+            StringRedisConnection stringRedisConn = (StringRedisConnection) connection;
+            stringRedisConn.set("stock:data:" + ticker, json);
+            stringRedisConn.zAdd("stock:rank:volume", (double) volume, ticker);
+            stringRedisConn.zAdd("stock:rank:price", (double) price, ticker);
+            stringRedisConn.zAdd("stock:rank:changeRate", changeRate, ticker);
+            return null;
+        });
+        if (stockMetrics != null) {
+            stockMetrics.recordRedisSave();
+        }
+
+        // 2. STOMP 브로드캐스팅 (비동기 처리)
+        CompletableFuture.runAsync(() -> {
             try {
-                redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
-                    StringRedisConnection stringRedisConn = (StringRedisConnection) connection;
-                    stringRedisConn.set("stock:data:" + ticker, json);
-                    stringRedisConn.zAdd("stock:rank:volume", volume, ticker);
-                    stringRedisConn.zAdd("stock:rank:price", price, ticker);
-                    stringRedisConn.zAdd("stock:rank:changeRate", changeRate, ticker);
-                    return null;
-                });
-                stockMetrics.recordRedisSave();
-            } catch (Exception e) {
-                log.error("Redis 랭킹 저장 중 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
-            }
-
-            // 2. STOMP 브로드캐스팅 (비동기 처리 - 컨슈머 스레드 프리패스)
-            CompletableFuture.runAsync(() -> {
-                try {
-                    messagingTemplate.convertAndSend("/topic/stocks", json);
+                messagingTemplate.convertAndSend("/topic/stocks", json);
+                if (stockMetrics != null) {
                     stockMetrics.recordStompBroadcast();
-                } catch (Exception e) {
-                    log.error("STOMP 전송 중 비동기 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
                 }
-            }, broadcastExecutor);
+            } catch (Exception e) {
+                log.error("STOMP 전송 중 비동기 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
+            }
+        }, broadcastExecutor);
 
-            // 요청하신 로그 문자열 추가
-            // 로그 부하를 낮추기 위해 INFO -> DEBUG로 변경
-            log.debug("실시간 주가 처리 완료: ticker={}, price={}", ticker, price);
-            log.debug("Consumer 처리 상세 정보 → {}", json);
+        log.debug("실시간 주가 처리 완료: ticker={}, price={}", ticker, price);
 
-            // 3. 예약 주문 체결
+        // 3. 예약 주문 체결 (비동기 처리)
+        CompletableFuture.runAsync(() -> {
             try {
                 orderService.executeReservedOrdersForTicker(ticker, price);
             } catch (Exception e) {
-                log.error("예약 주문 체결 중 오류 발생 - 종목: {}, 현재가: {}, 오류: {}", ticker, price, e.getMessage(), e);
+                log.error("예약 주문 체결 중 비동기 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
             }
+        }, orderExecutor);
 
-            // 최종 처리 완료 메트릭 기록 (Egress)
-            if (stockMetrics != null) {
-                stockMetrics.recordRealtimeProcessed();
-            }
-
-        } catch (Exception e) {
-            log.error("실시간 데이터 파싱 중 상세 오류 발생 (data: {}): {}", data, e.getMessage());
+        // 최종 처리 완료 메트릭 기록
+        if (stockMetrics != null) {
+            stockMetrics.recordRealtimeProcessed();
         }
     }
+
 }

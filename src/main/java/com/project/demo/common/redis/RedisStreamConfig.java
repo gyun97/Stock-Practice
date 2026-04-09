@@ -44,9 +44,9 @@ public class RedisStreamConfig {
     @Bean
     public ThreadPoolTaskExecutor streamTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(8); 
-        executor.setMaxPoolSize(20); 
-        executor.setQueueCapacity(100); 
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("StreamConsumer-");
         executor.initialize();
         return executor;
@@ -59,9 +59,9 @@ public class RedisStreamConfig {
     @Bean
     public ThreadPoolTaskExecutor producerTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(8);
-        executor.setMaxPoolSize(16);
-        executor.setQueueCapacity(500); // 큐를 넉넉하게 설정
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(8); 
+        executor.setQueueCapacity(200); 
         executor.setThreadNamePrefix("StreamProducer-");
         executor.initialize();
         return executor;
@@ -79,28 +79,27 @@ public class RedisStreamConfig {
         initStreamAndGroup();
 
         // 2. 컨테이너 옵션 설정 (초기화된 TaskExecutor 주입, Poll 타임아웃 100ms)
-        StreamMessageListenerContainer.StreamMessageListenerContainerOptions<String, MapRecord<String, String, String>> options =
-                StreamMessageListenerContainer.StreamMessageListenerContainerOptions
-                        .builder()
-                        .pollTimeout(Duration.ofMillis(100))
-                        .executor(streamTaskExecutor)
-                        .errorHandler(t -> {
-                            log.error("=== REDIS STREAM CONSUMER CRITICAL ERROR ===");
-                            log.error("에러 메시지: {}", t.getMessage());
-                            log.error("에러 원인 클래스: {}", t.getClass().getName());
-                            t.printStackTrace(); // 스택트레이스 강제 출력
-                        })
-                        .build();
+        StreamMessageListenerContainer.StreamMessageListenerContainerOptions<String, MapRecord<String, String, String>> options = StreamMessageListenerContainer.StreamMessageListenerContainerOptions
+                .builder()
+                .pollTimeout(Duration.ofMillis(100))
+                .executor(streamTaskExecutor)
+                .errorHandler(t -> {
+                    log.error("=== REDIS STREAM CONSUMER CRITICAL ERROR ===");
+                    log.error("에러 메시지: {}", t.getMessage());
+                    log.error("에러 원인 클래스: {}", t.getClass().getName());
+                    t.printStackTrace(); // 스택트레이스 강제 출력
+                })
+                .build();
 
-        StreamMessageListenerContainer<String, MapRecord<String, String, String>> container =
-                StreamMessageListenerContainer.create(connectionFactory, options);
+        StreamMessageListenerContainer<String, MapRecord<String, String, String>> container = StreamMessageListenerContainer
+                .create(connectionFactory, options);
 
-        // 3. 리스너 등록: stock-group 그룹의 worker-1 이름으로, 소비하지 않은 다음 메시지(ReadOffset.lastConsumed())를 읽음
+        // 3. 리스너 등록: stock-group 그룹의 worker-1 이름으로, 소비하지 않은 다음
+        // 메시지(ReadOffset.lastConsumed())를 읽음
         container.receive(
                 Consumer.from(CONSUMER_GROUP, CONSUMER_NAME),
                 StreamOffset.create(STREAM_KEY, ReadOffset.lastConsumed()),
-                streamConsumer
-        );
+                streamConsumer);
 
         // 4. 컨테이너 시작
         container.start();

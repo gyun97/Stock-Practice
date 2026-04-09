@@ -99,7 +99,9 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
                         body.get("rt_cd").asText(), msgCd, msg1);
 
                 if ("EGW00123".equals(msgCd) || "OPSP0002".equals(msgCd)
-                        || msg1.contains("승인키") || msg1.contains("만료") || msg1.contains("유효하지")) {
+                        || "OPSP0007".equals(msgCd) || "OPSP0011".equals(msgCd)
+                        || msg1.contains("승인키") || msg1.contains("만료") || msg1.contains("유효하지")
+                        || msg1.toLowerCase().contains("invalid approval")) {
                     log.error("Approval Key 만료 감지 → 키 강제 갱신 후 채널 종료 (재연결은 KisNettyWebSocketClient가 담당)");
                     approvalKeyService.refreshApprovalKey();
                     ctx.close(); // onClose → 재연결 루프 실행
