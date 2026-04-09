@@ -3,6 +3,9 @@
     <!-- Spring Boot 기본 로깅 설정 포함 (%clr, %highlight 등을 위해 필수) -->
     <include resource="org/springframework/boot/logging/logback/defaults.xml" />
 
+    <!-- 전역 로깅 레벨 차단 (어떤 프로필에서도 절대 보이지 않도록 이중 잠금) -->
+    <logger name="org.hibernate.orm.jdbc.bind" level="OFF"/>
+
     <!-- ===================================================
          공통 설정: Spring Profile 기반 분기
          dev  → Console(색상) + Logstash TCP(JSON)
@@ -69,12 +72,10 @@
             <appender-ref ref="ASYNC_LOGSTASH"/>
         </root>
 
-        <!-- 애플리케이션 패키지는 DEBUG 레벨 -->
-        <logger name="com.project.demo" level="DEBUG"/>
-
-        <!-- SQL 로깅 (Hibernate) -->
-        <logger name="org.hibernate.SQL" level="DEBUG"/>
-        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE"/>
+        <!-- 애플리케이션 및 SQL 로깅 레벨 상향 (Loki 용량 확보) -->
+        <logger name="com.project.demo" level="INFO"/>
+        <logger name="org.hibernate.SQL" level="INFO"/>
+        <logger name="org.hibernate.SQL" level="INFO"/>
     </springProfile>
 
     <!-- ===================================================

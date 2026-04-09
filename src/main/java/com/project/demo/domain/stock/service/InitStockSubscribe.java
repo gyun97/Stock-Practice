@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.kis.KisApiAccessTokenService;
 import com.project.demo.common.kis.KisApprovalKeyService;
 import com.project.demo.common.util.MarketTime;
-import com.project.demo.common.websocket.ConnectWebSocketClient;
+import com.project.demo.common.websocket.netty.KisNettyWebSocketClient;
 import com.project.demo.domain.stock.entity.Stock;
 import com.project.demo.domain.stock.enums.Market;
 import com.project.demo.domain.stock.repository.StockRepository;
@@ -39,7 +39,7 @@ public class InitStockSubscribe {
     private final KisApprovalKeyService approvalKeyService;
     private final KisApiAccessTokenService kisApiAccessTokenService;
     private final StockRepository stockRepository;
-    private final ConnectWebSocketClient client;
+    private final KisNettyWebSocketClient client;
     private final StringRedisTemplate redisTemplate;
     private final SimpMessagingTemplate messagingTemplate;
     private final StockOutlineService stockOutlineService;

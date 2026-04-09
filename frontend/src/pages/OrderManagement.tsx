@@ -91,7 +91,7 @@ export default function OrderManagement() {
 
       if (response.ok) {
         const result = await response.json()
-        setMessage(`예약 주문 (ID: ${orderId})이 성공적으로 취소되었습니다.`)
+        setMessage(`예약 주문이 성공적으로 취소되었습니다.`)
         // 주문 목록 새로고침
         await fetchOrders()
       } else {

@@ -46,8 +46,7 @@ public class PortfolioServiceImpl implements PortfolioService {
         Portfolio myPortfolio = portfolioRepository.findByUserId(userId)
                 .orElseThrow(NotFoundPortfolioException::new);
 
-        // Redis 캐시에서 먼저 확인 (부하 테스트를 위해 잠시 비활성화)
-
+        // Redis 캐시에서 먼저 확인
         String cacheKey = "portfolio:data:" + userId;
         String cachedJson = redisTemplate.opsForValue().get(cacheKey);
 
@@ -150,7 +149,7 @@ public class PortfolioServiceImpl implements PortfolioService {
 
                 // WebSocket 세션 관리자를 통해 직접 전송
                 sessionManager.sendPortfolioUpdate(userId, portfolioUpdate);
-                log.debug("포트폴리오 업데이트 전송 - 사용자 ID: {}, 수익률: {}%", userId, returnRate);
+
             } catch (Exception e) {
                 log.error("포트폴리오 WebSocket 전송 또는 캐시 저장 오류 (사용자 ID: {})", userId, e);
             }
@@ -310,13 +309,8 @@ public class PortfolioServiceImpl implements PortfolioService {
      */
     @Scheduled(fixedDelay = 5000) // 5초마다 실행
     public void updateAllPortfolioReturnRates() {
-        long startTime = System.currentTimeMillis();
-        int processedCount = 0;
-        int updatedCount = 0;
-
         try {
             List<Portfolio> allPortfolios = portfolioRepository.findAll();
-            log.debug("포트폴리오 수익률 업데이트 시작 - 총 {}개 포트폴리오", allPortfolios.size());
 
             for (Portfolio portfolio : allPortfolios) {
                 try {
@@ -324,7 +318,6 @@ public class PortfolioServiceImpl implements PortfolioService {
 
                     // 포트폴리오 수익률 계산 및 업데이트 (캐시 비교 포함)
                     calculateReturnRate(portfolio);
-                    processedCount++;
 
                     // 보유 주식 정보도 함께 업데이트
                     List<UserStockResponse> userStocks = userStockService.getUserStocksByUserId(userId);
@@ -377,7 +370,6 @@ public class PortfolioServiceImpl implements PortfolioService {
                         }
 
                         sessionManager.sendUserStockUpdate(userId, userStockUpdate);
-                        updatedCount++;
                         log.debug("보유 주식 업데이트 전송 - 사용자 ID: {}, 개수: {}", userId, userStocks.size());
                     }
 
@@ -386,10 +378,6 @@ public class PortfolioServiceImpl implements PortfolioService {
                             portfolio.getUser().getId(), e.getMessage());
                 }
             }
-
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            log.info("포트폴리오 수익률 업데이트 완료 - 처리: {}, 업데이트: {}, 소요시간: {}ms",
-                    processedCount, updatedCount, elapsedTime);
 
         } catch (Exception e) {
             log.error("포트폴리오 수익률 업데이트 스케줄러 오류", e);

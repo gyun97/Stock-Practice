@@ -13,7 +13,9 @@ public class MarketTime {
     public static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 40);
 
     public static boolean isMarketOpen() {
-        return isMarketOpenAt(ZonedDateTime.now(KST));
+        // [임시 테스트용] mock-kis-server와의 24시간 연동 테스트를 위해 항상 true 반환
+        return true;
+        // return isMarketOpenAt(ZonedDateTime.now(KST));
     }
 
     public static boolean isMarketOpenAt(ZonedDateTime when) {

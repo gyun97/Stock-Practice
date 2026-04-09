@@ -1,4 +1,4 @@
-# 로컬 환경에서 운영 환경(메모리 1GB, CPU 2 코어 제한 등)을 모사하여 부하 테스트를 진행하기 위한 설정입니다.
+# 로컬 환경에서 운영 환경(메모리 1GB, CPU 1 코어 제한 등)을 모사하여 부하 테스트 연습을 진행하기 위한 설정입니다.
 
 services:
 
@@ -57,16 +57,17 @@ services:
       dockerfile: dockerfile
     container_name: stock-app-local
     environment:
-      # 운영 프로필 적용. (set1 사용으로 단일 앱 실행 모방)
-      - SPRING_PROFILES_ACTIVE=prod,set1
-      # JVM 힙 메모리 설정. (전체 700MB 중 384MB를 Heap으로 할당, 나머지 여유)
+      # 개발 프로필과 로컬 환경 설정 적용
+      - SPRING_PROFILES_ACTIVE=dev,set1
+      # JVM 힙 메모리 설정
       - JAVA_TOOL_OPTIONS=-Xmx384m
-      # 데이터베이스 및 레디스 호스트명을 덮어씌워서 로컬 컨테이너로 맞춥니다.
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/stock?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
+      # 컨테이너 네트워크용 호스트 설정
+      - MYSQL_HOST=mysql
+      - REDIS_HOST=redis
     env_file:
-      - .env.prod
+      - .env.local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mysql:
         condition: service_healthy

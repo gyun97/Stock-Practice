@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
@@ -51,7 +52,8 @@ public class KisApprovalKeyService {
     }
 
     private String requestApprovalKey() {
-        String url = (baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl) + "/oauth2/Approval";
+        String url = (baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl)
+                + "/oauth2/Approval";
         log.info("KIS Approval Key 발급 요청 중... URL: {}", url);
         try {
             Map<String, Object> response = restTemplate.postForObject(
@@ -66,12 +68,12 @@ public class KisApprovalKeyService {
 
             String approvalKey = (String) response.get("approval_key");
             log.info("approvalKey 발급 완료");
-            
+
             // 하루짜리라서 안전하게 23시간으로 설정
             redisTemplate.opsForValue().set(KIS_APPROVAL_KEY, approvalKey, Duration.ofHours(23));
             return approvalKey;
-        } catch (org.springframework.web.client.HttpStatusCodeException e) {
-            log.error("KIS Approval Key 발급 실패! URL: {}, 상태코드: {}, 응답바디: {}", 
+        } catch (HttpStatusCodeException e) {
+            log.error("KIS Approval Key 발급 실패! URL: {}, 상태코드: {}, 응답바디: {}",
                     url, e.getStatusCode(), e.getResponseBodyAsString());
             throw e;
         } catch (Exception e) {
