@@ -9,7 +9,7 @@ logging {
 
 // Spring Boot 앱들로부터 메트릭을 스크레이핑합니다.
 prometheus.scrape "stock_apps" {
-  scrape_interval = "60s"
+  scrape_interval = "10s"
   metrics_path    = "/actuator/prometheus"
   targets = [
     {"__address__" = "app-blue:8080", "instance" = "stock-app-blue", "job" = "integrations/springboot"},
@@ -54,6 +54,16 @@ discovery.relabel "containers" {
 loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.filter_noise.receiver]
+}
+
+// 노이즈 로그 필터링 (로그 용량 절감)
+loki.process "filter_noise" {
+  // KIS 웹소켓 재연결 반복 에러 및 Logstash 연결 실패 로그 드롭
+  stage.drop {
+    expression  = "(?i)(Connection refused.*8081|Connection refused.*5044|재연결 이미 진행 중|Waiting [0-9]+ms before attempting reconnection|WebSocket 연결 끊김 감지)"
+    drop_counter_reason = "noisy_reconnect_error"
+  }
   forward_to = [loki.write.grafana_cloud.receiver]
 }
 
