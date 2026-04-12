@@ -33,9 +33,9 @@ public class AppAsyncConfig {
     @Bean(name = "orderExecutor")
     public Executor orderExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(3);        // 5 -> 3 하향
-        executor.setMaxPoolSize(10);        // 20 -> 10 하향
-        executor.setQueueCapacity(200);     // 500 -> 200 하향
+        executor.setCorePoolSize(10);       
+        executor.setMaxPoolSize(50);        
+        executor.setQueueCapacity(2000);    
         executor.setThreadNamePrefix("order-");
         executor.initialize();
         return executor;

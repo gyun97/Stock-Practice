@@ -92,8 +92,8 @@ public class UserServiceImpl implements UserService {
         if (portfolio == null) {
             // 신규 유저의 초기 포트폴리오 생성
             Portfolio newPortfolio = Portfolio.builder()
-                    .balance(100000000)
-                    .totalAsset(100000000)
+                    .balance(100000000000L)
+                    .totalAsset(100000000000L)
                     .totalQuantity(0)
                     // .avgReturnRate(0)
                     .holdCount(0)
@@ -161,8 +161,8 @@ public class UserServiceImpl implements UserService {
         TokensResponse tokens = issueTokens(savedUser);
 
         Portfolio newPortfolio = Portfolio.builder()
-                .balance(100000000)
-                .totalAsset(100000000)
+                .balance(100000000000L)
+                .totalAsset(100000000000L)
                 .totalQuantity(0)
                 .holdCount(0)
                 .stockAsset(0)

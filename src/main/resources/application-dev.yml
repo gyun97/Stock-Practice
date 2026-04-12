@@ -52,10 +52,9 @@ spring:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:stock}
     username: ${MYSQL_NAME}
     password: ${MYSQL_PASSWORD}
-    # username: ${DB_USERNAME_LOCAL:root}
-    # password: ${DB_PASSWORD_LOCAL:1234}
-
+    
     hikari:
+      # pool-name: HikariCP
       initialization-fail-timeout: 60000
       connection-timeout: 30000
 

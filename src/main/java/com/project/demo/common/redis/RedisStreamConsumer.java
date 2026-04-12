@@ -3,6 +3,7 @@ package com.project.demo.common.redis;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.project.demo.common.kis.AesDecryptUtil;
+import com.project.demo.domain.execution.service.ExecutionService;
 import com.project.demo.domain.order.service.OrderService;
 import com.project.demo.domain.stock.repository.StockRepository;
 import com.project.demo.domain.stock.service.StockMetrics;
@@ -40,6 +41,7 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
     private final StockRepository stockRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final OrderService orderService;
+    private final ExecutionService executionService;
     private final StockMetrics stockMetrics;
     private final Executor broadcastExecutor;
     private final Executor orderExecutor;
@@ -53,6 +55,7 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
             StockRepository stockRepository,
             @org.springframework.context.annotation.Lazy SimpMessagingTemplate messagingTemplate,
             @org.springframework.context.annotation.Lazy OrderService orderService,
+            ExecutionService executionService,
             StockMetrics stockMetrics,
             @Qualifier("broadcastExecutor") Executor broadcastExecutor,
             @Qualifier("orderExecutor") Executor orderExecutor) {
@@ -61,6 +64,7 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
         this.stockRepository = stockRepository;
         this.messagingTemplate = messagingTemplate;
         this.orderService = orderService;
+        this.executionService = executionService;
         this.stockMetrics = stockMetrics;
         this.broadcastExecutor = broadcastExecutor;
         this.orderExecutor = orderExecutor;
@@ -192,7 +196,7 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
         // 3. 예약 주문 체결 (비동기 처리)
         CompletableFuture.runAsync(() -> {
             try {
-                orderService.executeReservedOrdersForTicker(ticker, price);
+                executionService.executeReservedOrdersForTicker(ticker, price);
             } catch (Exception e) {
                 log.error("예약 주문 체결 중 비동기 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
             }

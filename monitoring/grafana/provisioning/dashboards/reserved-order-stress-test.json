@@ -1,0 +1,457 @@
+{
+  "title": "예약 주문 체결 스트레스 테스트",
+  "uid": "reserved-order-stress",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "style": "dark",
+  "tags": ["stress-test", "spring-boot", "order"],
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(hikaricp_connections, instance)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": false,
+        "current": {}
+      },
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "pluginId": "prometheus",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "📊 실제 예약 주문 체결 TPS (초당 건수)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 50 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max", "mean"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(reserved_order_execution_count_total{instance=~\"$instance\", result=\"success\"}[30s]))",
+          "legendFormat": "실제 체결 TPS",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{instance=~\"$instance\", uri=~\"/api/v1/orders/reserve-buying.*|/api/v1/orders/reserve-selling.*\"}[30s]))",
+          "legendFormat": "주문 생성 요청 TPS (Seeding)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "⏱️ 실제 예약 주문 체결 소요 시간 (배치당)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "showPoints": "auto"
+          },
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "reserved_order_execution_time_seconds_max{instance=~\"$instance\"}",
+          "legendFormat": "최대 소요 시간 (Max)",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(reserved_order_execution_time_seconds_sum{instance=~\"$instance\"}[30s]) / rate(reserved_order_execution_time_seconds_count{instance=~\"$instance\"}[30s])",
+          "legendFormat": "평균 소요 시간 (Avg)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "🔌 HikariCP 커넥션 상태",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "showPoints": "auto"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 8 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Pending 스레드" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } },
+              { "id": "custom.lineWidth", "value": 3 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Active 커넥션" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Max 커넥션" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [4, 4], "fill": "dash" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{instance=~\"$instance\"}",
+          "legendFormat": "Active 커넥션",
+          "refId": "A"
+        },
+        {
+          "expr": "hikaricp_connections_idle{instance=~\"$instance\"}",
+          "legendFormat": "Idle 커넥션",
+          "refId": "B"
+        },
+        {
+          "expr": "hikaricp_connections_pending{instance=~\"$instance\"}",
+          "legendFormat": "Pending 스레드",
+          "refId": "C"
+        },
+        {
+          "expr": "hikaricp_connections_max{instance=~\"$instance\"}",
+          "legendFormat": "Max 커넥션",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "⏳ HikariCP 커넥션 획득 대기시간 (Acquire Time Max)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity"
+          },
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_acquire_seconds_max{instance=~\"$instance\"}",
+          "legendFormat": "커넥션 획득 최대 시간",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(hikaricp_connections_acquire_seconds_sum{instance=~\"$instance\"}[30s]) / rate(hikaricp_connections_acquire_seconds_count{instance=~\"$instance\"}[30s])",
+          "legendFormat": "커넥션 획득 평균 시간",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "🖥️ JVM Heap 메모리",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity"
+          },
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300000000 },
+              { "color": "red", "value": 360000000 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{instance=~\"$instance\", area=\"heap\"}",
+          "legendFormat": "Heap 사용",
+          "refId": "A"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{instance=~\"$instance\", area=\"heap\"}",
+          "legendFormat": "Heap 최대 (Xmx)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "🔄 CPU 사용률",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "gradientMode": "opacity"
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max", "mean"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "process_cpu_usage{instance=~\"$instance\"}",
+          "legendFormat": "프로세스 CPU",
+          "refId": "A"
+        },
+        {
+          "expr": "system_cpu_usage{instance=~\"$instance\"}",
+          "legendFormat": "시스템 CPU",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "🧵 스레드풀 상태 (orderExecutor)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "gradientMode": "none"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["last", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "expr": "executor_active_threads{instance=~\"$instance\", name=\"orderExecutor\"}",
+          "legendFormat": "Active 스레드 (orderExecutor)",
+          "refId": "A"
+        },
+        {
+          "expr": "executor_queued_tasks{instance=~\"$instance\", name=\"orderExecutor\"}",
+          "legendFormat": "큐 대기 작업 (orderExecutor)",
+          "refId": "B"
+        },
+        {
+          "expr": "executor_pool_max_threads{instance=~\"$instance\", name=\"orderExecutor\"}",
+          "legendFormat": "Max 스레드 (orderExecutor)",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "💀 HikariCP 타임아웃 누적",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 24, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_timeout_total{instance=~\"$instance\"}",
+          "legendFormat": "커넥션 타임아웃",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "📈 예약 주문 HTTP 에러율",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 24, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{instance=~\"$instance\", uri=~\"/api/v1/orders/reserve.*\", outcome!=\"SUCCESS\"}[30s])) / sum(rate(http_server_requests_seconds_count{instance=~\"$instance\", uri=~\"/api/v1/orders/reserve.*\"}[30s]))",
+          "legendFormat": "에러율",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
