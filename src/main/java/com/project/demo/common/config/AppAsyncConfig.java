@@ -37,6 +37,11 @@ public class AppAsyncConfig {
         executor.setMaxPoolSize(50);        
         executor.setQueueCapacity(2000);    
         executor.setThreadNamePrefix("order-");
+        
+        // Micrometer Tracing (Tempo) Context 전달을 위한 TaskDecorator 설정
+        // 이 설정을 통해 비동기 쓰레드로 넘어갈 때 부모 Trace ID가 끊기지 않고 유지됩니다.
+        executor.setTaskDecorator(new org.springframework.core.task.support.ContextPropagatingTaskDecorator());
+        
         executor.initialize();
         return executor;
     }

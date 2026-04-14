@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: stock-app
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
