@@ -70,6 +70,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod,set1
       - JAVA_TOOL_OPTIONS=-Xmx384m
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://alloy:4318/v1/traces
     env_file:
       - .env.prod
     depends_on:
@@ -90,6 +91,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod,set2
       - JAVA_TOOL_OPTIONS=-Xmx384m
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://alloy:4318/v1/traces
     env_file:
       - .env.prod
     depends_on:
@@ -116,12 +118,8 @@ services:
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - GRAFANA_CLOUD_PROMETHEUS_URL=${GRAFANA_CLOUD_PROMETHEUS_URL}
-      - GRAFANA_CLOUD_PROMETHEUS_USER=${GRAFANA_CLOUD_PROMETHEUS_USER}
-      - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL}
-      - GRAFANA_CLOUD_LOKI_USER=${GRAFANA_CLOUD_LOKI_USER}
-      - GRAFANA_CLOUD_API_KEY=${GRAFANA_CLOUD_API_KEY}
+    env_file:
+      - .env.prod
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345

@@ -38,13 +38,12 @@ management:
     tags:
       application: stock-app
       env: prod
-#  zipkin:
-#    tracing:
-#      endpoint: http://jaeger:9411/api/v2/spans  # Docker Compose 내 Jaeger 서비스 제거됨
-
-tracing:
-  sampling:
-    probability: 0.1  # prod에서는 10% 샘플링
+  otlp:
+    tracing:
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://alloy:4318/v1/traces}
+  tracing:
+    sampling:
+      probability: 0.1
 
 
 spring:

@@ -31,7 +31,47 @@ prometheus.remote_write "grafana_cloud" {
 }
 
 // ---------------------------------------------------------
-// 2. Logs (Loki) 수집 및 전송
+// 2. Traces (Tempo) 수집 및 전송
+// ---------------------------------------------------------
+
+// 앱으로부터 OTLP 트레이스를 수신합니다. (포트 4317, 4318)
+otelcol.receiver.otlp "default" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// 트레이스 데이터를 효율적으로 배치 처리합니다.
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.grafana_cloud.input]
+  }
+}
+
+// Grafana Cloud Tempo로 트레이스 전송
+// Grafana Cloud Tempo는 포트 443에서 gRPC + TLS를 요구합니다.
+// tls 블록이 없으면 plain text로 연결을 시도하여 핸드셰이크에서 무조건 실패합니다.
+otelcol.exporter.otlp "grafana_cloud" {
+  client {
+    endpoint = sys.env("GRAFANA_CLOUD_TEMPO_URL")
+    auth     = otelcol.auth.basic.grafana_cloud.handler
+    tls {
+      insecure = false  // TLS 활성화 (Grafana Cloud 필수)
+    }
+  }
+}
+
+// gRPC 인증 설정 (비밀번호는 환경 변수에서 가져옴)
+otelcol.auth.basic "grafana_cloud" {
+  username = sys.env("GRAFANA_CLOUD_TEMPO_USER")
+  password = sys.env("GRAFANA_CLOUD_API_KEY")
+}
+
+// ---------------------------------------------------------
+// 3. Logs (Loki) 수집 및 전송
 // ---------------------------------------------------------
 
 // Docker 소켓을 통해 실행 중인 컨테이너들을 자동 검색합니다.

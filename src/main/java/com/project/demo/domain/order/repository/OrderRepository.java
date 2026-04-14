@@ -18,6 +18,15 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o JOIN FETCH o.stock JOIN FETCH o.user WHERE o.stock.ticker = :ticker AND o.isReserved = true AND o.isExecuted = false")
     List<Order> findReservedOrdersByTicker(@Param("ticker") String ticker);
 
+    /**
+     * OOM 방지용 초경량 조회: 가격 조건까지 SQL 레벨에서 비교하여 대상의 ID만 반환합니다.
+     * BUY 조건: 예약가(o.price)가 현재가(:currentPrice) 이상일 때 (현재가 <= 예약가)
+     * SELL 조건: 예약가(o.price)가 현재가(:currentPrice) 이하일 때 (현재가 >= 예약가)
+     */
+    @Query("SELECT o.id FROM Order o WHERE o.stock.ticker = :ticker AND o.isReserved = true AND o.isExecuted = false AND " +
+           "((o.type = 'BUY' AND :currentPrice <= o.price) OR (o.type = 'SELL' AND :currentPrice >= o.price))")
+    List<Long> findExecutableReservedOrderIds(@Param("ticker") String ticker, @Param("currentPrice") int currentPrice);
+
     List<Order> findByUserId(Long userId);
 
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.isReserved = false")

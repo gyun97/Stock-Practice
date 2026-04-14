@@ -19,6 +19,7 @@ import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import io.micrometer.observation.annotation.Observed;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -51,16 +52,27 @@ public class ExecutionProcessServiceImpl implements ExecutionProcessService {
         processSell(orderId, user, stock, price, quantity, totalPrice);
     }
 
-    @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void executeReservedBuy(Long orderId, User user, Stock stock, int price, int quantity, long totalPrice) {
-        processBuy(orderId, user, stock, price, quantity, totalPrice);
-    }
+
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void executeReservedSell(Long orderId, User user, Stock stock, int price, int quantity, long totalPrice) {
-        processSell(orderId, user, stock, price, quantity, totalPrice);
+    @Observed(name = "executeReservedOrder", contextualName = "executeReservedOrder.span")
+    public void executeReservedOrder(Long orderId, int currentPrice) {
+        Order order = orderRepository.findWithLockById(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. ID: " + orderId));
+
+        if (order.isExecuted()) {
+            return;
+        }
+
+        // 공통 로직으로 속성 전달
+        long totalPrice = (long) currentPrice * order.getQuantity();
+
+        if (order.getType() == OrderType.BUY) {
+            processBuy(orderId, order.getUser(), order.getStock(), currentPrice, order.getQuantity(), totalPrice);
+        } else if (order.getType() == OrderType.SELL) {
+            processSell(orderId, order.getUser(), order.getStock(), currentPrice, order.getQuantity(), totalPrice);
+        }
     }
 
     private void processBuy(Long orderId, User user, Stock stock, int price, int quantity, long totalPrice) {

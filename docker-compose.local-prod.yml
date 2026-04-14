@@ -64,6 +64,7 @@ services:
       # 컨테이너 네트워크용 호스트 설정
       - MYSQL_HOST=mysql
       - REDIS_HOST=redis
+      - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://alloy:4318/v1/traces
     env_file:
       - .env.local
     extra_hosts:

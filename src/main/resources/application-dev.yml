@@ -19,13 +19,12 @@ management:
     tags:
       application: stock-app
       env: dev
-  zipkin:
+  otlp:
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans  # Jaeger Zipkin 수신 포트
-
-tracing:
-  sampling:
-    probability: 1.0  # 로컬 전체 트레이싱
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+  tracing:
+    sampling:
+      probability: 1.0
 
 logstash:
   host: localhost
