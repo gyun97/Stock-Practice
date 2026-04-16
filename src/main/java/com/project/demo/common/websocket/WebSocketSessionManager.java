@@ -131,7 +131,6 @@ public class WebSocketSessionManager {
         if (isUserConnected(userId) && messagingTemplate != null) {
             String destination = "/topic/userstock/updates/" + userId;
             messagingTemplate.convertAndSend(destination, userStockData);
-            log.info("보유 주식 데이터 전송 - 사용자 ID: {}, 목적지: {}", userId, destination);
         } else {
             log.debug("사용자 세션이 없거나 MessagingTemplate이 설정되지 않음 - 사용자 ID: {}", userId);
         }

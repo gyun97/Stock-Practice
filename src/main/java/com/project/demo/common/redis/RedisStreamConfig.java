@@ -60,8 +60,8 @@ public class RedisStreamConfig {
     public ThreadPoolTaskExecutor producerTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8); 
-        executor.setQueueCapacity(200); 
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("StreamProducer-");
         executor.initialize();
         return executor;

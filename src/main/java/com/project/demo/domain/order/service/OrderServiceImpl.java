@@ -163,6 +163,10 @@ public class OrderServiceImpl implements OrderService {
 
                 orderRepository.save(reservedOrder);
 
+                // Redis ZSet 동기화
+                String redisKey = "order:reserved:buy:" + ticker;
+                redisTemplate.opsForZSet().add(redisKey, reservedOrder.getId().toString(), targetPrice);
+
                 return String.format("%s 주식 예약 매수 등록 완료 (%.0f원 이하 시 체결)", stock.getName(), (double) targetPrice);
         }
 
@@ -197,6 +201,10 @@ public class OrderServiceImpl implements OrderService {
                                 .build();
 
                 orderRepository.save(reservedOrder);
+
+                // Redis ZSet 동기화
+                String redisKey = "order:reserved:sell:" + ticker;
+                redisTemplate.opsForZSet().add(redisKey, reservedOrder.getId().toString(), targetPrice);
 
                 return String.format("%s 주식 예약 매도 등록 완료 (%.0f원 이상 시 체결)", stock.getName(), (double) targetPrice);
         }

@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import io.micrometer.observation.annotation.Observed;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,52 +37,47 @@ public class ExecutionProcessServiceImpl implements ExecutionProcessService {
     private final PortfolioRepository portfolioRepository;
     private final UserStockRepository userStockRepository;
     private final OrderRepository orderRepository;
+    private final StringRedisTemplate redisTemplate;
 
     @PersistenceContext
     private EntityManager entityManager;
-
-    @Override
-    @Transactional(propagation = Propagation.REQUIRED)
-    public void executeBuy(Long orderId, User user, Stock stock, int price, int quantity, long totalPrice) {
-        processBuy(orderId, user, stock, price, quantity, totalPrice);
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.REQUIRED)
-    public void executeSell(Long orderId, User user, Stock stock, int price, int quantity, long totalPrice) {
-        processSell(orderId, user, stock, price, quantity, totalPrice);
-    }
 
 
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Observed(name = "executeReservedOrder", contextualName = "executeReservedOrder.span")
-    public void executeReservedOrder(Long orderId, int currentPrice) {
+    public Order executeReservedOrder(Long orderId, int currentPrice) {
         Order order = orderRepository.findWithLockById(orderId)
                 .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. ID: " + orderId));
 
         if (order.isExecuted()) {
-            return;
+            return order;
         }
 
         // 공통 로직으로 속성 전달
         long totalPrice = (long) currentPrice * order.getQuantity();
 
         if (order.getType() == OrderType.BUY) {
-            processBuy(orderId, order.getUser(), order.getStock(), currentPrice, order.getQuantity(), totalPrice);
+            processBuy(order, currentPrice, totalPrice);
         } else if (order.getType() == OrderType.SELL) {
-            processSell(orderId, order.getUser(), order.getStock(), currentPrice, order.getQuantity(), totalPrice);
+            processSell(order, currentPrice, totalPrice);
         }
+
+        // 체결 성공 후 Redis ZSet에서 삭제 (조회 대상에서 제외)
+        String ticker = order.getStock().getTicker();
+        String typeKey = order.getType().name().toLowerCase();
+        String redisKey = "order:reserved:" + typeKey + ":" + ticker;
+        redisTemplate.opsForZSet().remove(redisKey, orderId.toString());
+
+        return order;
     }
 
-    private void processBuy(Long orderId, User user, Stock stock, int price, int quantity, long totalPrice) {
-        Order order = orderRepository.findWithLockById(orderId)
-                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. ID: " + orderId));
-
-        if (order.isExecuted()) {
-            return;
-        }
+    @Override
+    public void processBuy(Order order, int price, long totalPrice) {
+        User user = order.getUser();
+        Stock stock = order.getStock();
+        int quantity = order.getQuantity();
 
         Portfolio portfolio = portfolioRepository.findWithLockByUserId(user.getId())
                 .orElseThrow(NotFoundPortfolioException::new);
@@ -109,13 +105,11 @@ public class ExecutionProcessServiceImpl implements ExecutionProcessService {
         entityManager.flush();
     }
 
-    private void processSell(Long orderId, User user, Stock stock, int price, int quantity, long totalPrice) {
-        Order order = orderRepository.findWithLockById(orderId)
-                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다. ID: " + orderId));
-
-        if (order.isExecuted()) {
-            return;
-        }
+    @Override
+    public void processSell(Order order, int price, long totalPrice) {
+        User user = order.getUser();
+        Stock stock = order.getStock();
+        int quantity = order.getQuantity();
 
         Execution execution = Execution.builder()
                 .order(order)

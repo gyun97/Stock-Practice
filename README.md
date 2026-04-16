@@ -164,7 +164,8 @@ stock/
 
 ## 아키텍처 구조도
 
-<img width="1104" height="789" alt="Image" src="https://github.com/user-attachments/assets/9d0d898b-79b7-4044-8cd6-17e93450c902" />
+<img width="808" height="774" alt="image" src="https://github.com/user-attachments/assets/02990d1b-b262-42fe-ae2e-30836232fa76" />
+
 
 
 

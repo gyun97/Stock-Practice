@@ -27,4 +27,3 @@ CREATE UNIQUE INDEX idx_user_stock_user_stock_id ON user_stocks(user_id, stock_i
 -- 5. portfolios table
 -- Unique index for user_id (1:1 relationship with user)
 CREATE UNIQUE INDEX idx_portfolio_user_id ON portfolios(user_id);
- 

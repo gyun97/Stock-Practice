@@ -2,6 +2,7 @@ package com.project.demo.common.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -18,9 +19,9 @@ public class AppAsyncConfig {
     @Bean(name = "broadcastExecutor")
     public Executor broadcastExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(6);         // 10 -> 6 하향
-        executor.setMaxPoolSize(20);        // 50 -> 20 하향
-        executor.setQueueCapacity(500);     // 1000 -> 500 하향
+        executor.setCorePoolSize(6); // 10 -> 6 하향
+        executor.setMaxPoolSize(20); // 50 -> 20 하향
+        executor.setQueueCapacity(500); // 1000 -> 500 하향
         executor.setThreadNamePrefix("broadcast-");
         executor.initialize();
         return executor;
@@ -33,17 +34,16 @@ public class AppAsyncConfig {
     @Bean(name = "orderExecutor")
     public Executor orderExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(10);       
-        executor.setMaxPoolSize(50);        
-        executor.setQueueCapacity(2000);    
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(50);
+        executor.setQueueCapacity(2000);
         executor.setThreadNamePrefix("order-");
-        
+
         // Micrometer Tracing (Tempo) Context 전달을 위한 TaskDecorator 설정
         // 이 설정을 통해 비동기 쓰레드로 넘어갈 때 부모 Trace ID가 끊기지 않고 유지됩니다.
-        executor.setTaskDecorator(new org.springframework.core.task.support.ContextPropagatingTaskDecorator());
-        
+        executor.setTaskDecorator(new ContextPropagatingTaskDecorator());
+
         executor.initialize();
         return executor;
     }
 }
-

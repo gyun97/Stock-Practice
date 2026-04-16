@@ -68,6 +68,7 @@ export default function GlobalNotification() {
         console.log('주문 알림 토픽 구독:', subscriptionTopic)
         client.subscribe(subscriptionTopic, (msg: any) => {
           console.log('=== 주문 알림 WebSocket 메시지 수신 ===')
+          console.log('원본 데이터:', msg.body)
           try {
             const notificationData = JSON.parse(msg.body)
             if ('Notification' in window && Notification.permission === 'granted') {
