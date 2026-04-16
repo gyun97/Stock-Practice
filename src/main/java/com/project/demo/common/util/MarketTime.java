@@ -13,8 +13,8 @@ public class MarketTime {
     public static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 40);
 
     public static boolean isMarketOpen() {
-        return true;
-        // return isMarketOpenAt(ZonedDateTime.now(KST));
+        // return true;
+        return isMarketOpenAt(ZonedDateTime.now(KST));
     }
 
     public static boolean isMarketOpenAt(ZonedDateTime when) {

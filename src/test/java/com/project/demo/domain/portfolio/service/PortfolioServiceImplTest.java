@@ -157,10 +157,8 @@ class PortfolioServiceImplTest {
         Set<String> topUserIds = new LinkedHashSet<>(Arrays.asList("1"));
         ReflectionTestUtils.setField(testPortfolio, "userStocks", new ArrayList<>());
 
-        org.springframework.data.redis.core.ZSetOperations<String, String> zSetOps = mock(
-                org.springframework.data.redis.core.ZSetOperations.class);
-        org.springframework.data.redis.core.ValueOperations<String, String> valueOps = mock(
-                org.springframework.data.redis.core.ValueOperations.class);
+        ZSetOperations<String, String> zSetOps = mock(ZSetOperations.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
 
         when(redisTemplate.opsForZSet()).thenReturn(zSetOps);
         when(zSetOps.reverseRange("user:rank:totalAsset", 0, (limit * 2) - 1)).thenReturn(topUserIds);

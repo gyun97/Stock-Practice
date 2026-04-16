@@ -21,9 +21,14 @@ public class OrderResponse {
     private OrderType orderType;
     private boolean isReserved; // 예약 주문 여부
     private boolean isExecuted; // 체결 완료 여부
+    private String message;     // 사용자 알림 메시지
     private LocalDateTime createdAt;
 
     public static OrderResponse of(Order order) {
+        return of(order, null);
+    }
+
+    public static OrderResponse of(Order order, String message) {
         return new OrderResponse(
                 order.getId(),
                 order.getUser().getId(),
@@ -35,6 +40,7 @@ public class OrderResponse {
                 order.getType(),
                 order.isReserved(),
                 order.isExecuted(),
+                message,
                 order.getCreatedAt());
     }
 

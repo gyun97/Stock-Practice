@@ -1,9 +1,23 @@
 const http = require('http');
 
-const TARGET_ORDERS = 100000; // 1만 건 
-const CONCURRENCY = 100; // 시딩 속도를 위해 좀 더 높임
-const TICKER = '005930';
-const TARGET_PRICE = 100000; // 가격 10만으로 통일
+const TARGET_ORDERS = 100000; // 10만 건
+const CONCURRENCY = 1000; // 동시성 극대화
+
+const agent = new http.Agent({
+  keepAlive: true,
+  maxSockets: CONCURRENCY,
+  keepAliveMsecs: 1000
+});
+
+// InitStockSubscribe.FIXED_TICKERS 리스트 (40개 종목)
+const TICKERS = [
+  "005930", "000660", "373220", "207940", "005380", "068270", "000270", "005935", "005490", "105560",
+  "028260", "055550", "035420", "000810", "012330", "066570", "051910", "006400", "086790", "032830",
+  "010130", "329180", "035720", "015760", "003550", "034730", "011200", "018260", "009150", "034020",
+  "010140", "024110", "096770", "042660", "012450", "316140", "001450", "267250", "033780", "000100"
+];
+
+const TARGET_PRICE = 100000; // 기준 가격
 
 async function requestAPI(path, method = 'GET', body = null, headers = {}) {
   return new Promise((resolve, reject) => {
@@ -12,6 +26,7 @@ async function requestAPI(path, method = 'GET', body = null, headers = {}) {
       port: 8888,
       path: path,
       method: method,
+      agent: agent, // 에이전트 적용
       headers: {
         'Content-Type': 'application/json',
         ...headers
@@ -58,7 +73,8 @@ let failCount = 0;
 
 async function seedOrder(userToken) {
   const quantity = 1;
-  const path = `/api/v1/orders/reserve-buying/${TICKER}?quantity=${quantity}&targetPrice=${TARGET_PRICE}`;
+  const ticker = TICKERS[Math.floor(Math.random() * TICKERS.length)];
+  const path = `/api/v1/orders/reserve-buying/${ticker}?quantity=${quantity}&targetPrice=${TARGET_PRICE}`;
 
   try {
     await requestAPI(path, 'POST', null, { 'Authorization': userToken });
@@ -79,7 +95,7 @@ async function main() {
   const token = await loginAsGuest();
 
   console.log(`\n================================`);
-  console.log(`종목 ${TICKER}에 대해 ${TARGET_ORDERS}개의 예약 주문 시딩을 시작합니다.`);
+  console.log(`총 ${TICKERS.length}개 종목에 대해 ${TARGET_ORDERS}개의 예약 주문 시딩을 시작합니다.`);
   console.log(`목표 가격: ${TARGET_PRICE}원`);
   console.log(`================================\n`);
 

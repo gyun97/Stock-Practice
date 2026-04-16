@@ -10,6 +10,7 @@ import com.project.demo.domain.stock.service.StockMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.data.redis.connection.StringRedisConnection;
@@ -167,7 +168,7 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
 
         String json = objectMapper.writeValueAsString(out);
 
-        redisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
             StringRedisConnection stringRedisConn = (StringRedisConnection) connection;
             stringRedisConn.set("stock:data:" + ticker, json);
             stringRedisConn.zAdd("stock:rank:volume", (double) volume, ticker);
@@ -191,14 +192,14 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
             }
         }, broadcastExecutor);
 
-        log.debug("실시간 주가 처리 완료: ticker={}, price={}", ticker, price);
+        log.debug("실시간 주가 수신 및 처리: ticker={}, price={}", ticker, price);
 
         // 3. 예약 주문 체결 (비동기 처리)
         CompletableFuture.runAsync(() -> {
             try {
                 executionService.executeReservedOrdersForTicker(ticker, price);
             } catch (Exception e) {
-                log.error("예약 주문 체결 중 비동기 오류 발생 - 종목: {}, 오류: {}", ticker, e.getMessage());
+                log.error("[체결비동기오류] 종목: {}, 가격: {}, 원인: ", ticker, price, e);
             }
         }, orderExecutor);
 
