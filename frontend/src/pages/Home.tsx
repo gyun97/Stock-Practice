@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { createStompClient } from '../lib/socket'
 import { tokenManager } from '../lib/tokenManager'
+import KospiWidget from '../components/KospiWidget'
 
 type Row = {
   ticker: string
@@ -423,694 +424,265 @@ export default function Home() {
   }, [hasMore])
 
   return (
-    <div className="home-wrapper" style={{ background: 'radial-gradient(1000px 400px at 50% -100px, #e0e7ff 0%, #ffffff 60%)', minHeight: '100vh' }}>
-      {/* 상단 우측 액션 바 */}
-      <div className="header-actions">
-        {userInfo ? (
-          <div ref={dropdownRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: '50%',
-                background: showDropdown ? '#f9fafb' : 'white',
-                color: '#111827',
-                border: '1px solid #e5e7eb',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 22,
-                cursor: 'pointer',
-                overflow: 'hidden',
-                padding: 0
-              }}
-              onMouseOver={(e) => {
-                if (!showDropdown) {
-                  e.currentTarget.style.background = '#f9fafb'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!showDropdown) {
-                  e.currentTarget.style.background = 'white'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }
-              }}
-              title="메뉴"
-            >
-              {userInfo.profileImage ? (
-                <img
-                  src={userInfo.profileImage}
-                  alt="프로필"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block'
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                    const parent = e.currentTarget.parentElement
-                    if (parent) parent.innerHTML = '👤'
-                  }}
-                />
-              ) : (
-                '👤'
-              )}
-            </button>
+    <div className="home-wrapper">
 
-            {showDropdown && (
-              <div style={{
-                position: 'absolute',
-                top: '48px',
-                right: 0,
-                background: 'white',
-                borderRadius: 12,
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
-                minWidth: 160,
-                border: '1px solid #e5e7eb',
-                overflow: 'hidden',
-                zIndex: 1000
-              }}>
-                <Link
-                  to="/mypage"
-                  onClick={() => setShowDropdown(false)}
-                  style={{
-                    display: 'block',
-                    padding: '12px 16px',
-                    textDecoration: 'none',
-                    color: '#111827',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    transition: 'background 0.2s ease',
-                    borderBottom: '1px solid #f1f5f9'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#f9fafb'
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'white'
-                  }}
-                >
-                  마이페이지
-                </Link>
-                <Link
-                  to="/order-management"
-                  onClick={() => setShowDropdown(false)}
-                  style={{
-                    display: 'block',
-                    padding: '12px 16px',
-                    textDecoration: 'none',
-                    color: '#111827',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    transition: 'background 0.2s ease',
-                    borderBottom: '1px solid #f1f5f9'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#f9fafb'
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'white'
-                  }}
-                >
-                  주문 내역 관리
-                </Link>
+      {/* ── GNB ── */}
+      <nav className="gnb">
+        <div className="gnb-inner">
+          <div className="gnb-brand">
+            <img src="/logos/Stock King2.jpg" alt="Stock King" className="gnb-brand-logo"
+              onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            <span className="gnb-brand-name">Stock King</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#868e96', marginLeft: 6, padding: '2px 7px', border: '1px solid #dee2e6', borderRadius: 3 }}>모의투자</span>
+          </div>
+          <div className="gnb-actions">
+            {userInfo ? (
+              <div ref={dropdownRef} style={{ position: 'relative' }}>
                 <button
-                  onClick={() => {
-                    setShowDropdown(false)
-                    handleLogout()
-                  }}
+                  onClick={() => setShowDropdown(!showDropdown)}
                   style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    background: 'white',
-                    border: 'none',
-                    color: '#dc2626',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'background 0.2s ease'
+                    width: 44, height: 44, borderRadius: '50%',
+                    background: showDropdown ? '#f1f3f5' : '#f8f9fa',
+                    border: '2px solid #dee2e6',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', transition: 'all 0.2s', padding: 0,
+                    overflow: 'hidden'
                   }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#fee2e2'
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'white'
-                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.borderColor = '#adb5bd' }}
+                  onMouseOut={(e) => { e.currentTarget.style.borderColor = '#dee2e6' }}
                 >
-                  로그아웃
+                  {userInfo.profileImage
+                    ? <img src={userInfo.profileImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                    : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#868e96" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  }
                 </button>
+                {showDropdown && (
+                  <div style={{ position: 'absolute', top: 50, right: 0, background: 'white', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 160, border: '1px solid #e8eaed', overflow: 'hidden', zIndex: 1000 }}>
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f3f5' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e2329' }}>{userInfo.name || '사용자'}</div>
+                      <div style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>{userInfo.email}</div>
+                    </div>
+                    {[{ to: '/mypage', label: '마이페이지' }, { to: '/order-management', label: '주문 내역' }].map(({ to, label }) => (
+                      <Link key={to} to={to} onClick={() => setShowDropdown(false)}
+                        style={{ display: 'block', padding: '11px 16px', textDecoration: 'none', color: '#1e2329', fontSize: 13, fontWeight: 500, borderBottom: '1px solid #f1f3f5' }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = '#f8f9fa' }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'white' }}
+                      >{label}</Link>
+                    ))}
+                    <button onClick={() => { setShowDropdown(false); handleLogout() }}
+                      style={{ width: '100%', padding: '11px 16px', textAlign: 'left', background: 'white', border: 'none', color: '#e03131', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
+                      onMouseOver={(e) => { e.currentTarget.style.background = '#fff5f5' }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = 'white' }}
+                    >로그아웃</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={handleGuestLogin}
+                  style={{ padding: '7px 14px', borderRadius: 6, background: 'white', border: '1px solid #dee2e6', fontSize: 13, fontWeight: 600, color: '#1e2329', cursor: 'pointer', fontFamily: 'inherit' }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = '#f1f3f5' }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = 'white' }}
+                >게스트 체험</button>
+                <Link to="/login"
+                  style={{ padding: '7px 14px', borderRadius: 6, background: '#1971c2', color: 'white', textDecoration: 'none', fontSize: 13, fontWeight: 600, border: '1px solid #1971c2', display: 'inline-flex', alignItems: 'center' }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = '#1864ab' }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = '#1971c2' }}
+                >로그인</Link>
               </div>
             )}
           </div>
-        ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={handleGuestLogin}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: 10,
-                  background: '#10b981',
-                  color: 'white',
-                  border: '1px solid #10b981',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  display: 'inline-block'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#059669'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#10b981'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                게스트로 체험하기
-              </button>
-              <Link
-                to="/login"
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: 10,
-                  background: '#2962FF',
-                  color: 'white',
-                  textDecoration: 'none',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  border: '1px solid #2962FF',
-                  transition: 'all 0.2s ease',
-                  display: 'inline-block'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#1d4ed8'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#2962FF'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                로그인
-              </Link>
+        </div>
+      </nav>
+
+      {/* ── 페이지 본문 ── */}
+      <div className="container">
+
+        {/* 히어로 */}
+        <div className="hero-section">
+          <h1 className="hero-title">국내 주식</h1>
+          <p className="hero-desc">실시간 시세 · 차트 · 주문을 한 곳에서 관리하세요</p>
+        </div>
+
+        {/* 코스피 위젯 */}
+        <div style={{ marginBottom: 16 }}>
+          <KospiWidget />
+        </div>
+
+        {/* 시장 현황 */}
+        <div style={{ marginBottom: 24 }}>
+          <StatisticsSection rows={rows} />
+        </div>
+
+        {/* 상승/하락 TOP 3 */}
+        {rows.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div className="grid-2">
+              <TopStockCard title="상승률 TOP 3" rows={rows.filter(r => r.changeRate > 0).sort((a, b) => b.changeRate - a.changeRate).slice(0, 3)} color="#c92a2a" />
+              <TopStockCard title="하락률 TOP 3" rows={rows.filter(r => r.changeRate < 0).sort((a, b) => a.changeRate - b.changeRate).slice(0, 3)} color="#1864ab" />
             </div>
-        )}      </div>
-      {/* 상단 히어로 (센터 정렬, 대형 타이틀) */}
-      <div className="hero-section container">
-        <div className="hero-title-container">
-          <img
-            src="/logos/Stock King2.jpg"
-            alt="Stock King Logo"
-            className="hero-logo"
-            onError={(e) => {
-              // 이미지 로드 실패 시 숨김 처리
-              e.currentTarget.style.display = 'none'
-            }}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', padding: '6px 12px', borderRadius: 999, background: '#eef2ff', color: '#4338ca', fontSize: 12, fontWeight: 700, letterSpacing: 0.2, marginBottom: 0 }}>
-              모의 주식 투자 플랫폼
+          </div>
+        )}
+
+        {/* 유저 랭킹 */}
+        <div style={{ marginBottom: 20 }}>
+          <div className="section-header">
+            <div>
+              <div className="section-title">랭킹</div>
+              <div className="section-sub">총 자산 기준 상위 10명</div>
             </div>
-            <h1 className="hero-title">
-              Stock King
-            </h1>
           </div>
-        </div>
-        <p className="hero-desc">
-          실시간 차트와 주문, 포트폴리오까지. 빠르고 가벼운 트레이딩 경험을 제공합니다.
-        </p>
-
-        {/* 하이라이트 카드 (새 디자인) */}
-        <div className="grid-3">
-          <FeatureCard title="실시간 차트" desc="정교한 캔들 · 거래량 · 툴팁" emoji="📈" />
-          <FeatureCard title="주문/알림" desc="즉시·예약 주문과 체결 알림" emoji="⚡" />
-          <FeatureCard title="포트폴리오" desc="총자산·수익률을 실시간 추적" emoji="💼" />
-        </div>
-      </div>
-
-      {/* 통계 섹션 */}
-      <div className="container" style={{ margin: '40px auto' }}>
-        <StatisticsSection rows={rows} />
-      </div>
-
-      {/* 최고 상승/하락 종목 하이라이트 */}
-      {rows.length > 0 && (
-        <div className="container" style={{ margin: '32px auto' }}>
-          <div className="grid-2">
-            <TopStockCard
-              title="🔥 상승률 TOP 3"
-              rows={rows.filter(r => r.changeRate > 0).sort((a, b) => b.changeRate - a.changeRate).slice(0, 3)}
-              color="#dc2626"
-            />
-            <TopStockCard
-              title="📉 하락률 TOP 3"
-              rows={rows.filter(r => r.changeRate < 0).sort((a, b) => a.changeRate - b.changeRate).slice(0, 3)}
-              color="#2563eb"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 유저 랭킹 섹션 */}
-      <div className="container" style={{ margin: '32px auto' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 16,
-          padding: '16px 20px',
-          background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-          borderRadius: 12,
-          border: '1px solid #e5e7eb'
-        }}>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
-              유저 랭킹
-            </h2>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
-              총 자산 기준 상위 10명
-            </p>
-          </div>
-        </div>
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
-          {/* 헤더 */}
-          <div className="ranking-columns" style={{ display: 'grid', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#f8fafc', color: '#475569', fontSize: 12, fontWeight: 700 }}>
-            <div style={{ textAlign: 'center' }}>순위</div>
-            <div>사용자</div>
-            <div className="mobile-hidden" style={{ textAlign: 'right' }}>총 자산</div>
-            <div style={{ textAlign: 'right' }}>수익률</div>
-          </div>
-          {/* 랭킹 목록 */}
-          {rankings.map((ranking, idx) => {
-            return (
-              <div
-                key={ranking.userId}
-                className="ranking-columns"
-                style={{
-                  display: 'grid',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '14px',
-                  borderBottom: idx < rankings.length - 1 ? '1px solid #f1f5f9' : 'none',
-                  background: 'white',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#f9fafb'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = 'white'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
+          <div style={{ border: '1px solid #e8eaed', borderRadius: 8, overflow: 'hidden', background: 'white' }}>
+            <div className="ranking-columns stock-table-header">
+              <div style={{ textAlign: 'center' }}>순위</div>
+              <div>사용자</div>
+              <div className="mobile-hidden" style={{ textAlign: 'right' }}>총 자산</div>
+              <div style={{ textAlign: 'right' }}>수익률</div>
+            </div>
+            {rankings.map((ranking, idx) => (
+              <div key={ranking.userId} className="ranking-columns stock-table-row"
+                style={{ borderBottom: idx < rankings.length - 1 ? '1px solid #f1f3f5' : 'none', background: 'white' }}
+                onMouseOver={(e) => { e.currentTarget.style.background = '#f8f9fa' }}
+                onMouseOut={(e) => { e.currentTarget.style.background = 'white' }}
               >
-                {/* 순위 */}
-                <div style={{ textAlign: 'center', fontSize: 16, fontWeight: 700, color: '#374151' }}>
-                  {ranking.rank === 1 ? '🥇' : ranking.rank === 2 ? '🥈' : ranking.rank === 3 ? '🥉' : ranking.rank}
+                <div style={{ textAlign: 'center' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 4, fontSize: 12, fontWeight: 800, background: ranking.rank === 1 ? '#c92a2a' : ranking.rank === 2 ? '#868e96' : ranking.rank === 3 ? '#9c6b00' : '#f1f3f5', color: ranking.rank <= 3 ? 'white' : '#495057' }}>{ranking.rank}</span>
                 </div>
-                {/* 사용자 이름 */}
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
-                  {ranking.userName}
-                </div>
-                {/* 총 자산 */}
-                <div className="mobile-hidden" style={{ textAlign: 'right', fontSize: 15, fontWeight: 600, color: '#1f2937' }}>
-                  {ranking.totalAsset.toLocaleString()}원
-                </div>
-                {/* 수익률 */}
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#1e2329' }}>{ranking.userName}</div>
+                <div className="mobile-hidden" style={{ textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#1e2329' }}>{ranking.totalAsset.toLocaleString()}원</div>
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '4px 10px',
-                    borderRadius: 999,
-                    fontWeight: 700,
-                    fontSize: 13,
-                    color: ranking.returnRate >= 0 ? '#b91c1c' : '#1d4ed8',
-                    background: ranking.returnRate >= 0 ? '#fee2e2' : '#dbeafe'
-                  }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 8px', borderRadius: 3, fontWeight: 700, fontSize: 12, color: ranking.returnRate >= 0 ? '#c92a2a' : '#1864ab', background: ranking.returnRate >= 0 ? '#fff0f0' : '#e8f0fe' }}>
                     {ranking.returnRate >= 0 ? '+' : ''}{ranking.returnRate.toFixed(2)}%
                   </span>
                 </div>
               </div>
-            )
-          })}
-          {rankings.length === 0 && (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-              랭킹 데이터를 불러오는 중...
-            </div>
-          )}
+            ))}
+            {rankings.length === 0 && (
+              <div style={{ padding: '32px', textAlign: 'center', color: '#868e96', fontSize: 13 }}>랭킹 데이터를 불러오는 중...</div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* 보유 종목 섹션 */}
-      {userInfo && userStocks.length > 0 && (
-        <div className="container" style={{ margin: '32px auto' }}>
-          <div className="section-header" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 16,
-            padding: '16px 20px',
-            background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-            borderRadius: 12,
-            border: '1px solid #e5e7eb'
-          }}>
-            <div style={{ flex: 1 }}>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                내 보유 종목
-              </h2>
-              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>
-                보유 종목의 실시간 시세를 확인하세요
-              </p>
+        {/* 보유 종목 */}
+        {userInfo && userStocks.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div className="section-header">
+              <div>
+                <div className="section-title">내 보유 종목</div>
+                <div className="section-sub">실시간 시세 기준</div>
+              </div>
+              <div className="sort-buttons">
+                {[{ key: 'quantity', label: '보유량' }, { key: 'changeRate', label: '등락률' }].map(({ key, label }) => (
+                  <button key={key} className={`sort-btn${userStockSortBy === key ? ' active' : ''}`}
+                    onClick={() => setUserStockSortBy(key as 'quantity' | 'changeRate')}
+                  >{label}</button>
+                ))}
+              </div>
             </div>
-            <div className="sort-buttons" style={{ display: 'flex', gap: 8 }}>
-              {[
-                { key: 'quantity', label: '보유량' },
-                { key: 'changeRate', label: '등락률' }
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setUserStockSortBy(key as 'quantity' | 'changeRate')}
-                  style={{
-                    padding: '8px 16px',
-                    border: 'none',
-                    borderRadius: 4,
-                    background: userStockSortBy === key ? '#e5e7eb' : 'white',
-                    color: userStockSortBy === key ? '#374151' : '#333',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: userStockSortBy === key ? 'bold' : 'normal',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  {label}
-                </button>
+            <div style={{ border: '1px solid #e8eaed', borderRadius: 8, overflow: 'hidden', background: 'white' }}>
+              <div className="user-stocks-columns stock-table-header">
+                <div />
+                <div>종목</div>
+                <div className="optional-col" style={{ textAlign: 'right' }}>보유량</div>
+                <div style={{ textAlign: 'right' }}>현재가</div>
+                <div style={{ textAlign: 'right' }}>등락률</div>
+              </div>
+              {userStocks.map((stock, idx) => {
+                const cr = stock.changeRate ?? 0
+                return (
+                  <Link key={stock.ticker} to={`/stocks/${stock.ticker}/chart`} className="user-stocks-columns stock-table-row"
+                    style={{ textDecoration: 'none', color: 'inherit', background: idx % 2 ? '#fff' : '#fcfcfd' }}
+                    onMouseOver={(e) => { e.currentTarget.style.background = '#f8f9fa' }}
+                    onMouseOut={(e) => { e.currentTarget.style.background = idx % 2 ? '#fff' : '#fcfcfd' }}
+                  >
+                    <LogoCell name={stock.companyName} ticker={stock.ticker} logoUrl={stock.logoUrl} />
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 4 }}>
+                      <span className="name-text" style={{ fontWeight: 700, color: '#1e2329', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stock.companyName}</span>
+                      <span className="ticker-text" style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>{stock.ticker}</span>
+                    </div>
+                    <div className="optional-col" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#495057', fontWeight: 600 }}>{stock.totalQuantity.toLocaleString()}주</div>
+                    <div className="price-cell" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#1e2329' }}>{stock.currentPrice != null ? `${stock.currentPrice.toLocaleString()}원` : '-'}</div>
+                    <div className="change-cell" style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end' }}>
+                      <span className="change-rate-badge" style={{ padding: '3px 8px', borderRadius: 3, fontWeight: 700, fontSize: 12, color: cr > 0 ? '#c92a2a' : cr < 0 ? '#1864ab' : '#495057', background: cr > 0 ? '#fff0f0' : cr < 0 ? '#e8f0fe' : '#f1f3f5' }}>
+                        {cr > 0 ? '▲' : cr < 0 ? '▼' : ''} {cr.toFixed(2)}%
+                      </span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 전체 종목 목록 */}
+        <div style={{ marginBottom: 40 }}>
+          <div className="section-header">
+            <div>
+              <div className="section-title">종목 목록</div>
+              <div className="section-sub">실시간 시세 정보</div>
+            </div>
+            <div className="sort-buttons">
+              {[{ key: 'volume', label: '거래량' }, { key: 'price', label: '가격' }, { key: 'rise', label: '상승' }, { key: 'fall', label: '하락' }].map(({ key, label }) => (
+                <button key={key} className={`sort-btn${sortBy === key ? ' active' : ''}`}
+                  onClick={() => setSortBy(key as 'volume' | 'price' | 'rise' | 'fall')}
+                >{label}</button>
               ))}
             </div>
           </div>
-          <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', background: 'white' }}>
-            {/* 헤더 */}
-            <div className="user-stocks-columns stock-table-header" style={{ color: '#475569', fontSize: 12, fontWeight: 700 }}>
-              <div />
-              <div style={{ transform: 'translateX(8px)' }}>종목</div>
-              <div className="optional-col" style={{ textAlign: 'right' }}>보유량</div>
-              <div style={{ textAlign: 'right', transform: 'translateX(-8px)' }}>현재가</div>
-              <div style={{ textAlign: 'right', transform: 'translateX(-8px)' }}>등락률</div>
-            </div>
-            {userStocks.map((stock, idx) => {
-              const changeRate = stock.changeRate ?? 0
-              return (
-                <Link
-                  key={stock.ticker}
-                  to={`/stocks/${stock.ticker}/chart`}
-                  className="user-stocks-columns stock-table-row"
-                  style={{
-                    borderTop: '1px solid #f1f5f9',
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    background: idx % 2 ? '#ffffff' : '#fcfcfd',
-                    transition: 'all 0.2s ease-in-out',
-                    transform: 'translateY(0)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#fafcff'
-                    e.currentTarget.style.boxShadow = 'inset 0 0 0 1px #e5e7eb'
-                    e.currentTarget.style.transform = 'translateY(-1px)'
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = idx % 2 ? '#ffffff' : '#fcfcfd'
-                    e.currentTarget.style.boxShadow = 'none'
-                    e.currentTarget.style.transform = 'translateY(0)'
-                  }}
+          <div className="table-wrapper">
+            <div style={{ border: '1px solid #e8eaed', borderRadius: 8, background: 'white' }}>
+              <div className="all-stocks-columns stock-table-header">
+                <div style={{ textAlign: 'center' }}>순위</div>
+                <div />
+                <div>종목</div>
+                <div style={{ textAlign: 'right' }}>현재가</div>
+                <div style={{ textAlign: 'right' }}>등락률</div>
+                <div className="volume-cell" style={{ textAlign: 'right' }}>거래량</div>
+              </div>
+              {rows.map((row, idx) => (
+                <Link key={row.ticker} to={`/stocks/${row.ticker}/chart`} className="all-stocks-columns stock-table-row"
+                  style={{ textDecoration: 'none', color: 'inherit', background: idx % 2 ? '#fff' : '#fcfcfd' }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = '#f8f9fa' }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = idx % 2 ? '#fff' : '#fcfcfd' }}
                 >
-                  <LogoCell name={stock.companyName} ticker={stock.ticker} logoUrl={stock.logoUrl} />
+                  <div className="rank-cell" style={{ textAlign: 'center', fontSize: 13, fontWeight: idx < 3 ? 800 : 600, color: idx === 0 ? '#c92a2a' : idx === 1 ? '#868e96' : idx === 2 ? '#9c6b00' : '#adb5bd' }}>{idx + 1}</div>
+                  <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
                   <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 4 }}>
-                    <span className="name-text" style={{
-                      fontWeight: 700,
-                      color: '#0f172a',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>{stock.companyName}</span>
-                    <span className="ticker-text" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{stock.ticker}</span>
+                    <span className="name-text" style={{ fontWeight: 700, color: '#1e2329', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</span>
+                    <span className="ticker-text" style={{ fontSize: 12, color: '#868e96', marginTop: 2 }}>{row.ticker}</span>
                   </div>
-                  <div className="optional-col" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#334155', fontWeight: 600 }}>
-                    {stock.totalQuantity.toLocaleString()}주
-                  </div>
-                  <div className="price-cell" style={{
-                    textAlign: 'right',
-                    fontVariantNumeric: 'tabular-nums',
-                    fontWeight: 700,
-                    color: '#000000',
-                    transition: 'color 0.3s ease'
-                  }}>
-                    {stock.currentPrice != null ? `${stock.currentPrice.toLocaleString()}원` : '-'}
-                  </div>
+                  <div className="price-cell" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: '#1e2329' }}>{row.price != null ? `${row.price.toLocaleString()}원` : '-'}</div>
                   <div className="change-cell" style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end' }}>
-                    {changeRate != null ? (
-                      <span
-                        className="change-rate-badge"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          padding: '4px 10px',
-                          borderRadius: 999,
-                          fontWeight: 700,
-                          fontSize: 12,
-                          color: changeRate > 0 ? '#b91c1c' : changeRate < 0 ? '#1d4ed8' : '#374151',
-                          background: changeRate > 0 ? '#fee2e2' : changeRate < 0 ? '#dbeafe' : '#f3f4f6',
-                          transition: 'all 0.3s ease'
-                        }}
-                      >
-                        {changeRate > 0 ? '▲' : changeRate < 0 ? '▼' : ''} {changeRate.toFixed(2)}%
+                    {row.changeRate != null ? (
+                      <span className="change-rate-badge" style={{ padding: '3px 8px', borderRadius: 3, fontWeight: 700, fontSize: 12, color: row.changeRate > 0 ? '#c92a2a' : row.changeRate < 0 ? '#1864ab' : '#495057', background: row.changeRate > 0 ? '#fff0f0' : row.changeRate < 0 ? '#e8f0fe' : '#f1f3f5' }}>
+                        {row.changeRate > 0 ? '▲' : row.changeRate < 0 ? '▼' : ''} {row.changeRate.toFixed(2)}%
                       </span>
-                    ) : (
-                      '-'
-                    )}
+                    ) : '-'}
                   </div>
+                  <div className="volume-cell" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#495057' }}>{row.volume != null ? `${row.volume.toLocaleString()}주` : '-'}</div>
                 </Link>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 목록 섹션 */}
-      <div className="container" style={{ margin: '24px auto 40px' }}>
-        <div className="section-header" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 16,
-          padding: '16px 20px',
-          background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)',
-          borderRadius: 12,
-          border: '1px solid #e5e7eb'
-        }}>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap' }}>
-              실시간 차트
-            </h2>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>
-              모든 종목의 실시간 시세 정보를 확인하세요
-            </p>
-          </div>
-          <div className="sort-buttons" style={{ display: 'flex', gap: 8 }}>
-            {[
-              { key: 'volume', label: '거래량' },
-              { key: 'price', label: '가격' },
-              { key: 'rise', label: '급상승' },
-              { key: 'fall', label: '급하락' }
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setSortBy(key as 'volume' | 'price' | 'rise' | 'fall')}
-                style={{
-                  padding: '8px 16px',
-                  border: 'none',
-                  borderRadius: 4,
-                  background: sortBy === key ? '#e5e7eb' : 'white',
-                  color: sortBy === key ? '#374151' : '#333',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: sortBy === key ? 'bold' : 'normal',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="table-wrapper">
-          <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, background: 'white' }}>
-            {/* 헤더 */}
-            <div className="all-stocks-columns stock-table-header" style={{ color: '#475569', fontSize: 12, fontWeight: 700 }}>
-              <div style={{ textAlign: 'center' }}>순위</div>
-              <div />
-              <div>종목</div>
-              <div style={{ textAlign: 'right' }}>현재가</div>
-              <div style={{ textAlign: 'right' }}>등락률</div>
-              <div className="volume-cell" style={{ textAlign: 'right' }}>거래량</div>
+              ))}
+              <div ref={loaderRef} style={{ height: 24 }} />
             </div>
-            {rows.map((row, idx) => (
-              <Link
-                key={row.ticker}
-                to={`/stocks/${row.ticker}/chart`}
-                className="all-stocks-columns stock-table-row"
-                style={{
-                  borderTop: '1px solid #f1f5f9',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  background: idx % 2 ? '#ffffff' : '#fcfcfd',
-                  transition: 'all 0.2s ease-in-out',
-                  transform: 'translateY(0)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#fafcff'
-                  e.currentTarget.style.boxShadow = 'inset 0 0 0 1px #e5e7eb'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = idx % 2 ? '#ffffff' : '#fcfcfd'
-                  e.currentTarget.style.boxShadow = 'none'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                }}
-              >
-                {/* 순위 */}
-                <div className="rank-cell" style={{
-                  textAlign: 'center',
-                  fontSize: 14,
-                  fontWeight: idx < 3 ? 800 : 600,
-                  color: idx < 3 ? (idx === 0 ? '#dc2626' : idx === 1 ? '#f59e0b' : '#2563eb') : '#6b7280'
-                }}>
-                  {idx + 1}
-                </div>
-                <LogoCell name={row.name} ticker={row.ticker} logoUrl={row.logoUrl} />
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 4 }}>
-                  <span className="name-text" style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.name}</span>
-                  <span className="ticker-text" style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{row.ticker}</span>
-                </div>
-                <div className="price-cell" style={{
-                  textAlign: 'right',
-                  fontVariantNumeric: 'tabular-nums',
-                  fontWeight: 700,
-                  color: '#000000',
-                  transition: 'color 0.3s ease'
-                }}>
-                  {row.price != null ? `${row.price.toLocaleString()}원` : '-'}
-                </div>
-                <div className="change-cell" style={{ textAlign: 'right', display: 'flex', justifyContent: 'flex-end' }}>
-                  {row.changeRate != null ? (
-                    <span
-                      className="change-rate-badge"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        padding: '4px 10px',
-                        borderRadius: 999,
-                        fontWeight: 700,
-                        fontSize: 12,
-                        color: row.changeRate > 0 ? '#b91c1c' : row.changeRate < 0 ? '#1d4ed8' : '#374151',
-                        background: row.changeRate > 0 ? '#fee2e2' : row.changeRate < 0 ? '#dbeafe' : '#f3f4f6',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      {row.changeRate > 0 ? '▲' : row.changeRate < 0 ? '▼' : ''} {row.changeRate.toFixed(2)}%
-                    </span>
-                  ) : (
-                    '-'
-                  )}
-                </div>
-                <div className="volume-cell" style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#334155' }}>
-                  {row.volume != null ? `${row.volume.toLocaleString()}주` : '-'}
-                </div>
-              </Link>
-            ))}
-            <div ref={loaderRef} style={{ height: 24 }} />
           </div>
         </div>
-      </div>
 
-      {/* 푸터 */}
-      <footer style={{
-        background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-        borderTop: '1px solid #e5e7eb',
-        padding: '40px 16px',
-        marginTop: '60px',
-        textAlign: 'center'
-      }}>
-        <div className="container">
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            marginBottom: 16
-          }}>
-            <img
-              src="/logos/Stock King2.jpg"
-              alt="Stock King Logo"
-              style={{
-                width: 32,
-                height: 32,
-                objectFit: 'contain',
-                background: 'transparent'
-              }}
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-            <span style={{
-              fontSize: 18,
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent'
-            }}>
-              Stock King
-            </span>
+      </div>{/* /container */}
+
+      <footer style={{ background: '#fff', borderTop: '1px solid #e8eaed', padding: '24px 20px' }}>
+        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/logos/Stock King2.jpg" alt="" style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 4 }} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#1e2329' }}>Stock King</span>
+            <span style={{ fontSize: 12, color: '#868e96', marginLeft: 4 }}>모의 주식 투자 플랫폼</span>
           </div>
-          <p style={{
-            fontSize: 14,
-            color: '#6b7280',
-            margin: '8px 0 16px',
-            lineHeight: 1.6
-          }}>
-            모의 주식 투자 플랫폼으로 안전하게 실전 투자를 연습하세요.
-            <br />
-            실시간 차트와 주문 시스템을 통해 전문가 수준의 트레이딩 경험을 제공합니다.
-          </p>
-          <div style={{
-            paddingTop: '20px',
-            borderTop: '1px solid #e5e7eb',
-            fontSize: 12,
-            color: '#9ca3b8'
-          }}>
-            © 2025 Stock King. All rights reserved.
-          </div>
+          <div style={{ fontSize: 12, color: '#adb5bd' }}>© 2025 Stock King. All rights reserved.</div>
         </div>
       </footer>
-    </div >
+
+    </div>
   )
 }
-
 function toNum(v: any): number | undefined {
   if (v == null) return undefined
   const n = Number(String(v).replace(/[^0-9.-]/g, ''))
@@ -1222,48 +794,68 @@ function FeatureCard({ title, desc, emoji }: { title: string; desc: string; emoj
 function StatisticsSection({ rows }: { rows: Row[] }) {
   const totalStocks = rows.length
   const risingCount = rows.filter(r => r.changeRate > 0).length
+  const flatCount = rows.filter(r => r.changeRate === 0).length
   const fallingCount = rows.filter(r => r.changeRate < 0).length
   const avgChangeRate = rows.length > 0
     ? rows.reduce((sum, r) => sum + (r.changeRate || 0), 0) / rows.length
     : 0
-  const totalVolume = rows.reduce((sum, r) => sum + (r.volume || 0), 0)
-
-  const stats = [
-    { label: '전체 종목', value: totalStocks.toLocaleString(), icon: '📋', color: '#3b82f6' },
-    { label: '상승 종목', value: risingCount.toLocaleString(), icon: '📈', color: '#dc2626' },
-    { label: '하락 종목', value: fallingCount.toLocaleString(), icon: '📉', color: '#2563eb' },
-    { label: '평균 등락률', value: `${avgChangeRate >= 0 ? '+' : ''}${avgChangeRate.toFixed(2)}%`, icon: '📌', color: avgChangeRate >= 0 ? '#dc2626' : '#2563eb' },
-  ]
+  const riseRatio = totalStocks > 0 ? (risingCount / totalStocks) * 100 : 0
+  const flatRatio = totalStocks > 0 ? (flatCount / totalStocks) * 100 : 0
+  const fallRatio = totalStocks > 0 ? (fallingCount / totalStocks) * 100 : 0
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #cbd5e1 100%)',
-      borderRadius: 16,
-      padding: '24px',
-      boxShadow: '0 8px 24px rgba(148, 163, 184, 0.2)'
-    }}>
-      <h3 style={{
-        margin: '0 0 20px',
-        fontSize: 20,
-        fontWeight: 700,
-        color: '#0f172a',
-        textAlign: 'center',
-        whiteSpace: 'nowrap'
-      }}>
-        📊 실시간 시장 현황
-      </h3>
-      <div className="stats-grid">
-        {stats.map((stat, idx) => (
-          <div key={idx} className="stat-card">
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{stat.icon}</div>
-            <div className="stat-value" style={{ color: stat.color }}>
-              {stat.value}
-            </div>
-            <div className="stat-label">
-              {stat.label}
-            </div>
+    <div style={{ background: 'white', border: '1px solid #e8eaed', borderRadius: 8, padding: '20px 28px' }}>
+      {/* 데스크탑: 1줄 가로 배치 / 모바일: 2줄 */}
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px 0', rowGap: 16 }}>
+
+        {/* 레이블 */}
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#adb5bd', letterSpacing: 0.8, textTransform: 'uppercase', whiteSpace: 'nowrap', paddingRight: 24 }}>
+          시장 현황
+        </div>
+        <div style={{ width: 1, height: 48, background: '#e8eaed', marginRight: 24, flexShrink: 0 }} />
+
+        {/* 상승/보합/하락 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 28, paddingRight: 28 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#c92a2a', letterSpacing: 0.4 }}>상승</span>
+            <span style={{ fontSize: 36, fontWeight: 800, color: '#c92a2a', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{risingCount}</span>
           </div>
-        ))}
+          <div style={{ width: 1, height: 32, background: '#e8eaed', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#868e96', letterSpacing: 0.4 }}>보합</span>
+            <span style={{ fontSize: 36, fontWeight: 800, color: '#868e96', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{flatCount}</span>
+          </div>
+          <div style={{ width: 1, height: 32, background: '#e8eaed', flexShrink: 0 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#1864ab', letterSpacing: 0.4 }}>하락</span>
+            <span style={{ fontSize: 36, fontWeight: 800, color: '#1864ab', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{fallingCount}</span>
+          </div>
+        </div>
+
+        <div style={{ width: 1, height: 48, background: '#e8eaed', marginRight: 24, flexShrink: 0 }} />
+
+        {/* 비율 바 */}
+        <div style={{ flex: 1, minWidth: 120 }}>
+          <div style={{ display: 'flex', borderRadius: 4, overflow: 'hidden', height: 9 }}>
+            <div style={{ width: `${riseRatio}%`, background: '#c92a2a', transition: 'width 0.5s' }} />
+            <div style={{ width: `${flatRatio}%`, background: '#dee2e6', transition: 'width 0.5s' }} />
+            <div style={{ width: `${fallRatio}%`, background: '#1864ab', transition: 'width 0.5s' }} />
+          </div>
+          <div style={{ fontSize: 12, color: '#adb5bd', marginTop: 6, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>
+            전체 {totalStocks}종목
+          </div>
+        </div>
+
+        <div style={{ width: 1, height: 48, background: '#e8eaed', margin: '0 24px', flexShrink: 0 }} />
+
+        {/* 평균 등락률 */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 13, color: '#adb5bd', fontWeight: 600, letterSpacing: 0.4, marginBottom: 4 }}>평균 등락률</div>
+          <div style={{ fontSize: 36, fontWeight: 800, fontVariantNumeric: 'tabular-nums', lineHeight: 1, color: avgChangeRate > 0 ? '#c92a2a' : avgChangeRate < 0 ? '#1864ab' : '#495057' }}>
+            {avgChangeRate >= 0 ? '+' : ''}{avgChangeRate.toFixed(2)}%
+          </div>
+        </div>
+
       </div>
     </div>
   )

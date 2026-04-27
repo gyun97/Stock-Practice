@@ -32,10 +32,21 @@ public class SecurityConfig {
         private final JwtSecurityFilter jwtSecurityFilter; // 요청이 들어올 때 JWT의 유효성 검증을 담당하는 커스텀 필터
         private final OAuth2SuccessHandler oAuth2SuccessHandler;
         private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
-        private final CustomOAuth2UserService customOAuth2UserService;
+        private final CustomOAuth2UserService customUserService;
 
         @Value("${FRONTEND_URL}")
         private String frontendUrl;
+
+        @Bean
+        public org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer webSecurityCustomizer() {
+                return (web) -> web.ignoring()
+                                .requestMatchers(new AntPathRequestMatcher("/api/v1/stocks/**"))
+                                .requestMatchers(new AntPathRequestMatcher("/api/health"))
+                                .requestMatchers(new AntPathRequestMatcher("/api/profile"))
+                                .requestMatchers(new AntPathRequestMatcher("/actuator/**"))
+                                .requestMatchers(new AntPathRequestMatcher("/swagger-ui/**"))
+                                .requestMatchers(new AntPathRequestMatcher("/v3/api-docs/**"));
+        }
 
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -48,10 +59,7 @@ public class SecurityConfig {
                                                                                                         // 요청은 오직 JWT 토큰
                                                                                                         // 기반으로 인증)
                                 )
-                                .addFilterBefore(jwtSecurityFilter, SecurityContextHolderAwareRequestFilter.class) // SecurityContextHolderAwareRequestFilter
-                                                                                                                   // 이전에
-                                                                                                                   // JwtSecurityFilter를
-                                                                                                                   // 실행
+                                .addFilterBefore(jwtSecurityFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class) // JwtSecurityFilter를 UsernamePasswordAuthenticationFilter 이전에 실행
 
                                 // 불필요한 필터 비활성화
                                 .formLogin(AbstractHttpConfigurer::disable) // 기본 로그인 폼 UI 비활성화(REST API는 JSON 로그인 사용)
@@ -65,34 +73,30 @@ public class SecurityConfig {
 
                                 // URL 별 접근 권한 설정
                                 .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers(
-                                                                "/api/v1/users/login",
-                                                                "/api/v1/users/sign-up",
-                                                                "/api/v1/users/guest-login",
-                                                                "/api/v1/users/reissue", // 토큰 재발급 API (쿠키 기반 인증)
-                                                                "/oauth2/authorization/**", // OAuth2 인증 경로
-                                                                "/login/oauth2/code/**", // OAuth2 콜백 경로
-                                                                "/actuator/**",
-                                                                "/api/health",
-                                                                "/api/profile",
-                                                                "/swagger-ui/**",
-                                                                "/v3/api-docs/**",
-                                                                "/api/v1/stocks/**",
-                                                                "/api/v1/portfolios/ranking", // 랭킹 API는 공개
-                                                                "/signup/**",
-                                                                // WebSocket 관련 경로 추가
-                                                                "/ws/**", // WebSocket 연결 경로
-                                                                "/topic/**", // STOMP 토픽 구독 경로
-                                                                "/app/**" // STOMP 메시지 전송 경로
-                                                )
-                                                .permitAll() // 해당 URL 인증 없이 접근 가능
-                                                .anyRequest().authenticated() // 위 조건 외 나머지 요청은 반드시 JWT 인증 필요
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/users/login")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/users/sign-up")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/users/guest-login")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/users/reissue")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/oauth2/authorization/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/login/oauth2/code/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/actuator/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/health")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/profile")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/stocks/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/api/v1/portfolios/ranking")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/signup/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/ws/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/topic/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/app/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/swagger-ui/**")).permitAll()
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher("/v3/api-docs/**")).permitAll()
+                                                .anyRequest().authenticated()
                                 )
 
                                 // OAuth 인증 처리
                                 .oauth2Login(oauth -> oauth
                                                 .userInfoEndpoint(userInfo -> userInfo
-                                                                .userService(customOAuth2UserService))
+                                                                .userService(customUserService))
                                                 .successHandler(oAuth2SuccessHandler) // 동의하고 계속하기를 눌렀을 시 Handler
                                                 .failureHandler(oAuth2LoginFailureHandler)
                                                 .loginPage("/oauth2/authorization/kakao") // 카카오 로그인 페이지

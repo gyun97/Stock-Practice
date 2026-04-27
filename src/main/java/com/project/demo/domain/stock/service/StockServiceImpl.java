@@ -5,8 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.demo.common.kis.KisApiAccessTokenService;
 import com.project.demo.common.util.DateUtil;
 import com.project.demo.domain.stock.dto.response.CandleResponse;
+import com.project.demo.domain.stock.dto.response.KospiDataPoint;
+import com.project.demo.domain.stock.dto.response.KospiResponse;
 import com.project.demo.domain.stock.dto.response.StockResponse;
 import com.project.demo.domain.stock.repository.StockRepository;
+import com.project.demo.domain.stock.util.YahooFinanceUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +19,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +39,7 @@ public class StockServiceImpl implements StockService {
     private final ObjectMapper objectMapper;
     private final WebClient webClient;
     private final StockMetrics stockMetrics;
+    private final YahooFinanceUtil yahooFinanceUtil;
 
     @Value("${kis.app.key}")
     private String appKey;
@@ -191,9 +197,6 @@ public class StockServiceImpl implements StockService {
                 .block();
     }
 
-    /*
-    
-     */
     @Override
     public List<CandleResponse> getPeriodStockInfoByRange(String ticker, String period, String startDate,
             String endDate) {
@@ -239,9 +242,6 @@ public class StockServiceImpl implements StockService {
                 .block();
     }
 
-    /*
-     * Redis에서 실시간 체결가 가져오기
-     */
     @Override
     public int getCurrentPrice(String ticker) {
         try {
@@ -265,9 +265,6 @@ public class StockServiceImpl implements StockService {
         }
     }
 
-    /*
-     * 기업 개요 조회
-     */
     @Override
     public String getStockOutline(String ticker) {
         return stockRepository.findByTicker(ticker)
@@ -278,5 +275,121 @@ public class StockServiceImpl implements StockService {
                     return outline;
                 })
                 .orElse(null);
+    }
+
+    @Override
+    public KospiResponse getKospiIndex() {
+        final String CACHE_KEY = "kospi:current";
+
+        String cached = redisTemplate.opsForValue().get(CACHE_KEY);
+        if (cached != null) {
+            try {
+                return objectMapper.readValue(cached, KospiResponse.class);
+            } catch (Exception e) {
+                log.warn("코스피 캐시 역직렬화 실패, 재조회", e);
+            }
+        }
+
+        String today = DateUtil.today();
+        String url = baseUrl + "/uapi/domestic-stock/v1/quotations/inquire-index-price?FID_COND_MRKT_DIV_CODE=U&FID_INPUT_ISCD=0001";
+
+        KospiResponse result = webClient.get()
+                .uri(url)
+                .header(HttpHeaders.CONTENT_TYPE, "application/json; charset=utf-8")
+                .header("authorization", "Bearer " + getAccessToken())
+                .header("appkey", appKey)
+                .header("appsecret", appSecret)
+                .header("tr_id", "FHKUP01010100")
+                .header("custtype", "P")
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(JsonNode.class).flatMap(json -> {
+                        String msgCd = json.path("msg_cd").asText();
+                        String msg1 = json.path("msg1").asText();
+                        if ("EGW00201".equals(msgCd)) {
+                            return Mono.error(new RuntimeException("RATE_LIMIT_EXCEEDED"));
+                        }
+                        stockMetrics.recordKisApiError();
+                        return Mono.error(new RuntimeException("KIS API Error: " + msg1));
+                    });
+                })
+                .bodyToMono(JsonNode.class)
+                .retryWhen(reactor.util.retry.Retry.fixedDelay(2, java.time.Duration.ofSeconds(1))
+                        .filter(throwable -> "RATE_LIMIT_EXCEEDED".equals(throwable.getMessage())))
+                .timeout(java.time.Duration.ofSeconds(5))
+                .map(json -> {
+                    JsonNode output = json.path("output");
+                    if (output.isMissingNode() || output.isNull()) {
+                        return null;
+                    }
+
+                    double currentIndex = output.path("bstp_nmix_prpr").asDouble();
+                    if (currentIndex == 0) return null;
+
+                    return KospiResponse.builder()
+                            .currentIndex(currentIndex)
+                            .change(output.path("bstp_nmix_prdy_vrss").asDouble())
+                            .changeRate(output.path("bstp_nmix_prdy_ctrt").asDouble())
+                            .open(output.path("bstp_nmix_oprc").asDouble())
+                            .high(output.path("bstp_nmix_hgpr").asDouble())
+                            .low(output.path("bstp_nmix_lwpr").asDouble())
+                            .prevClose(output.path("bstp_nmix_prdy_clpr").asDouble())
+                            .high52w(output.path("d250_hgpr").asDouble())
+                            .low52w(output.path("d250_lwpr").asDouble())
+                            .baseDate(output.path("stck_bsop_date").asText(today))
+                            .build();
+                })
+                .onErrorResume(e -> yahooFinanceUtil.fetchCurrentKospi())
+                .block();
+
+        if (result != null) {
+            try {
+                redisTemplate.opsForValue().set(CACHE_KEY, objectMapper.writeValueAsString(result), Duration.ofMinutes(2));
+            } catch (Exception e) {}
+        }
+
+        if (result == null) {
+            return KospiResponse.builder().currentIndex(0.0).baseDate(today).build();
+        }
+        return result;
+    }
+
+    @Override
+    public List<KospiDataPoint> getKospiHistory(String period) {
+        final String CACHE_KEY = "kospi:history:" + period;
+
+        String cached = redisTemplate.opsForValue().get(CACHE_KEY);
+        if (cached != null) {
+            try {
+                return objectMapper.readValue(cached,
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, KospiDataPoint.class));
+            } catch (Exception e) {}
+        }
+
+        String range = "1d";
+        String interval = "2m";
+        
+        switch (period) {
+            case "W": range = "5d"; interval = "15m"; break;
+            case "M": range = "1mo"; interval = "1d"; break;
+            case "Y": range = "1y"; interval = "1d"; break;
+            default: range = "1d"; interval = "2m"; break;
+        }
+
+        List<KospiDataPoint> result = yahooFinanceUtil.fetchKospiHistory(range, interval)
+                .onErrorResume(e -> Mono.just(new ArrayList<>()))
+                .block();
+
+        if (result != null && !result.isEmpty()) {
+            result.sort(java.util.Comparator.comparing(KospiDataPoint::getDate));
+            // 1D는 2분, 나머지는 10분 캐시
+            long ttlMinutes = "D".equals(period) ? 2 : 10;
+            try {
+                redisTemplate.opsForValue().set(CACHE_KEY, objectMapper.writeValueAsString(result), Duration.ofMinutes(ttlMinutes));
+            } catch (Exception e) {}
+            return result;
+        }
+
+        return new ArrayList<>();
     }
 }
