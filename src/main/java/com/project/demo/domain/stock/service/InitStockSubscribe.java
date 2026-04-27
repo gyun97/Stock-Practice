@@ -129,7 +129,7 @@ public class InitStockSubscribe {
                         log.warn("종목 초기화 실패: {}", ticker, e);
                     }
                     try {
-                        Thread.sleep(1000); // TPS 제한 고려
+                        Thread.sleep(3000); // TPS 제한(2건/초)을 고려하여 넉넉하게 3초 대기
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                     }

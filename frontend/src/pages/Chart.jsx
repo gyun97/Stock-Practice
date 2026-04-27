@@ -750,9 +750,8 @@ export default function Chart() {
         {/* 실시간 시세 정보 */}
         {currentPrice && (
           <div className="chart-stats-card" style={{
-            background: 'white',
-            borderRadius: 8,
-            padding: '12px 16px',
+            background: 'transparent',
+            padding: '12px 0',
             display: 'flex',
             alignItems: 'center',
             maxWidth: 1200

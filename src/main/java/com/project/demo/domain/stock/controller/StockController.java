@@ -2,6 +2,8 @@ package com.project.demo.domain.stock.controller;
 
 import com.project.demo.common.response.ApiResponse;
 import com.project.demo.domain.stock.dto.response.CandleResponse;
+import com.project.demo.domain.stock.dto.response.KospiDataPoint;
+import com.project.demo.domain.stock.dto.response.KospiResponse;
 import com.project.demo.domain.stock.dto.response.StockResponse;
 import com.project.demo.domain.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +60,28 @@ public class StockController {
         String outline = stockService.getStockOutline(ticker);
         log.info("기업 개요 API 응답 - ticker: {}, outline: {}", ticker, outline != null ? outline.substring(0, Math.min(50, outline.length())) : "null");
         return ResponseEntity.ok(ApiResponse.requestSuccess(outline));
+    }
+
+    /**
+     * 코스피 현재 지수 + 통계 조회
+     */
+    @GetMapping("/kospi")
+    public ResponseEntity<ApiResponse<KospiResponse>> getKospiIndex() {
+        log.info("코스피 현재 지수 API 호출");
+        KospiResponse response = stockService.getKospiIndex();
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
+    }
+
+    /**
+     * 코스피 기간별 차트 데이터 조회
+     * @param period D(일) / W(주) / M(월) / Y(연)
+     */
+    @GetMapping("/kospi/history")
+    public ResponseEntity<ApiResponse<List<KospiDataPoint>>> getKospiHistory(
+            @RequestParam(defaultValue = "D") String period) {
+        log.info("코스피 히스토리 API 호출 - period: {}", period);
+        List<KospiDataPoint> response = stockService.getKospiHistory(period);
+        return ResponseEntity.ok(ApiResponse.requestSuccess(response));
     }
 
 }
