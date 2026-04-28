@@ -24,6 +24,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -86,15 +87,32 @@ public class KisNettyWebSocketClient {
     // ──────────────────────────────────────────────────────────
 
     public void tryConnect() {
+        tryConnect(false);
+    }
+
+    /**
+     * @param forceConnect true이면 MarketTime 체크를 건너뛰고 강제 연결 시도.
+     *                     9시 스케줄러처럼 "이미 9시임을 알고" 호출할 때 사용.
+     */
+    public void tryConnect(boolean forceConnect) {
         if (isChannelOpen()) return;
+        // 이미 재연결 진행 중이면 중복 실행 방지
+        if (!isReconnecting.compareAndSet(false, true)) {
+            log.info("tryConnect(): 이미 연결 시도 중 → 중복 실행 방지");
+            return;
+        }
 
         new Thread(() -> {
-            if (!MarketTime.isMarketOpen()) {
-                log.info("장 외 시간 → WebSocket 연결 대기");
-                return;
+            try {
+                if (!forceConnect && !MarketTime.isMarketOpen()) {
+                    log.info("장 외 시간 → WebSocket 연결 대기");
+                    return;
+                }
+                log.info("KIS WebSocket 연결 시도 중... ({})", wsUrl);
+                doConnect();
+            } finally {
+                isReconnecting.set(false);
             }
-            log.info("KIS WebSocket 연결 시도 중... ({})", wsUrl);
-            doConnect();
         }, "kis-connect-thread").start();
     }
 
@@ -109,12 +127,15 @@ public class KisNettyWebSocketClient {
 
             SslContext sslContext = buildSslContext(uri);
 
+            // WebSocket 핸드쉐이크 완료를 기다리기 위한 래치
+            CountDownLatch handshakeLatch = new CountDownLatch(1);
+
             Bootstrap bootstrap = new Bootstrap()
                     .group(eventLoopGroup)
                     .channel(NioSocketChannel.class)
                     .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
                     .option(ChannelOption.SO_KEEPALIVE, true)
-                    .handler(new KisWebSocketInitializer(uri, kisWebSocketHandler, sslContext));
+                    .handler(new KisWebSocketInitializer(uri, kisWebSocketHandler, sslContext, handshakeLatch));
 
             int port = uri.getPort() != -1 ? uri.getPort()
                     : ("wss".equalsIgnoreCase(uri.getScheme()) ? 443 : 80);
@@ -122,9 +143,18 @@ public class KisNettyWebSocketClient {
             ChannelFuture future = bootstrap.connect(uri.getHost(), port).sync();
             this.channel = future.channel();
 
-            // 핸드쉐이크 완료 대기 (최대 10초)
+            // WebSocket 핸드쉐이크 완료까지 최대 10초 대기 (버그 C 수정)
+            // connect().sync()는 TCP 연결만 완료. 핸드쉐이크는 비동기로 이뤄지므로
+            // 구독 메시지 전송 전에 반드시 완료를 확인해야 함.
+            boolean handshaked = handshakeLatch.await(10, TimeUnit.SECONDS);
+            if (!handshaked) {
+                log.error("WebSocket 핸드쉐이크 타임아웃 (10초) → 채널 종료");
+                channel.close();
+                return;
+            }
+
             kisWebSocketHandler.resetEncryptionKeys();
-            log.info("KIS WebSocket 연결 성공");
+            log.info("KIS WebSocket 핸드쉐이크 완료 및 연결 성공");
 
             // 연결 직후 구독
             scheduleSubscription();
@@ -150,7 +180,9 @@ public class KisNettyWebSocketClient {
     private void scheduleSubscription() {
         new Thread(() -> {
             try {
-                Thread.sleep(500); // 핸드쉐이크 안정화 대기
+                // 핸드쉐이크는 이미 doConnect()에서 CountDownLatch로 보장됨
+                // 100ms 여유만 두고 즉시 구독
+                Thread.sleep(100);
                 subscribeAll();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
