@@ -54,15 +54,15 @@ if [ $? -ne 0 ]; then
 fi
 
 # Redis 헬스 체크 (Redis가 죽어있으면 앱이 DNS 오류로 실패하기 때문에 선제적으로 확인)
-echo ">>> Waiting for Redis to be ready..."
-for i in {1..10}; do
+echo ">>> Waiting for Redis to be ready (up to 90s)..."
+for i in {1..30}; do
     if docker exec stock-redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
         echo ">>> Redis is UP!"
         break
     fi
-    if [ $i -eq 10 ]; then
+    if [ $i -eq 30 ]; then
         echo ">>> [ERROR] Redis failed to start. Checking logs..."
-        docker logs stock-redis --tail 20
+        docker logs stock-redis --tail 50
         echo ">>> TIP: AOF 파일이 손상되었을 수 있습니다. 다음 명령으로 복구하세요:"
         echo ">>>   docker run --rm -v stock_redis_data:/bitnami/redis/data redis:latest redis-check-aof --fix /bitnami/redis/data/appendonlydir/appendonly.aof.74.incr.aof"
         exit 1

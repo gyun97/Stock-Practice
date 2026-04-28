@@ -32,9 +32,9 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
     command:
       - /opt/bitnami/scripts/redis/run.sh
-      - --maxmemory 128mb          # OOM 방지: Redis 최대 메모리 상한
-      - --maxmemory-policy allkeys-lru  # 상한 초과 시 LRU 방식으로 키 제거
-      - --save ""                  # RDB 스냅샷 비활성화 (메모리 절약)
+      - --maxmemory 400mb          # 실행 중 메모리 상한 (기존 128mb에서 상향)
+      - --maxmemory-policy allkeys-lru
+      - --save ""                  # 스냅샷 비활성화
     volumes:
       - redis_data:/bitnami/redis/data
     ports:
@@ -42,7 +42,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 200M  # Redis 컨테이너 전체 상한 (maxmemory 128m + 오버헤드)
+          memory: 800M  # 로딩 시 피크 메모리 고려 (기존 200M에서 상향)
 
   # -----------------
   # Nginx Proxy (API Subdomain)
