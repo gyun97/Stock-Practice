@@ -159,11 +159,27 @@ public class InitStockSubscribe {
      * 평일 9시에 자동으로 종목 구독
      * cron 표현식: 초 분 시 일 월 요일
      * 0 0 9 * * MON-FRI: 평일 9시 0분 0초
+     *
+     * ⚠️ 수정: tryConnect()만 호출하면 이미 캐시된(만료될 수 있는) Approval Key로
+     * 연결 시도 → 인증 실패 가능. Approval Key를 강제 갱신하고 tickers를 명시적으로
+     * 재설정하여 구독이 반드시 이뤄지도록 수정.
      */
     @Scheduled(cron = "0 0 9 * * MON-FRI", zone = "Asia/Seoul")
     public void subscribeStocksAtMarketOpen() {
-        log.info("평일 9시 스케줄러 실행 - WebSocket 연결 시도");
-        client.tryConnect();
+        log.info("평일 9시 스케줄러 실행 - Approval Key 강제 갱신 및 WebSocket 연결/재구독 시작");
+        try {
+            // 1) Approval Key 강제 갱신 (Redis 캐시 삭제 후 재발급)
+            String newApprovalKey = approvalKeyService.refreshApprovalKey();
+            log.info("9시 Approval Key 강제 갱신 완료");
+
+            // 2) 구독 종목 정보 재설정 + 채널이 이미 열려 있으면 즉시 재구독
+            client.setSubscriptionInfo(newApprovalKey, FIXED_TICKERS);
+
+            // 3) 채널이 닫혀 있으면 신규 연결 시도 (9시 스케줄러이므로 장 시간 체크 강제 통과)
+            client.tryConnect(true);
+        } catch (Exception e) {
+            log.error("9시 스케줄러 실행 중 오류 발생", e);
+        }
     }
 
 
