@@ -125,6 +125,11 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
      * 이 메서드는 절대 블로킹 I/O를 수행하지 않습니다.
      */
     private void handleRawStockData(String rawMessage) {
+        // 데이터 수신 로그 (디버깅용)
+        if (stockMetrics.getRealtimeReceivedCount() % 50 == 0) {
+            log.info("실시간 데이터 패킷 수신 중... (누적: {})", stockMetrics.getRealtimeReceivedCount());
+        }
+
         String[] parts = rawMessage.split("\\|");
         if (parts.length < 4) {
             log.warn("올바르지 않은 실시간 데이터 형식 (parts < 4): {}", rawMessage);

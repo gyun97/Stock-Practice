@@ -59,9 +59,9 @@ public class RedisStreamConfig {
     @Bean
     public ThreadPoolTaskExecutor producerTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(200);
+        executor.setCorePoolSize(8);      // 4 -> 8 상향
+        executor.setMaxPoolSize(16);     // 8 -> 16 상향
+        executor.setQueueCapacity(2000); // 200 -> 2000 상향 (데이터 유실 방지)
         executor.setThreadNamePrefix("StreamProducer-");
         executor.initialize();
         return executor;

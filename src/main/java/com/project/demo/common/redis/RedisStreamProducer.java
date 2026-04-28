@@ -62,7 +62,8 @@ public class RedisStreamProducer {
 
             CompletableFuture.runAsync(() -> {
                 try {
-                    redisTemplate.opsForStream().add(record);
+                    // MAXLEN 10000으로 제한하여 스트림이 무한정 커지는 것을 방지 (약 10MB 내외 유지)
+                    redisTemplate.opsForStream().add(record, org.springframework.data.redis.connection.RedisStreamCommands.XAddOptions.maxlen(10000));
                     log.debug("실시간 주가 수신 완료 (Redis Stream 적재): ticker={}", ticker);
                 } catch (Exception e) {
                     log.error("Redis Streams XADD 비동기 실패 (ticker={}): {}", ticker, e.getMessage());
@@ -95,7 +96,8 @@ public class RedisStreamProducer {
 
             CompletableFuture.runAsync(() -> {
                 try {
-                    redisTemplate.opsForStream().add(record);
+                    // MAXLEN 10000 제한 적용
+                    redisTemplate.opsForStream().add(record, org.springframework.data.redis.connection.RedisStreamCommands.XAddOptions.maxlen(10000));
                     log.debug("Redis Streams XADD (암호화) 완료");
                 } catch (Exception e) {
                     log.error("Redis Streams XADD (암호화) 비동기 실패: {}", e.getMessage());

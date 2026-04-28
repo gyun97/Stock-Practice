@@ -192,7 +192,11 @@ public class RedisStreamConsumer implements StreamListener<String, MapRecord<Str
             }
         }, broadcastExecutor);
 
-        log.debug("실시간 주가 수신 및 처리: ticker={}, price={}", ticker, price);
+        // 50개마다 처리 완료 로그 출력 (INFO 레벨)
+        if (stockMetrics.getRealtimeProcessedCount() % 50 == 0) {
+            log.info("실시간 데이터 처리 및 브로드캐스트 완료: ticker={}, price={}, 누적={}", 
+                    ticker, price, stockMetrics.getRealtimeProcessedCount());
+        }
 
         // 3. 예약 주문 체결 (비동기 처리)
         CompletableFuture.runAsync(() -> {
