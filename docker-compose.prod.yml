@@ -30,10 +30,19 @@ services:
     hostname: redis
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
+    command:
+      - /opt/bitnami/scripts/redis/run.sh
+      - --maxmemory 128mb          # OOM 방지: Redis 최대 메모리 상한
+      - --maxmemory-policy allkeys-lru  # 상한 초과 시 LRU 방식으로 키 제거
+      - --save ""                  # RDB 스냅샷 비활성화 (메모리 절약)
     volumes:
       - redis_data:/bitnami/redis/data
     ports:
       - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 200M  # Redis 컨테이너 전체 상한 (maxmemory 128m + 오버헤드)
 
   # -----------------
   # Nginx Proxy (API Subdomain)
@@ -69,7 +78,7 @@ services:
     container_name: stock-app-blue
     environment:
       - SPRING_PROFILES_ACTIVE=prod,set1
-      - JAVA_TOOL_OPTIONS=-Xmx384m
+      - JAVA_TOOL_OPTIONS=-Xmx320m -Xms128m -XX:+UseG1GC -XX:MaxRAMPercentage=75
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://alloy:4318/v1/traces
     env_file:
       - .env.prod
@@ -81,6 +90,10 @@ services:
     restart: always
     ports:
       - "8081:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 500M  # JVM 힙(320m) + Metaspace + 스레드 등 오버헤드
 
   # -----------------
   # Spring Boot App (Green)
@@ -90,7 +103,9 @@ services:
     container_name: stock-app-green
     environment:
       - SPRING_PROFILES_ACTIVE=prod,set2
-      - JAVA_TOOL_OPTIONS=-Xmx384m
+      # Green은 배포 전환 직후 트래픽을 받기 전까지 힙을 낮게 유지 (OOM 방지)
+      # Blue 종료 후 JVM이 필요에 따라 자동 확장됨 (MaxRAMPercentage)
+      - JAVA_TOOL_OPTIONS=-Xmx320m -Xms64m -XX:+UseG1GC -XX:MaxRAMPercentage=75
       - MANAGEMENT_OTLP_TRACING_ENDPOINT=http://alloy:4318/v1/traces
     env_file:
       - .env.prod
@@ -102,6 +117,10 @@ services:
     restart: always
     ports:
       - "8082:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 500M  # Blue와 동일한 상한 (전환 후 단독 실행 기준)
 
   # =================================================
   # 모니터링 스택 (Grafana Cloud 이전)
