@@ -59,6 +59,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # 전체 job 타임아웃 (기본값 없음 → 무한 대기 방지)
     steps:
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@master
@@ -66,6 +67,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 20m  # 기본값 10m → deploy.sh 헬스체크(150s) + 여유시간 확보
           script: |
             set -e
             # 1. 프로젝트 폴더로 위치 이동

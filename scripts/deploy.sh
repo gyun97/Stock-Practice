@@ -74,32 +74,49 @@ done
 docker restart stock-alloy || true
 
 # 4. 새로운 대상(Target) 컨테이너 실행
+# OOM 방지: 기존 컨테이너를 먼저 내려 메모리 확보 후 신규 컨테이너 시작
+# (graceful shutdown: server.shutdown=graceful + timeout-per-shutdown-phase=30s 설정과 연동)
+if [ -n "$(docker ps -q -f name=${APP_NAME}-$OLD_TARGET)" ]; then
+    echo ">>> Stopping old app-$OLD_TARGET first to free memory before starting app-$TARGET..."
+    docker compose -f $DOCKER_COMPOSE_FILE stop app-$OLD_TARGET
+    echo ">>> Old container stopped. Freeing memory..."
+    sleep 3
+fi
+
 echo ">>> Launching app-$TARGET..."
 docker compose -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
 
 # 5. 헬스 체크
+# 앱 초기화(Flyway + KIS REST API 40종목 초기화 등)에 시간이 소요되므로 30초 선대기
+echo ">>> Waiting 30s for app-$TARGET to initialize..."
+sleep 30
+
 echo ">>> Health checking app-$TARGET..."
-for retry in {1..30}
+for retry in {1..40}
 do
-    HEALTH_CHECK=$(curl -s http://localhost:$IDLE_PORT/actuator/health | grep 'UP')
+    HEALTH_RESPONSE=$(curl -s --max-time 5 http://localhost:$IDLE_PORT/actuator/health 2>/dev/null)
+    HEALTH_CHECK=$(echo "$HEALTH_RESPONSE" | grep -o '"status":"UP"')
     if [ -n "$HEALTH_CHECK" ]; then
         echo ">>> app-$TARGET is UP!"
         break
     fi
-    
-    # 실패 시 이유 파악을 위해 간단한 상태 출력
+
+    # 매 5회마다 컨테이너 상태 + 응답 출력
     if [ $((retry % 5)) -eq 0 ]; then
-        echo ">>> [DEBUG] Current container status:"
-        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep $TARGET
+        echo ">>> [DEBUG] Container status:"
+        docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "$TARGET|mysql|redis"
+        echo ">>> [DEBUG] Health response: $HEALTH_RESPONSE"
+        echo ">>> [DEBUG] Recent app logs:"
+        docker logs ${APP_NAME}-$TARGET --tail 10 2>/dev/null
     fi
 
-    echo ">>> Waiting for app-$TARGET... ($retry/30)"
+    echo ">>> Waiting for app-$TARGET... ($retry/40)"
     sleep 5
 done
 
 if [ -z "$HEALTH_CHECK" ]; then
     echo ">>> [ERROR] Deployment failed. Printing logs for app-$TARGET:"
-    docker logs ${APP_NAME}-$TARGET --tail 50
+    docker logs ${APP_NAME}-$TARGET --tail 100
     docker compose -f $DOCKER_COMPOSE_FILE stop app-$TARGET
     exit 1
 fi
@@ -120,10 +137,12 @@ else
     docker compose -f $DOCKER_COMPOSE_FILE up -d nginx
 fi
 
-# 8. 이전 컨테이너 중지
+# 8. 이전 컨테이너 정리 (단계 4에서 이미 중지됨 - 혹시 남아있으면 재처리)
 if [ -n "$(docker ps -q -f name=${APP_NAME}-$OLD_TARGET)" ]; then
-    echo ">>> Stopping old service: app-$OLD_TARGET..."
+    echo ">>> [WARN] Old container still running - stopping now..."
     docker compose -f $DOCKER_COMPOSE_FILE stop app-$OLD_TARGET
+else
+    echo ">>> Old container app-$OLD_TARGET already stopped. OK."
 fi
 
 echo ">>> Deployment completed successfully!"
