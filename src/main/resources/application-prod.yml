@@ -106,13 +106,13 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: 6379
-      timeout: 10000  # Redis 서버 응답 대기 시간 (ms)
+      timeout: 3s  # Redis 서버 응답 대기 시간 (ms)
       lettuce:
         pool:
           max-active: 16
           max-idle: 8
           min-idle: 2
-          max-wait: 3000  # 커넥션 획득 대기 시간 (ms)
+          max-wait: 1s  # 커넥션 획득 대기 시간 (ms)
         shutdown-timeout: 2000
 
   flyway:
