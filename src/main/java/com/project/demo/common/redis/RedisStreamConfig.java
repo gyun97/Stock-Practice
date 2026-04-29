@@ -28,12 +28,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 @Configuration
-@RequiredArgsConstructor
 public class RedisStreamConfig {
 
-    @org.springframework.context.annotation.Lazy
     private final RedisStreamConsumer streamConsumer;
     private final StringRedisTemplate redisTemplate;
+
+    public RedisStreamConfig(
+            @org.springframework.context.annotation.Lazy RedisStreamConsumer streamConsumer,
+            StringRedisTemplate redisTemplate) {
+        this.streamConsumer = streamConsumer;
+        this.redisTemplate = redisTemplate;
+    }
 
     private static final String STREAM_KEY = RedisStreamProducer.STREAM_KEY;
     private static final String CONSUMER_GROUP = "stock-group";
