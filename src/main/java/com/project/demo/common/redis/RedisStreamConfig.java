@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 public class RedisStreamConfig {
 
+    @org.springframework.context.annotation.Lazy
     private final RedisStreamConsumer streamConsumer;
     private final StringRedisTemplate redisTemplate;
 
@@ -88,9 +89,8 @@ public class RedisStreamConfig {
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> container = buildContainer(
                 connectionFactory, streamTaskExecutor);
 
-        // 3. 컨테이너 시작
-        container.start();
-        log.info("Redis Stream Consumer Container 시작 완료");
+        // 3. 컨테이너 반환 (Spring Lifecycle에 의해 자동으로 start()됨)
+        log.info("Redis Stream Consumer Container 설정 완료");
 
         return container;
     }
@@ -155,7 +155,7 @@ public class RedisStreamConfig {
                 initStreamAndGroup(); // 그룹 재확인
                 StreamMessageListenerContainer<String, MapRecord<String, String, String>> newContainer =
                         buildContainer(connectionFactory, streamTaskExecutor);
-                newContainer.start();
+                newContainer.start(); // 재시작 시에는 수동으로 start() 호출 필요 (이미 컨텍스트가 뜬 상태이므로)
                 log.info("Redis Stream Consumer Container 재시작 완료");
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
