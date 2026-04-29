@@ -80,6 +80,7 @@ public class RedisStreamConfig {
     /**
      * StreamMessageListenerContainer 설정 및 리스너 등록
      */
+    /*
     @Bean
     public StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamMessageListenerContainer(
             RedisConnectionFactory connectionFactory,
@@ -99,6 +100,7 @@ public class RedisStreamConfig {
 
         return container;
     }
+    */
 
     /**
      * 컨테이너 인스턴스를 생성하고 리스너를 등록합니다.
