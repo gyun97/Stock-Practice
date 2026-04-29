@@ -135,8 +135,8 @@ public class InitStockSubscribe {
                     }
                 }
                 log.info("[ASYNC INIT] 고정 종목 40개 정보 초기화 완료");
-            } catch (Exception e) {
-                log.error("[ASYNC INIT] 치명적 오류 발생", e);
+            } catch (Throwable t) {
+                log.error("[ASYNC INIT] 치명적 오류 발생", t);
             }
         }).start();
     }
