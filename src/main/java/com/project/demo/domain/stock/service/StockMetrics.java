@@ -157,4 +157,14 @@ public class StockMetrics {
     public void recordProcessingTime(Runnable runnable) {
         processingTimer.record(runnable);
     }
+
+    /** 실시간 수신 누적 건수 조회 (로깅용) */
+    public long getRealtimeReceivedCount() {
+        return (long) realtimeReceivedCounter.count();
+    }
+
+    /** 실시간 처리 누적 건수 조회 (로깅용) */
+    public long getRealtimeProcessedCount() {
+        return (long) realtimeProcessedCounter.count();
+    }
 }

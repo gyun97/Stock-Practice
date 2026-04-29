@@ -93,7 +93,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 500M  # JVM 힙(320m) + Metaspace + 스레드 등 오버헤드
+          memory: 600M  # JVM 힙(320m) + Metaspace + 스레드 등 오버헤드 (500M -> 600M 상향)
 
   # -----------------
   # Spring Boot App (Green)
@@ -120,7 +120,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 500M  # Blue와 동일한 상한 (전환 후 단독 실행 기준)
+          memory: 600M  # Blue와 동일한 상한 (전환 후 단독 실행 기준) (500M -> 600M 상향)
 
   # =================================================
   # 모니터링 스택 (Grafana Cloud 이전)
