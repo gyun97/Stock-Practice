@@ -99,10 +99,11 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
                         body.get("rt_cd").asText(), msgCd, msg1);
 
                 if ("EGW00123".equals(msgCd) || "OPSP0002".equals(msgCd)
-                        || "OPSP0007".equals(msgCd) || "OPSP0011".equals(msgCd)
+                        || "OPSP0007".equals(msgCd) || "OPSP0011".equals(msgCd) || "OPSP8996".equals(msgCd)
                         || msg1.contains("승인키") || msg1.contains("만료") || msg1.contains("유효하지")
-                        || msg1.toLowerCase().contains("invalid approval")) {
-                    log.error("Approval Key 만료 감지 → 키 강제 갱신 후 채널 종료 (재연결은 KisNettyWebSocketClient가 담당)");
+                        || msg1.toLowerCase().contains("invalid approval") 
+                        || msg1.contains("ALREADY IN USE")) {
+                    log.error("[데이터 중단 원인 발생] Approval Key 만료 또는 다른 서버와 충돌 감지(msg_cd={}). KIS 서버가 실시간 데이터 전송을 중단했습니다. 키 강제 갱신 후 채널을 재연결합니다.", msgCd);
                     approvalKeyService.refreshApprovalKey();
                     ctx.close(); // onClose → 재연결 루프 실행
                 }
@@ -124,6 +125,11 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
      * 이 메서드는 절대 블로킹 I/O를 수행하지 않습니다.
      */
     private void handleRawStockData(String rawMessage) {
+        // 데이터 수신 로그 (데이터 업데이트가 멈추지 않고 잘 들어오고 있는지 확인용)
+        if (stockMetrics != null && stockMetrics.getRealtimeReceivedCount() % 50 == 0) {
+            log.info("실시간 데이터 정상 수신 중... (누적 수신량: {})", stockMetrics.getRealtimeReceivedCount());
+        }
+
         String[] parts = rawMessage.split("\\|");
         if (parts.length < 4) {
             log.warn("올바르지 않은 실시간 데이터 형식 (parts < 4): {}", rawMessage);
