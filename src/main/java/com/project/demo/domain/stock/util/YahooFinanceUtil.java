@@ -53,11 +53,11 @@ public class YahooFinanceUtil {
             String body = get(url);
             return parseCurrentKospi(body);
         })
-        .subscribeOn(Schedulers.boundedElastic())
-        .onErrorResume(e -> {
-            log.error("Yahoo Finance 현재가 조회 실패: {} - {}", e.getClass().getSimpleName(), e.getMessage());
-            return Mono.empty();
-        });
+                .subscribeOn(Schedulers.boundedElastic())
+                .onErrorResume(e -> {
+                    log.error("Yahoo Finance 현재가 조회 실패: {} - {}", e.getClass().getSimpleName(), e.getMessage());
+                    return Mono.empty();
+                });
     }
 
     public Mono<List<KospiDataPoint>> fetchKospiHistory(String range, String interval) {
@@ -74,11 +74,11 @@ public class YahooFinanceUtil {
             }
             return list;
         })
-        .subscribeOn(Schedulers.boundedElastic())
-        .onErrorResume(e -> {
-            log.error("Yahoo Finance 히스토리 조회 실패: {} - {}", e.getClass().getSimpleName(), e.getMessage());
-            return Mono.just(new ArrayList<>());
-        });
+                .subscribeOn(Schedulers.boundedElastic())
+                .onErrorResume(e -> {
+                    log.error("Yahoo Finance 히스토리 조회 실패: {} - {}", e.getClass().getSimpleName(), e.getMessage());
+                    return Mono.just(new ArrayList<>());
+                });
     }
 
     private KospiResponse parseCurrentKospi(String jsonStr) {
@@ -90,7 +90,7 @@ public class YahooFinanceUtil {
             double change = price - prevClose;
             double changeRate = prevClose != 0 ? (change / prevClose) * 100 : 0;
 
-            log.info("Yahoo Finance 현재가 파싱 완료: KOSPI={}", price);
+            // log.info("Yahoo Finance 현재가 파싱 완료: KOSPI={}", price);
 
             return KospiResponse.builder()
                     .currentIndex(price)
@@ -132,9 +132,11 @@ public class YahooFinanceUtil {
 
             for (int i = 0; i < timestamps.size(); i++) {
                 JsonNode closeNode = closes.path(i);
-                if (closeNode.isNull() || closeNode.isMissingNode()) continue;
+                if (closeNode.isNull() || closeNode.isMissingNode())
+                    continue;
                 double val = closeNode.asDouble();
-                if (val == 0) continue;
+                if (val == 0)
+                    continue;
                 String dateStr = formatter.format(Instant.ofEpochSecond(timestamps.path(i).asLong()));
                 points.add(new KospiDataPoint(dateStr, val));
             }
@@ -145,7 +147,8 @@ public class YahooFinanceUtil {
                 deduped.put(p.getDate(), p);
             }
             points = new ArrayList<>(deduped.values());
-            log.info("Yahoo Finance 히스토리 파싱 완료: {}개 포인트 (range={})", points.size(), range);
+            // log.info("Yahoo Finance 히스토리 파싱 완료: {}개 포인트 (range={})", points.size(),
+            // range);
         } catch (Exception e) {
             log.error("Yahoo Finance 히스토리 파싱 실패", e);
         }

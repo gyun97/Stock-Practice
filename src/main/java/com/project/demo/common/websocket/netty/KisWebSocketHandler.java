@@ -124,10 +124,13 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
      * 파이프 구분 실시간 데이터 → Redis Streams XADD.
      * 이 메서드는 절대 블로킹 I/O를 수행하지 않습니다.
      */
+    // 패킷 로그 출력용 카운터
+    private final java.util.concurrent.atomic.AtomicInteger receiveCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+
     private void handleRawStockData(String rawMessage) {
         // 데이터 수신 로그 (데이터 업데이트가 멈추지 않고 잘 들어오고 있는지 확인용)
-        if (stockMetrics != null && stockMetrics.getRealtimeReceivedCount() % 50 == 0) {
-            log.info("실시간 데이터 정상 수신 중... (누적 수신량: {})", stockMetrics.getRealtimeReceivedCount());
+        if (receiveCounter.incrementAndGet() % 50 == 0) {
+            log.info("실시간 데이터 정상 수신 중... (누적 수신량: {})", receiveCounter.get());
         }
 
         String[] parts = rawMessage.split("\\|");
