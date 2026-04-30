@@ -73,7 +73,7 @@ public class InitStockSubscribe {
             Map.entry("086790", "하나금융지주"), Map.entry("032830", "삼성생명"), Map.entry("010130", "고려아연"),
             Map.entry("329180", "HD현대중공업"), Map.entry("035720", "카카오"), Map.entry("015760", "한국전력"),
             Map.entry("003550", "LG"), Map.entry("034730", "SK"), Map.entry("011200", "HMM"),
-            Map.entry("018260", "현대제철"), Map.entry("009150", "삼성전기"), Map.entry("034020", "두산에너빌리티"),
+            Map.entry("004020", "현대제철"), Map.entry("009150", "삼성전기"), Map.entry("034020", "두산에너빌리티"),
             Map.entry("010140", "삼성중공업"), Map.entry("024110", "기업은행"), Map.entry("096770", "SK이노베이션"),
             Map.entry("042660", "한화오션"), Map.entry("012450", "한화에어로스페이스"), Map.entry("316140", "우리금융지주"),
             Map.entry("001450", "현대해상"), Map.entry("267250", "HD현대일렉트릭"), Map.entry("033780", "KT&G"),
