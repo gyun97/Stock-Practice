@@ -79,22 +79,24 @@ docker compose -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
 
 # 5. 헬스 체크
 echo ">>> Health checking app-$TARGET..."
-for retry in {1..30}
+for retry in {1..40}
 do
-    HEALTH_CHECK=$(curl -s http://localhost:$IDLE_PORT/actuator/health | grep 'UP')
+    HEALTH_CHECK=$(curl -s --max-time 5 http://localhost:$IDLE_PORT/actuator/health | grep 'UP')
     if [ -n "$HEALTH_CHECK" ]; then
         echo ">>> app-$TARGET is UP!"
         break
     fi
     
     # 실패 시 이유 파악을 위해 간단한 상태 출력
-    if [ $((retry % 5)) -eq 0 ]; then
+    if [ $((retry % 3)) -eq 0 ]; then
         echo ">>> [DEBUG] Current container status:"
         docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep $TARGET
+        echo ">>> [DEBUG] Recent app logs:"
+        docker logs ${APP_NAME}-$TARGET --tail 5 2>&1 | grep -v 'org.redisson' | tail -5
     fi
 
-    echo ">>> Waiting for app-$TARGET... ($retry/30)"
-    sleep 5
+    echo ">>> Waiting for app-$TARGET... ($retry/40)"
+    sleep 7
 done
 
 if [ -z "$HEALTH_CHECK" ]; then
