@@ -73,7 +73,16 @@ done
 
 docker restart stock-alloy || true
 
-# 4. 새로운 대상(Target) 컨테이너 실행
+# 4. 기존(OLD) 컨테이너 선 종료 (Flyway DB 락 충돌 및 메모리 부족 방지)
+# 두 앱이 동시에 뜰 경우 Flyway가 flyway_schema_history 테이블 락을 두고 경합하여
+# 새 컨테이너가 무한 대기 상태에 빠집니다.
+if [ -n "$(docker ps -q -f name=${APP_NAME}-$OLD_TARGET)" ]; then
+    echo ">>> Stopping old service: app-$OLD_TARGET (before new container starts)..."
+    docker compose -f $DOCKER_COMPOSE_FILE stop app-$OLD_TARGET
+    echo ">>> app-$OLD_TARGET stopped."
+fi
+
+# 5. 새로운 대상(Target) 컨테이너 실행
 echo ">>> Launching app-$TARGET..."
 docker compose -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
 
@@ -120,12 +129,6 @@ if [ -n "$(docker ps -q -f name=stock-nginx)" ]; then
 else
     echo ">>> [ERROR] stock-nginx container is NOT running. Attempting to start..."
     docker compose -f $DOCKER_COMPOSE_FILE up -d nginx
-fi
-
-# 8. 이전 컨테이너 중지
-if [ -n "$(docker ps -q -f name=${APP_NAME}-$OLD_TARGET)" ]; then
-    echo ">>> Stopping old service: app-$OLD_TARGET..."
-    docker compose -f $DOCKER_COMPOSE_FILE stop app-$OLD_TARGET
 fi
 
 echo ">>> Deployment completed successfully!"
