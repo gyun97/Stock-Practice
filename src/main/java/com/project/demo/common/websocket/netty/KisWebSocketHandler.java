@@ -12,6 +12,9 @@ import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.timeout.IdleStateEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,8 +29,10 @@ import org.springframework.stereotype.Component;
  *  - Idle 감지 → 채널 강제 종료 (재연결 트리거)
  * </pre>
  *
- * <p><b>중요:</b> 이 핸들러는 @Sharable로 여러 채널에서 재사용됩니다.
- * 상태(iv, key)는 채널 재연결 시 초기화되어야 하므로 volatile로 관리합니다.</p>
+ * <p>
+ * <b>중요:</b> 이 핸들러는 @Sharable로 여러 채널에서 재사용됩니다.
+ * 상태(iv, key)는 채널 재연결 시 초기화되어야 하므로 volatile로 관리합니다.
+ * </p>
  */
 @Slf4j
 @Component
@@ -93,7 +98,7 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
             // 오류 응답 (Approval Key 만료 등)
             if (body.has("rt_cd") && !"0".equals(body.get("rt_cd").asText())) {
                 String msgCd = body.path("msg_cd").asText("");
-                String msg1  = body.path("msg1").asText("");
+                String msg1 = body.path("msg1").asText("");
 
                 log.warn("KIS 오류 응답 수신: rt_cd={} msg_cd={} msg1={}",
                         body.get("rt_cd").asText(), msgCd, msg1);
@@ -101,9 +106,11 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
                 if ("EGW00123".equals(msgCd) || "OPSP0002".equals(msgCd)
                         || "OPSP0007".equals(msgCd) || "OPSP0011".equals(msgCd) || "OPSP8996".equals(msgCd)
                         || msg1.contains("승인키") || msg1.contains("만료") || msg1.contains("유효하지")
-                        || msg1.toLowerCase().contains("invalid approval") 
+                        || msg1.toLowerCase().contains("invalid approval")
                         || msg1.contains("ALREADY IN USE")) {
-                    log.error("[데이터 중단 원인 발생] Approval Key 만료 또는 다른 서버와 충돌 감지(msg_cd={}). KIS 서버가 실시간 데이터 전송을 중단했습니다. 키 강제 갱신 후 채널을 재연결합니다.", msgCd);
+                    log.error(
+                            "[데이터 중단 원인 발생] Approval Key 만료 또는 다른 서버와 충돌 감지(msg_cd={}). KIS 서버가 실시간 데이터 전송을 중단했습니다. 키 강제 갱신 후 채널을 재연결합니다.",
+                            msgCd);
                     approvalKeyService.refreshApprovalKey();
                     ctx.close(); // onClose → 재연결 루프 실행
                 }
@@ -113,7 +120,7 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
             // 암호화 키 수신 (구독 확인 응답)
             JsonNode output = body.path("output");
             if (output.has("iv") && output.has("key")) {
-                this.iv  = output.get("iv").asText();
+                this.iv = output.get("iv").asText();
                 this.key = output.get("key").asText();
                 log.info("AES 암호화 키 수신 완료 (iv={}, key={})", iv, key);
             }
@@ -124,13 +131,21 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
      * 파이프 구분 실시간 데이터 → Redis Streams XADD.
      * 이 메서드는 절대 블로킹 I/O를 수행하지 않습니다.
      */
-    // 패킷 로그 출력용 카운터
-    private final java.util.concurrent.atomic.AtomicInteger receiveCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+    // 패킷 로그 출력용 카운터 및 마지막 로그 시각 (5분 주기 로그용)
+    private final AtomicInteger receiveCounter = new AtomicInteger(0);
+    private final java.util.concurrent.atomic.AtomicLong lastLogTime =
+            new java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis());
+
+    private static final long LOG_INTERVAL_MS = 5 * 60 * 1_000L; // 5분
 
     private void handleRawStockData(String rawMessage) {
-        // 데이터 수신 로그 (데이터 업데이트가 멈추지 않고 잘 들어오고 있는지 확인용)
-        if (receiveCounter.incrementAndGet() % 50 == 0) {
-            log.info("실시간 데이터 정상 수신 중... (누적 수신량: {})", receiveCounter.get());
+        int count = receiveCounter.incrementAndGet();
+
+        // 5분마다 수신 현황 로그 출력
+        long now = System.currentTimeMillis();
+        long last = lastLogTime.get();
+        if (now - last >= LOG_INTERVAL_MS && lastLogTime.compareAndSet(last, now)) {
+            log.info("[실시간 데이터 정상 수신 중] 최근 5분간 누적 수신 패킷: {}건", count);
         }
 
         String[] parts = rawMessage.split("\\|");
@@ -140,7 +155,7 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
         }
 
         String encFlag = parts[0];
-        String data    = parts[3];
+        String data = parts[3];
 
         // 암호화 데이터는 IV/KEY가 준비된 경우에만 적재
         if ("1".equals(encFlag)) {
@@ -153,7 +168,8 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
         } else {
             // 종목코드 추출 (fields[0])
             String[] fields = data.split("\\^");
-            if (fields.length < 1) return;
+            if (fields.length < 1)
+                return;
             String ticker = fields[0];
 
             // Redis Streams에 XADD (논블로킹)
@@ -188,7 +204,7 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
 
     /** 재연결 시 암호화 키 초기화 */
     public void resetEncryptionKeys() {
-        this.iv  = null;
+        this.iv = null;
         this.key = null;
     }
 }
