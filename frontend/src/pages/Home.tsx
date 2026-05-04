@@ -312,7 +312,9 @@ export default function Home() {
 
   // STOMP 실시간 업데이트 반영 (Redis Pub/Sub -> 백엔드 브로드캐스트를 전제로 /topic/stocks 구독)
 
-  const onTick = useMemo(() => (payload: any, raw: string) => {
+  // 매 렌더마다 ref를 최신 함수로 갱신 → STOMP 클라이언트 재생성 없이 항상 최신 sortBy/userStocks 참조 가능
+  const onTickRef = useRef<(payload: any, raw: string) => void>(null!)
+  onTickRef.current = (payload: any, raw: string) => {
     const code = String(payload?.ticker ?? '')
     const price = toNum(payload?.price)
     const changeRate = toNum(payload?.changeRate)
@@ -328,9 +330,6 @@ export default function Home() {
 
     if (!code || price == null) return
 
-    // 장 마감 시간(15:30) 이후에는 실시간 업데이트 중단
-    //     if (!isMarketOpen()) return
-
     setRows(prev => {
       const found = prev.some(r => r.ticker === code)
       const updated = found
@@ -340,14 +339,11 @@ export default function Home() {
             : r
         )
         : [...prev, { ticker: code, name: companyName ?? code, price, changeRate: changeRate ?? 0, logoUrl, volume: volume ?? 0 }]
-      // 선택한 정렬 기준으로 정렬
       const sorted = sortRows(updated, sortBy)
 
-      // 보유 종목이 있으면 실시간 정보 업데이트
       if (userStocks.length > 0) {
         const updatedStocks = userStocks.map(stock => {
           if (stock.ticker === code) {
-            const matched = sorted.find(r => r.ticker === code)
             return {
               ...stock,
               currentPrice: price ?? stock.currentPrice,
@@ -357,21 +353,23 @@ export default function Home() {
           }
           return stock
         })
-        // 선택한 정렬 기준으로 정렬
         const sortedStocks = sortUserStocks(updatedStocks, userStockSortBy)
         setUserStocks(sortedStocks)
       }
 
       return sorted
     })
-  }, [sortBy, userStockSortBy])
+  }
 
+  // STOMP 클라이언트: 마운트 시 1회만 생성 (sortBy 등 state가 바뀌어도 재연결하지 않음)
+  // stableHandler는 변경되지 않고, 내부에서 onTickRef.current를 호출해 항상 최신 콜백 사용
   useEffect(() => {
-    const client = createStompClient(onTick)
+    const stableHandler = (payload: any, raw: string) => onTickRef.current(payload, raw)
+    const client = createStompClient(stableHandler)
     client.activate()
     stompRef.current = client
     return () => { client.deactivate() }
-  }, [onTick])
+  }, [])
 
   // sortBy 변경 시 rows 재정렬
   useEffect(() => {
