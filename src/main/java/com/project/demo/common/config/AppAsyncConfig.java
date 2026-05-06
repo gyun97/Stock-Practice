@@ -19,10 +19,12 @@ public class AppAsyncConfig {
     @Bean(name = "broadcastExecutor")
     public Executor broadcastExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(6); // 10 -> 6 하향
-        executor.setMaxPoolSize(20); // 50 -> 20 하향
-        executor.setQueueCapacity(500); // 1000 -> 500 하향
+        executor.setCorePoolSize(6);
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("broadcast-");
+        // 큐가 꽉 찼을 때 호출 스레드가 직접 실행 (태스크 드랍 방지)
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
         return executor;
     }

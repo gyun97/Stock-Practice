@@ -22,9 +22,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic"); // 클라이언트가 구독할 수 있는 목적지 prefix를 /topic으로 지정
-        // 클라이언트가 stompClient.subscribe("/topic/stocks") 하면 이 채널 메시지를 받을 수 있음
-        config.setApplicationDestinationPrefixes("/app"); // 클라이언트가 메시지를 보낼 때 사용할 prefix
+        // heartbeat: 서버→클라이언트 10초, 클라이언트→서버 10초 (끊긴 연결 감지)
+        config.enableSimpleBroker("/topic").setHeartbeatValue(new long[]{10000, 10000});
+        config.setApplicationDestinationPrefixes("/app");
     }
 
     // WebSocket 연결 엔드포인트를 정의

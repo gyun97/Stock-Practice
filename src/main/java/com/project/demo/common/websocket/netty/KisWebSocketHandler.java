@@ -141,11 +141,12 @@ public class KisWebSocketHandler extends SimpleChannelInboundHandler<WebSocketFr
     private void handleRawStockData(String rawMessage) {
         int count = receiveCounter.incrementAndGet();
 
-        // 5분마다 수신 현황 로그 출력
+        // 5분마다 수신 현황 로그 출력 (카운터 리셋하여 실제 5분 단위 건수 표시)
         long now = System.currentTimeMillis();
         long last = lastLogTime.get();
         if (now - last >= LOG_INTERVAL_MS && lastLogTime.compareAndSet(last, now)) {
-            log.info("[실시간 데이터 정상 수신 중] 최근 5분간 누적 수신 패킷: {}건", count);
+            int snapshot = receiveCounter.getAndSet(0); // 리셋하여 다음 5분 카운트 초기화
+            log.info("[실시간 데이터 정상 수신 중] 최근 5분간 수신 패킷: {}건 ({}건/초)", snapshot, snapshot / 300);
         }
 
         String[] parts = rawMessage.split("\\|");
