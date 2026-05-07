@@ -63,6 +63,8 @@ public class RedisStreamProducer {
             CompletableFuture.runAsync(() -> {
                 try {
                     redisTemplate.opsForStream().add(record);
+                    // OOM 방지: 스트림 큐 크기를 최신 10,000개로 유지 (초과분 자동 삭제)
+                    redisTemplate.opsForStream().trim(STREAM_KEY, 10000);
                     log.debug("실시간 주가 수신 완료 (Redis Stream 적재): ticker={}", ticker);
                 } catch (Exception e) {
                     log.error("Redis Streams XADD 비동기 실패 (ticker={}): {}", ticker, e.getMessage());
@@ -96,6 +98,8 @@ public class RedisStreamProducer {
             CompletableFuture.runAsync(() -> {
                 try {
                     redisTemplate.opsForStream().add(record);
+                    // OOM 방지: 암호화 데이터 스트림 큐 크기 제한
+                    redisTemplate.opsForStream().trim(STREAM_KEY, 10000);
                     log.debug("Redis Streams XADD (암호화) 완료");
                 } catch (Exception e) {
                     log.error("Redis Streams XADD (암호화) 비동기 실패: {}", e.getMessage());
