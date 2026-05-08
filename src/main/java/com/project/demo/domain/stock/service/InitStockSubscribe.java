@@ -162,7 +162,10 @@ public class InitStockSubscribe {
      */
     @Scheduled(cron = "0 0 9 * * MON-FRI", zone = "Asia/Seoul")
     public void subscribeStocksAtMarketOpen() {
-        log.info("평일 9시 스케줄러 실행 - WebSocket 연결 시도");
+        log.info("평일 9시 스케줄러 실행 - WebSocket 연결 및 구독 시도");
+        // tryConnect()만 호출 시 tickers가 null이면 구독 메시지가 KIS로 전송되지 않으므로
+        // 항상 FIXED_TICKERS를 먼저 세팅한 뒤 연결 시도
+        client.setSubscriptionInfo(null, FIXED_TICKERS);
         client.tryConnect();
     }
 

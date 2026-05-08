@@ -95,11 +95,13 @@ public class RedisStreamConfig {
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> container = StreamMessageListenerContainer
                 .create(connectionFactory, options);
 
-        // 3. 리스너 등록: stock-group 그룹의 worker-1 이름으로, 소비하지 않은 다음
-        // 메시지(ReadOffset.lastConsumed())를 읽음
+        // 3. 리스너 등록: stock-group 그룹의 worker-1 이름으로, 컨테이너 기동 시점
+        // 이후에 새로 XADD된 메시지만 읽음 (ReadOffset.latest())
+        // ※ lastConsumed() 사용 시 장 전 배포 → 스트림 ID 갭 발생 → 9시 이후 메시지
+        //   스킵 또는 재배포 시 밀린 메시지 폭탄 문제가 있어 latest()로 변경
         container.receive(
                 Consumer.from(CONSUMER_GROUP, CONSUMER_NAME),
-                StreamOffset.create(STREAM_KEY, ReadOffset.lastConsumed()),
+                StreamOffset.create(STREAM_KEY, ReadOffset.latest()),
                 streamConsumer);
 
         // 4. 컨테이너 시작
