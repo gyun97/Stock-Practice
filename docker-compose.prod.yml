@@ -25,15 +25,14 @@ services:
   # Redis Standalone
   # -----------------
   redis:
-    image: bitnami/redis
+    image: redis:8
     container_name: stock-redis
     hostname: redis
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
     volumes:
-      - redis_data:/bitnami/redis/data
+      - redis_data:/data
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes --appenddirname appendonlydir --dir /data
 
   # -----------------
   # Nginx Proxy (API Subdomain)
@@ -129,5 +128,4 @@ services:
 volumes:
   mysql_data:
   redis_data:
-
 
