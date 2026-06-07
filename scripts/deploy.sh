@@ -43,7 +43,15 @@ fi
 sudo chown $USER:$USER $SERVICE_ENV_FILE
 
 echo ">>> Ensuring infrastructure services are UP..."
-# --force-recreate를 사용하여 'exited (1)' 상태의 컨테이너를 강제로 다시 띄움
+# EC2 재부팅 등으로 인해 기존 컨테이너 이름 충돌(Conflict)이 발생하는 것을 방지하기 위해 기존 컨테이너를 강제 정리합니다.
+# (데이터는 mysql_data, redis_data 볼륨에 저장되므로 안전합니다)
+for container in stock-mysql stock-redis stock-nginx stock-alloy; do
+    if [ -n "$(docker ps -a -q -f name=^/${container}$)" ]; then
+        echo ">>> Removing existing container to avoid conflicts: $container"
+        docker rm -f $container || true
+    fi
+done
+
 docker compose -f $DOCKER_COMPOSE_FILE up -d --remove-orphans mysql redis nginx alloy
 
 # 만약 인프라 서비스가 정상적으로 뜨지 않았다면 로그 출력 후 종료
