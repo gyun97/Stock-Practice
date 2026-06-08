@@ -47,8 +47,11 @@ echo ">>> Ensuring infrastructure services are UP..."
 # (데이터는 mysql_data, redis_data 볼륨에 저장되므로 안전합니다)
 for container in stock-mysql stock-redis stock-nginx stock-alloy; do
     if [ -n "$(docker ps -a -q -f name=^/${container}$)" ]; then
-        echo ">>> Removing existing container to avoid conflicts: $container"
-        docker rm -f $container || true
+        # 컨테이너가 실행 중이 아닐 때만 삭제 (무중단 배포를 위해 실행 중인 컨테이너는 건드리지 않음)
+        if [ -z "$(docker ps -q -f name=^/${container}$)" ]; then
+            echo ">>> Removing stopped/conflicting container: $container"
+            docker rm -f $container || true
+        fi
     fi
 done
 
