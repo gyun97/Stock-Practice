@@ -101,7 +101,7 @@ docker compose -f $DOCKER_COMPOSE_FILE up -d app-$TARGET
 echo ">>> Health checking app-$TARGET..."
 for retry in {1..40}
 do
-    HEALTH_CHECK=$(curl -s --max-time 5 http://localhost:$IDLE_PORT/actuator/health | grep 'UP')
+    HEALTH_CHECK=$(docker exec ${APP_NAME}-$TARGET curl -s --max-time 5 http://localhost:8080/actuator/health | grep 'UP')
     if [ -n "$HEALTH_CHECK" ]; then
         echo ">>> app-$TARGET is UP!"
         break
