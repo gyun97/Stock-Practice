@@ -115,3 +115,4 @@ tasks.named('test') {
 	maxParallelForks = 1  // 통합 테스트는 순차 실행
 }
 // Trigger deployment
+// Trigger deployment again
